@@ -1,0 +1,124 @@
+/* reST Editor yellow - UI aligned to markdown-editor sizing */
+:root{
+  --yellow-50: #fffbe6;
+  --yellow-100: #fff3bf;
+  --yellow-200: #ffec99;
+  --yellow-300: #ffe066;
+  --yellow-700: #f59f00;
+  --border: #e9e6d8;
+  --text: #111;
+  --muted: #666;
+  --bg: #ffffff;
+}
+
+*{ box-sizing: border-box; }
+html, body{ height:100%; margin:0; }
+body{
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Hiragino Kaku Gothic ProN", "BIZ UDPGothic", "Noto Sans JP", sans-serif;
+  color: var(--text);
+  background: linear-gradient(180deg, var(--yellow-50), var(--bg) 220px);
+}
+
+/* ===== Topbar (56px) ===== */
+.topbar{
+  height:56px;
+  display:flex; align-items:center; gap:.75rem;
+  padding: 0 .8rem;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  position:sticky; top:0; z-index:10;
+}
+.brand{
+  display:flex; align-items:center; gap:.5rem;
+  min-width: 220px;
+}
+.brand-logo{
+  width:26px; height:26px; border-radius:6px;
+  background: linear-gradient(135deg, var(--yellow-200), var(--yellow-300));
+  border:1px solid var(--border);
+  display:inline-flex; align-items:center; justify-content:center;
+  font-weight:700; color:#704800; letter-spacing:.2px; font-size:.8rem;
+}
+.topbar h1{ font-size:1rem; margin:0; line-height:1; white-space:nowrap; }
+.topbar .accent{ color: var(--yellow-700); }
+
+/* ===== Toolbar buttons (36px) ===== */
+.toolbar{ display:flex; gap:.5rem; align-items:center; }
+.btn, .toolbar select{
+  height:36px; min-width: 72px;
+  border:1px solid var(--border);
+  background: #fff;
+  border-radius: 12px;
+  padding: 0 .8rem;
+  cursor:pointer;
+  font-size:.92rem;
+  line-height:34px;
+  box-shadow: 0 .5px 0 rgba(0,0,0,.06);
+  transition: background-color .15s ease, border-color .15s ease, transform .02s ease;
+}
+.btn:hover{ background: var(--yellow-100); }
+.btn:active{ transform: translateY(1px); }
+.toolbar select{
+  padding: 0 .6rem;
+  min-width: auto;
+}
+
+.spacer{ flex:1; }
+
+/* ===== Split panes ===== */
+#split{ position:relative; height: calc(100vh - 56px - 30px); display:flex; }
+.pane{ height:100%; overflow:auto; }
+.editor-pane{ width:50%; border-right:1px solid var(--border); background:#fffef9; }
+.preview-pane{ flex:1; background:#fff; }
+#divider{
+  width:8px; cursor:col-resize; background: var(--yellow-200);
+  border-right:1px solid var(--border); border-left:1px solid var(--border);
+}
+
+/* ===== Editor ===== */
+#editor{
+  width:100%; height:100%;
+  resize:none; border:0; outline:0;
+  padding: 1rem 1.2rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", "Noto Sans Mono CJK JP", monospace;
+  font-size: 16px; line-height: 1.6;
+  background:#fffef9;
+}
+
+/* ===== Status bar ===== */
+.statusbar{
+  height:30px;
+  display:flex; gap:1rem; align-items:center;
+  padding: 0 .8rem; border-top:1px solid var(--border);
+  font-size:.86rem; color: var(--muted);
+  background: #fff;
+}
+
+/* ===== Preview styling ===== */
+.rst-output{
+  padding: 1.2rem 1.4rem;
+  max-width: 920px;
+}
+.rst-output h1, .rst-output h2, .rst-output h3{
+  border-bottom: 1px solid var(--border);
+  padding-bottom:.2rem;
+}
+.rst-output pre{
+  background: #f8f7ef; border:1px solid var(--border);
+  padding:.8rem; overflow:auto; border-radius: 8px;
+}
+.rst-output code{ font-family: inherit; }
+.rst-output table{ border-collapse: collapse; }
+.rst-output th, .rst-output td{
+  border:1px solid var(--border); padding:.4rem .6rem;
+}
+.rst-output a{ color:#0b57d0; text-decoration:none; }
+.rst-output a:hover{ text-decoration:underline; }
+
+/* ===== Print ===== */
+@media print {
+  header.topbar, .editor-pane, #divider, footer.statusbar { display:none !important; }
+  #split { display:block; }
+  .preview-pane { width:auto; }
+  .rst-output { max-width:none; padding:0; }
+}

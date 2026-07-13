@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Markdown Editor Blue</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="./images/icons.png">
+</head>
+<body>
+  <header id="toolbar">
+    <h1 id="app-title" data-i18n="app.title">Markdown Editor Blue</h1>
+    <div id="toolbar-actions">
+      <button id="open-md" class="toolbar-button" type="button" data-i18n="toolbar.open">📂 Open</button>
+      <button id="save-md" class="toolbar-button" type="button" data-i18n="toolbar.save">💾 Save</button>
+      <button id="export-pdf" class="toolbar-button" type="button" data-i18n="toolbar.exportPdf">📄 Export PDF</button>
+      <button
+        id="export-html"
+        class="toolbar-button"
+        type="button"
+        data-i18n="toolbar.exportHtml"
+      >
+        🌐 Export HTML
+      </button>
+      <button
+        id="insert-image"
+        class="toolbar-button"
+        type="button"
+        data-i18n="toolbar.insertImage"
+      >
+        🖼 Insert Image
+      </button>
+      <div id="template-menu">
+        <button
+          id="template-btn"
+          class="toolbar-button"
+          type="button"
+          aria-haspopup="true"
+          aria-expanded="false"
+          aria-controls="template-options"
+          data-i18n="toolbar.template"
+        >
+          📋 Templates
+        </button>
+        <div id="template-options" role="menu" aria-labelledby="template-btn" hidden></div>
+      </div>
+      <button
+        id="toggle-line-numbers"
+        class="toolbar-button"
+        type="button"
+        aria-pressed="false"
+      >
+        🔢 Numbers On
+      </button>
+      <button id="help-btn" class="toolbar-button" type="button" data-i18n="toolbar.help">
+        ❔ Help
+      </button>
+      <label for="lang-switch" id="lang-label" data-i18n="toolbar.languageLabel">Language</label>
+      <select id="lang-switch">
+        <option value="en" data-i18n="language.english">English</option>
+        <option value="ja" data-i18n="language.japanese">日本語</option>
+      </select>
+    </div>
+    <input type="file" id="imageInput" accept="image/*" hidden>
+    <input
+      type="file"
+      id="markdownInput"
+      accept=".md,.markdown,.txt,text/markdown"
+      hidden
+    >
+  </header>
+
+  <main>
+    <div id="toc"></div>
+    <div id="toc-divider"></div>
+    <div id="editor-pane">
+      <div id="line-number-gutter" aria-hidden="true"></div>
+      <textarea
+        id="editor"
+        placeholder="Type Markdown here..."
+        data-i18n-placeholder="editor.placeholder"
+      ># Welcome to Markdown Editor Blue
+
+Capture ideas, polish documentation, and share updates with instant preview support.
+
+Happy writing
+      </textarea>
+    </div>
+    <div id="divider"></div>
+    <div id="preview"></div>
+  </main>
+
+  <div id="help-window" class="hidden">
+    <button id="help-close" data-i18n-aria-label="help.close">✖</button>
+    <h3 data-i18n="help.markdownTitle">Markdown Cheat Sheet</h3>
+    <pre data-i18n="help.markdownCheatsheet">
+# Heading 1
+## Heading 2
+
+- List
+1. Numbered list
+
+**Bold** *Italic*
+> Quote
+`Code`
+
+```
+Code block
+```
+
+[Link](URL)
+    </pre>
+    <h3 data-i18n="help.mermaidTitle">Mermaid Cheat Sheet</h3>
+    <pre data-i18n="help.mermaidCheatsheet">
+```mermaid
+graph TD
+  A[Start] --> B{Condition}
+  B -->|Yes| C[Process 1]
+  B -->|No| D[Process 2]
+```
+    </pre>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="config.js"></script>
+  <script src="i18n.js"></script>
+  <script src="js/bus.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/slug.js"></script>
+  <script src="js/preview.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
+

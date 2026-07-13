@@ -1,0 +1,291 @@
+:root {
+  color-scheme: light;
+  --border: #e5e7eb;
+  --accent: #4b7bb8;
+  --bg: #ffffff;
+  --panel: #ffffff;
+  --muted: #f5f7fb;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background: var(--bg);
+  color: #1d2733;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 0.8rem 1rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+}
+
+h1,
+h2 {
+  margin: 0;
+}
+
+h1 {
+  font-size: 1.2rem;
+}
+
+h2 {
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.header-controls,
+.header-actions,
+.toolbar,
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+#fileInput {
+  display: none;
+}
+
+.file-btn,
+button {
+  border: 1px solid var(--border);
+  background: var(--panel);
+  border-radius: 6px;
+  padding: 0.4rem 0.7rem;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  min-height: calc(100vh - 130px);
+}
+
+.sidebar {
+  padding: 1rem;
+  border-right: 1px solid var(--border);
+  background: var(--panel);
+  overflow: auto;
+}
+
+.main-panel {
+  padding: 1rem;
+  overflow: auto;
+}
+
+.tab-bar {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.tab-button {
+  border: 1px solid var(--border);
+  background: var(--panel);
+  border-radius: 999px;
+  padding: 0.35rem 0.8rem;
+}
+
+.tab-button.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.tab-panel {
+  display: none;
+}
+
+.tab-panel.active {
+  display: block;
+}
+
+.drop-zone {
+  border: 2px dashed var(--accent);
+  border-radius: 8px;
+  padding: 1rem;
+  text-align: center;
+  margin-bottom: 0.8rem;
+  background: var(--muted);
+}
+
+.drop-zone.drag-over {
+  background: #e7f0ff;
+}
+
+.table-wrap {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: auto;
+  background: var(--panel);
+  max-height: 50vh;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+th,
+td {
+  border-bottom: 1px solid var(--border);
+  padding: 0.35rem 0.5rem;
+  font-size: 0.9rem;
+  max-width: 280px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+th {
+  background: var(--muted);
+  position: sticky;
+  top: 0;
+  cursor: pointer;
+}
+
+tr:hover {
+  background: #f6f9ff;
+}
+
+.code-view {
+  max-height: 240px;
+  overflow: auto;
+  background: var(--muted);
+  color: #1d2733;
+  padding: 0.8rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+}
+
+.column-list,
+.filter-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.profile-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.profile-status {
+  padding: 0.25rem 0.6rem;
+  border-radius: 6px;
+  background: var(--muted);
+  font-size: 0.85rem;
+}
+
+.profile-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) 2fr;
+  gap: 1rem;
+}
+
+.profile-panel {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem;
+  background: var(--panel);
+  min-height: 200px;
+}
+
+.profile-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.profile-item {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.5rem;
+  cursor: pointer;
+  background: var(--muted);
+}
+
+.profile-item.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(75, 123, 184, 0.2);
+}
+
+.profile-detail {
+  font-size: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.profile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.5rem;
+}
+
+.profile-card {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.5rem;
+  background: var(--muted);
+}
+
+.profile-card h3 {
+  margin: 0 0 0.3rem 0;
+  font-size: 0.85rem;
+}
+
+.profile-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.profile-table th,
+.profile-table td {
+  border-bottom: 1px solid var(--border);
+  padding: 0.3rem 0.4rem;
+  text-align: left;
+}
+
+footer {
+  border-top: 1px solid var(--border);
+  background: var(--panel);
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 1000px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .profile-layout {
+    grid-template-columns: 1fr;
+  }
+}

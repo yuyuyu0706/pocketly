@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>reST Editor yellow</title>
+    <link rel="stylesheet" href="./style.css" />
+    <link rel="icon" href="./images/icons.png">
+
+    <!-- es-module-shims (import maps support for older/locked-down envs) -->
+    <script async src="https://cdn.jsdelivr.net/npm/es-module-shims@1/dist/es-module-shims.min.js"></script>
+
+    <!-- Import map: shiki / katex -->
+    <script type="importmap">
+    {
+      "imports": {
+        "shiki": "https://esm.sh/shiki@1.22.0?bundle",
+        "vscode-oniguruma": "https://esm.sh/vscode-oniguruma@1.7.0?bundle",
+        "vscode-textmate": "https://esm.sh/vscode-textmate@9.2.0?bundle",
+
+        "katex": "https://esm.sh/katex@0.16.11?bundle",
+        "katex/contrib/auto-render": "https://esm.sh/katex@0.16.11/contrib/auto-render?bundle"
+      }
+    }
+    </script>
+
+    <!-- KaTeX CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous" />
+
+    <style id="export-style">
+    /* print bundle will be appended by app.js export too */
+    </style>
+
+    <script type="module" src="./app.js"></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand"><span class="brand-logo">re</span>
+        <h1>reST Editor <span class="accent">yellow</span></h1>
+      </div>
+      <div class="spacer"></div>
+      <div class="toolbar">
+        <button class="btn" id="btn-new" title="新規 (Alt+N)">新規</button>
+        <input id="file-open" type="file" accept=".rst,.txt" hidden />
+        <button class="btn" id="btn-open" title="開く (Alt+O)">開く</button>
+        <button class="btn" id="btn-save" title="保存 (Ctrl+S)">保存</button>
+        <button class="btn" id="btn-export-html" title="HTML出力">HTML</button>
+        <button class="btn" id="btn-print" title="PDF出力 (印刷)">PDF</button>
+        <select id="font-size" title="フォントサイズ">
+          <option value="14">14px</option>
+          <option value="15">15px</option>
+          <option value="16" selected>16px</option>
+          <option value="18">18px</option>
+          <option value="20">20px</option>
+        </select>
+      </div>
+    </header>
+
+    <main id="split">
+      <section class="pane editor-pane">
+        <textarea id="editor" spellcheck="false"></textarea>
+      </section>
+      <div id="divider" title="ドラッグで幅を調整"></div>
+      <section class="pane preview-pane">
+        <article id="preview" class="rst-output"></article>
+      </section>
+    </main>
+
+    <footer class="statusbar">
+      <span id="status">Ready.</span>
+      <div class="spacer"></div>
+      <span id="cursor">Ln 1, Col 1</span>
+    </footer>
+  </body>
+</html>

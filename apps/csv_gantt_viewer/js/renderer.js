@@ -1,0 +1,960 @@
+// renderer.js — original behavior-preserving rendering split (ESM)
+// @ts-check
+
+/**
+ * @typedef {Object} TaskItem
+ * @property {string=} task
+ * @property {string=} sub
+ * @property {string=} name
+ * @property {Date=}   start
+ * @property {Date=}   end
+ * @property {Date=}   check
+ * @property {string=} status
+ * @property {string=} priority
+ * @property {string=} assignee
+ * @property {string=} taskNo
+ */
+
+/**
+ * @typedef {{type:'group',    cat:string, items: TaskItem[]}}    GroupRow
+ * @typedef {{type:'subgroup', cat:string, sub:string, key:string, items: TaskItem[]}} SubGroupRow
+ * @typedef {{type:'task',     cat:string, item: TaskItem, displayName:string}}        TaskRow
+ * @typedef {{type:'subtask',  cat:string, item: TaskItem, displayName:string}}        SubtaskRow
+ * @typedef {{type:'milestone',cat:string, item: TaskItem, displayName:string}}        MilestoneRow
+ * @typedef {GroupRow|SubGroupRow|TaskRow|SubtaskRow|MilestoneRow} Row
+ * @typedef {HTMLElement & { __headerSync?: (this: HTMLElement, ev: Event) => any }} GridWithSync
+ */
+
+/**
+ * Gantt Chart のレンダリングモジュール
+ * 
+ * 主な機能:
+ * - state.model のデータをもとに、行とバーを描画
+ * - 依存線・マイルストーン・ラベルを生成
+ * - 今日線（イナズマ線）を描画
+ */
+ 
+import { state } from './state.js';
+import { toDate } from './utils/date.js'; // 既存と整合
+import { ROW_H, BAR_H } from './constants.js';
+import { fmtMD, daysBetween } from './utils/date.js';
+import { drawDependencies } from './deps.js';
+import { updateToggleAllBtn, updateGlobalButtons } from './toggles.js';
+
+/**
+ * 優先度テキストからCSSクラスとラベル文字を返すヘルパー
+ * @param {string} p 優先度文字列（例: "高", "緊急"）
+ * @returns {[string, string]} CSSクラス名と表示テキスト
+ */
+
+/** @type {(p:string)=>[string,string]} */
+const prioClassText = (window.prioClassText) ? window.prioClassText : function(p){
+  const v=(p||'').trim();
+  if(v==='緊急') return ['urgent','緊急'];
+  if(v==='高') return ['high','高'];
+  if(v==='中') return ['mid','中'];
+  if(v==='低') return ['low','低'];
+  return ['',''];
+};
+
+/**
+ * ステータスからバーの色コードを返すヘルパー
+ * @param {string} s ステータス文字列
+ * @returns {string} カラーコード
+ */
+
+/** @type {(s:string)=>string} */
+const statusColor = (window.statusColor) ? window.statusColor : function(s){
+  const v=String(s||'').replace(/[　]/g,' ').trim();
+  if(v==='完了済み') return '#bdbdbd';
+  if(v==='開始前') return '#ffffff';
+  if(v==='進行中') return '#66bb6a';
+  if(v==='次フェーズ以降') return '#bbdefb';
+  if(v==='遅延') return '#ffd54f';
+  return '#66bb6a';
+};
+
+/**
+ * バーの開始・終了日ラベルを追加するヘルパー
+ * @param {HTMLElement} containerEl バーのコンテナ要素
+ * @param {number} startX 開始位置X座標
+ * @param {number} endX 終了位置X座標
+ * @param {number} midY バー中央のY座標
+ * @param {Date} startDate 開始日
+ * @param {Date} endDate 終了日
+ */
+
+/** @type {(containerEl:HTMLElement,startX:number,endX:number,midY:number,startDate:Date,endDate:Date)=>void} */
+const appendDateLabels = (window.appendDateLabels) ? window.appendDateLabels : function(containerEl, startX, endX, midY, startDate, endDate) {
+  const s = document.createElement('div');
+  s.className = 'date-label start';
+  s.textContent = fmtMD(startDate);
+  s.style.left = (startX - 4) + 'px';
+  s.style.top  = midY + 'px';
+  containerEl.appendChild(s);
+
+  const e = document.createElement('div');
+  e.className = 'date-label end';
+  e.textContent = fmtMD(endDate);
+  e.style.left = (endX + 4) + 'px';
+  e.style.top  = midY + 'px';
+  containerEl.appendChild(e);
+};
+
+/**
+ * 開始日→終了日→名前の順に安定ソートする比較関数
+ * @param {object} a タスクオブジェクト
+ * @param {object} b タスクオブジェクト
+ * @returns {number} 比較結果
+ */
+
+/** @type {(a:TaskItem,b:TaskItem)=>number} */
+const cmpByStartThenName = (window.cmpByStartThenName) ? window.cmpByStartThenName : function(a, b){
+  const ax = a?.start ? a.start.getTime() : Infinity;
+  const bx = b?.start ? b.start.getTime() : Infinity;
+  if (ax !== bx) return ax - bx;
+  const ay = a?.end ? a.end.getTime() : Infinity;
+  const by = b?.end ? b.end.getTime() : Infinity;
+  if (ay !== by) return ay - by;
+  const an = String(a?.task || a?.sub || a?.name || '');
+  const bn = String(b?.task || b?.sub || b?.name || '');
+  return an.localeCompare(bn, 'ja');
+};
+
+/**
+ * 境界線を引くかどうかを判定する
+ * @param {Date} d 日付
+ * @param {'day'|'week'|'month'} mode ズームモード
+ * @returns {boolean} true: 境界に該当
+ */
+
+/** @type {(d:Date,mode:'day'|'week'|'month')=>boolean} */
+ const __isBoundary = (window.__isBoundary) ? window.__isBoundary : function(d,mode){
+  if(mode==='day')   return true;
+  if(mode==='week')  return d.getUTCDay()===0;
+  if(mode==='month') return d.getUTCDate()===1;
+  return true;
+};
+
+/**
+ * 日付をUTC基準でその日の00:00に丸める
+ * @param {Date} d 入力日付
+ * @returns {Date} 丸められた日付
+ */
+function _startOfDayUTC(d) {
+  // 本プロジェクトは getUTC* を用いた日付扱いのため、UTC基準で0時に丸める
+  const x = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  return x;
+}
+
+/**
+ * タスク番号から階層深度を返す
+ * @param {string|undefined} taskNo タスク番号 (例: "1.2.3")
+ * @returns {number} 階層深度
+ */
+function _depthOfTaskNo(taskNo) {
+  const s = String(taskNo || '').trim();
+  if (!s) return 0;
+  return s.split('.').filter(Boolean).length;
+}
+
+/**
+ * 孫タスクかどうか判定する
+ * @param {TaskItem} t タスクオブジェクト
+ * @returns {boolean} 孫タスクならtrue
+ */
+function _isGrandchildTask(t) {
+  return _depthOfTaskNo(t.taskNo) === 3;
+}
+
+/**
+ * ステータスが「完了済み」か判定する
+ * @param {TaskItem} t タスクオブジェクト
+ * @returns {boolean} 完了済みならtrue
+ */
+function _isDoneStatus(t) {
+  return String(t.status || '').replace(/[　]/g,' ').trim() === '完了済み';
+}
+
+/**
+ * 完了済みタスクの表示/非表示設定に従い、表示対象のタスク配列を返す
+ * @param {TaskItem[]} items
+ * @returns {TaskItem[]}
+ */
+function _visibleItems(items) {
+  const arr = ensureTasks(items);
+  if (state.showCompleted) return arr;
+  return arr.filter(it => !_isDoneStatus(it));
+}
+
+/**
+ * 孫タスクのうち未完了かつ終了日が今日より前の最も近い日を返す
+ * @param {TaskItem[]} tasks タスク配列
+ * @param {Date} todayUTC0 今日(UTC)の00:00
+ * @returns {Date|null} スナップ対象の日付
+ */
+function findSnapDateForTodayLine(tasks, todayUTC0) {
+  // 対象：孫タスク && 未完了 && End < today
+  const cands = tasks.filter(t =>
+    _isGrandchildTask(t) && !_isDoneStatus(t) && (t.end instanceof Date) && (t.end < todayUTC0)
+  );
+  if (!cands.length) return null;
+
+  /** @type {Date|null} */
+  let best = null;
+  for (const cur of cands) {
+    /** @type {Date} */
+    const endDate = /** @type {Date} */ (cur.end); // narrow を明示化
+    if (best === null || endDate > best) best = endDate;
+  }
+  return best;
+}
+
+/**
+ * DOM参照をまとめて取得
+ * @returns {{
+ *   labelsEl: HTMLElement|null,
+ *   gridEl: HTMLElement|null,
+ *   monthRow: HTMLElement|null,
+ *   dayRow: HTMLElement|null,
+ *   leftHead: HTMLElement|null,
+ *   headerEl: HTMLElement|null,
+ *   zoomSel: HTMLSelectElement|null,
+ *   canvas: HTMLElement|null,
+ *   bars: HTMLElement|null
+ *   todayEl: HTMLElement|null
+ * }}
+ */
+function _refs(){
+  return {
+    labelsEl: /** @type {HTMLElement|null} */ (document.getElementById('taskLabels')),
+    gridEl:   /** @type {HTMLElement|null} */ (document.getElementById('ganttGrid')),
+    monthRow: /** @type {HTMLElement|null} */ (document.getElementById('monthRow')),
+    dayRow:   /** @type {HTMLElement|null} */ (document.getElementById('dayRow')),
+    leftHead: /** @type {HTMLElement|null} */ (document.getElementById('leftHead')),
+    headerEl: /** @type {HTMLElement|null} */ (document.getElementById('ganttHeader')),
+    zoomSel:  /** @type {HTMLSelectElement|null} */ (document.getElementById('zoom')),
+    canvas:   /** @type {HTMLElement|null} */ (document.getElementById('gridCanvas')),
+    bars:     /** @type {HTMLElement|null} */ (document.getElementById('bars')),
+    todayEl:  /** @type {HTMLElement|null} */ (document.getElementById('todayLine')),
+  };
+}
+
+/**
+ * `TaskItem[] | undefined | null` を確実に `TaskItem[]` にするナロー関数
+ * @param {TaskItem[] | undefined | null} a
+ * @returns {TaskItem[]}
+ */
+function ensureTasks(a){ return Array.isArray(a) ? a : []; }
+
+/**
+ * メイン描画関数
+ *
+ * 行構造の生成、ラベル、バー、依存線、今日線イナズマをすべて描画する。
+ * @returns {void}
+ */
+export function render(){
+
+  const { labelsEl, canvas, gridEl, monthRow, dayRow, leftHead } = _refs();
+  if (!labelsEl || !canvas || !gridEl || !monthRow || !dayRow || !leftHead) return;
+  if (!state.model || !state.model.min || !state.model.max) return;
+
+  // rows list
+  labelsEl.innerHTML='';
+  /** @type {Row[]} */
+  const rows=[];
+
+  /** @type {Array<{cat:string, items: TaskItem[]}>} */
+  const groups = /** @type {any} */ (state.model.groups || []);
+  for (const g of groups){
+
+    const visibleGroupItems = _visibleItems(g.items);
+    if (!visibleGroupItems.length) continue;
+
+    rows.push(/** @type {Row} */ ({type:'group', cat:g.cat, items: visibleGroupItems}));
+    if (state.collapsedCats.has(g.cat)) continue;
+
+    // v52: マイルストーンカテゴリは特別扱い
+    if (g.cat === 'マイルストーン') {
+      for (const t of visibleGroupItems) {
+        const title = t.sub || t.task || t.name || '';
+        rows.push(/** @type {Row} */ ({ type:'milestone', cat:g.cat, item:t, displayName:String(title) }));
+      }
+      continue;
+    }
+
+    // 観点ごとにグループ化
+    /** @type {Map<string, TaskItem[]>} */
+    const bySub = new Map();
+    for (const t of visibleGroupItems){
+      const key = (t.sub || '(なし)');
+      const arr = ensureTasks(bySub.get(key));
+      if (!bySub.has(key)) bySub.set(key, arr);
+      arr.push(t);
+    }
+
+    // v49: 観点の最小開始日で並べ替え
+
+    /** @type {{ subName: string, items: TaskItem[], minS: Date|null }[]} */
+    const subsArr = Array.from(bySub.entries()).map(([subName, items]) => {
+
+      /** @type {Date|null} */
+      let minS = null;
+
+      for (const it of /** @type {TaskItem[]} */(items)) {
+        if (!it.start) continue;
+        if (minS === null || it.start < minS) minS = it.start;
+      }
+      return /** @type {{ subName: string, items: TaskItem[], minS: Date|null }} */ ({
+        subName, items: /** @type {TaskItem[]} */(items), minS
+      });
+    }).sort((a, b) => {
+      const ax = a.minS ? a.minS.getTime() : Infinity;
+      const bx = b.minS ? b.minS.getTime() : Infinity;
+      if (ax !== bx) return ax - bx;
+      return (a.subName || '').localeCompare(b.subName || '', 'ja');
+    });
+
+    // rows 構築
+    for (const sb of subsArr) {
+      const subName = sb.subName;
+      const key = `${g.cat}::${subName}`;
+
+      let withTask = false;
+      for (const it of _visibleItems(/** @type {TaskItem[]} */ (sb.items || []))) {
+        if (it.task) { withTask = true; break; }
+      }
+
+      const subItems = _visibleItems(sb.items);
+      if (!subItems.length) continue;
+
+      // 観点見出し行
+      rows.push(/** @type {SubGroupRow} */({
+        type: 'subgroup',
+        cat: g.cat,
+        sub: String(subName || ''),
+        key,
+        items: subItems
+      }));
+
+      // 折りたたみ中なら子行なし
+      if (state.collapsedSubs.has(key)) continue;
+
+      // v50: 観点内も開始日→終了日→名前で安定ソート
+      const tasksInSub = /** @type {TaskItem[]} */ ((sb.items || []).filter((it)=> !!it.task)).slice().sort(cmpByStartThenName);
+      const plainSub   = /** @type {TaskItem[]} */ ((sb.items || []).filter((it)=> !it.task)).slice().sort(cmpByStartThenName);
+
+      if (withTask) {
+        if (!state.hideTaskRows) {
+          for (const t of tasksInSub) {
+            rows.push(/** @type {Row} */ ({
+              type:'task', cat:g.cat, item:t,
+              displayName:String(t.task || t.name || '')
+            }));
+          }
+        }
+        for (const t of plainSub) {
+          rows.push(/** @type {Row} */ ({
+            type:'subtask', cat:g.cat, item:t,
+            displayName:String(t.sub || t.name || '')
+          }));
+        }
+      } else {
+        for (const t of plainSub) {
+          rows.push(/** @type {Row} */ ({
+            type:'subtask', cat:g.cat, item:t,
+            displayName:String(t.sub || t.name || '')
+          }));
+        }
+      }
+    }
+  }
+
+  // 左ペインラベル
+  for(const r of rows){
+    if(r.type==='group'){
+      const n=document.createElement('div');
+      n.className='label group'+(state.collapsedCats.has(r.cat)?' collapsed':'');
+      n.dataset.cat=r.cat;
+      n.innerHTML = `<span class="name">${r.cat}</span><span class="prio"></span>`;
+      labelsEl.appendChild(n);
+
+    } else if (r.type === 'subgroup') {
+      const n = document.createElement('div');
+      const key = String((/** @type {any} */(r)).key || `${r.cat}::${String((/** @type {any} */(r)).sub || '')}`);
+      n.className = 'label subgroup' + (state.collapsedSubs.has(key) ? ' collapsed' : '');
+      n.dataset.cat = r.cat;
+      n.dataset.key = String(key);
+      n.innerHTML = `<span class="name">${String((/** @type {any} */(r)).sub || '')}</span><span class="prio"></span>`;
+      labelsEl.appendChild(n);
+
+    }else if(r.type==='task'){
+      const n=document.createElement('div');
+      n.className='label task';
+      n.dataset.cat=r.cat;
+      const pp = prioClassText(String(r.item.priority || ''));
+      const color = statusColor(String(r.item.status || ''));
+      const assignee = String(r.item.assignee || '').trim();
+      const assigneeHtml = assignee
+        ? `<span class="assignee" style="background:${color}">${assignee}</span>`
+        : '';
+      n.innerHTML = `<span class="name">${assigneeHtml}${String(r.displayName || r.item.name || '')}</span><span class="prio ${pp[0]}">${pp[1]}</span>`;
+      labelsEl.appendChild(n);
+
+    } else if (r.type === 'milestone') {
+      const n = document.createElement('div');
+      n.className = 'label milestone';
+      n.dataset.cat = r.cat;
+      n.innerHTML = `<span class="name">${String(r.displayName || '')}</span><span class="prio"></span>`;
+      labelsEl.appendChild(n);
+
+    }else{
+      const n=document.createElement('div');
+      n.className='label subtask';
+      n.dataset.cat=r.cat;
+      const pp = prioClassText(String(r.item.priority || ''));
+      const color = statusColor(String(r.item.status || ''));
+      const assignee = String(r.item.assignee || '').trim();
+      const assigneeHtml = assignee
+        ? `<span class="assignee" style="background:${color}">${assignee}</span>`
+        : '';
+      n.innerHTML = `<span class="name">${assigneeHtml}${
+        r.displayName || r.item.sub || r.item.name
+      }</span><span class="prio ${pp[0]}">${pp[1]}</span>`;
+      labelsEl.appendChild(n);
+    }
+  }
+
+  const linesWrapEl = canvas.querySelector('.grid-lines');
+  const barsEl      = canvas.querySelector('#bars');
+  const todayEl     = _refs().todayEl;
+  if (!(linesWrapEl instanceof HTMLElement) || !(barsEl instanceof HTMLElement)) return;
+  const linesWrap = /** @type {HTMLElement} */ (linesWrapEl);
+  const bars      = /** @type {HTMLElement} */ (barsEl);
+
+  linesWrap.innerHTML='';
+  bars.innerHTML='';
+
+  // 幅計算（右パディング込み）
+  const RIGHT_PAD = 120;
+
+  // ローカル変数を定義
+  const min = /** @type {Date} */ (state.model.min);
+  const max = /** @type {Date} */ (state.model.max);
+  const dayWidth = /** @type {number} */ (state.model.dayWidth);
+  const totalDays = daysBetween(min, max);
+  const widthPx   = totalDays * dayWidth + RIGHT_PAD;
+
+  canvas.style.width = widthPx + 'px';
+
+  const rowsCount = rows.length;
+  const contentH  = rowsCount * ROW_H;
+  bars.style.height = contentH+'px';
+
+  // 依存線用 SVG レイヤ
+  let depsSVG = document.createElementNS('http://www.w3.org/2000/svg','svg');
+  depsSVG.setAttribute('class','deps');
+  depsSVG.setAttribute('width','100%');
+  depsSVG.setAttribute('height', contentH + 'px');
+  depsSVG.style.position = 'absolute';
+  depsSVG.style.left = '0';
+  depsSVG.style.top = '0';
+  depsSVG.style.overflow = 'visible';
+  depsSVG.style.pointerEvents = 'none';
+  bars.appendChild(depsSVG);
+
+  // 縦罫線（日/週/月）…元仕様：day は毎日、週/月は境界のみ
+  const zoomSel = _refs().zoomSel;
+  const mode = /** @type {'day'|'week'|'month'} */ (zoomSel ? zoomSel.value : 'day');
+  let cur = new Date(min);
+  for(let d=0; d<=totalDays; d++){
+    if(d<totalDays && (mode==='day' || __isBoundary(cur,mode))){
+      const x = d * dayWidth;
+      const v = document.createElement('div');
+      v.className='vline';
+      v.style.left=x+'px';
+      v.style.height=contentH+'px';
+      linesWrap.appendChild(v);
+    }
+    cur = new Date(cur.getTime()+86400000);
+  }
+
+  // 横罫線
+  for(let r=0; r<rowsCount; r++){
+    const h=document.createElement('div');
+    h.className='hline';
+    h.style.top=(r*ROW_H + ROW_H)+'px';
+    linesWrap.appendChild(h);
+  }
+
+  // バー群
+  let rowIndex=0;
+  const Y_PAD = Math.floor((ROW_H - BAR_H)/2);
+  const catH = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--cat-bar-h')) || 12;
+
+  // === イナズマ線用：今日(UTC 0時)と候補格納 ===
+  const __today = new Date();
+  const __todayUTC0 = new Date(Date.UTC(__today.getUTCFullYear(), __today.getUTCMonth(), __today.getUTCDate()));
+
+  /** @type {{rowTop:number,rowBottom:number,midY:number,date:Date,startX?:number,endLbl?:HTMLElement,type:'start'|'end'}[]} */
+  const __zigTargets = [];
+
+  for(const r of rows){
+    if(r.type==='group'){
+      if (r.cat === 'マイルストーン') { rowIndex++; continue; }
+      let minS=null,maxE=null;
+      for(const t of r.items){
+        if(!t.start||!t.end) continue;
+        if(minS===null||t.start<minS) minS=t.start;
+        if(maxE===null||t.end>maxE) maxE=t.end;
+      }
+      if (minS && maxE) {
+        const minSD = /** @type {Date} */ (minS);
+        const maxED = /** @type {Date} */ (maxE);
+        const offsetDays = Math.floor((minSD.getTime() - min.getTime())/86400000);
+        const spanDays   = Math.floor((maxED.getTime() - minSD.getTime())/86400000)+1;
+
+        const left = offsetDays * dayWidth;
+        const bw = Math.max(6, spanDays * dayWidth - 2);
+        const bar=document.createElement('div');
+        bar.className='bar cat';
+        bar.dataset.cat=r.cat;
+        const top = rowIndex*ROW_H + Math.max(0, Math.floor((ROW_H - catH)/2)) + 2; // center +2px
+        bar.style.left=left+'px';
+        bar.style.width=bw+'px';
+        bar.style.top=top+'px';
+        bars.appendChild(bar);
+
+        // Start/End M/D
+        const midY = top + catH/2;
+        appendDateLabels(bars, left, left + bw, midY, minSD, maxED);
+      }
+      rowIndex++;
+      continue;
+    }
+
+    if(r.type==='subgroup'){
+      if (r.cat === 'マイルストーン') { rowIndex++; continue; }
+
+      let minS = null, maxE = null;
+      for (const t of r.items || []) {
+        if (!t.start || !t.end) continue;
+        if (minS === null || t.start < minS) minS = t.start;
+        if (maxE === null || t.end   > maxE) maxE = t.end;
+      }
+      if (minS && maxE) {
+        const minSD = /** @type {Date} */ (minS);
+        const maxED = /** @type {Date} */ (maxE);
+        const offsetDays = Math.floor((minSD.getTime() - min.getTime())/86400000);
+        const spanDays   = Math.floor((maxED.getTime() - minSD.getTime())/86400000)+1;
+        const left = offsetDays * dayWidth;
+        const bw   = Math.max(6, spanDays * dayWidth - 2);
+        const bar  = document.createElement('div');
+        bar.className = 'bar subcat';   // 青バー
+        bar.dataset.cat = r.cat;
+        bar.dataset.sub = String(r.sub || '');
+        const top = rowIndex*ROW_H + Math.max(0, Math.floor((ROW_H - catH)/2)) + 2;
+        bar.style.left  = left + 'px';
+        bar.style.width = bw   + 'px';
+        bar.style.top   = top  + 'px';
+        bars.appendChild(bar);
+
+        const midY = top + catH/2;
+        appendDateLabels(bars, left, left + bw, midY, minSD, maxED);
+
+        // v59: 観点にも中間チェック ★M/D
+        let repCheck = null;
+        for (const t of (r.items || [])) {
+          if (t.check instanceof Date) {
+            if (repCheck === null || t.check < repCheck) repCheck = t.check;
+          }
+        }
+        if (repCheck instanceof Date) {
+          const checkX = Math.floor((repCheck.getTime() - min.getTime())/86400000) * dayWidth
+          const star = document.createElement('div');
+          star.className = 'check-label';
+          star.textContent = '★ ' + fmtMD(/** @type {Date} */(repCheck)) + '中間';
+          star.style.left = (checkX + 0) + 'px';
+          star.style.top  = (midY + 9) + 'px';
+          bars.appendChild(star);
+        }
+      }
+      rowIndex++;
+      continue;
+    }
+
+    if (r.type === 'milestone') {
+      const t = r.item;
+      if (!(t.start instanceof Date)) { rowIndex++; continue; }
+      const offsetDays = Math.floor((t.start.getTime() - min.getTime())/86400000);
+      const left = offsetDays * dayWidth;
+      const midY = (rowIndex * ROW_H) + (ROW_H / 2);
+      const star = document.createElement('div');
+      star.className = 'ms-star';
+      star.textContent = `★ ${fmtMD(t.start)} ${String(t.name || '')}`;
+      star.style.left = (left + 6) + 'px';
+      star.style.top  = midY + 'px';
+      bars.appendChild(star);
+
+      rowIndex++;
+      continue;
+    }
+
+    // 通常タスクバー
+    const t = r.item;
+    if (!(t.start instanceof Date) || !(t.end instanceof Date)) { rowIndex++; continue; }
+    const offsetDays = Math.floor((t.start.getTime() - min.getTime())/86400000);
+    const spanDays   = Math.floor((t.end.getTime() - t.start.getTime())/86400000)+1;
+    const left = offsetDays * dayWidth;
+    const bw   = Math.max(6, spanDays * dayWidth - 2);
+
+    const barTop = (rowIndex * ROW_H + Y_PAD);
+    const bar  = document.createElement('div');
+    bar.className   = 'bar';
+    bar.style.left  = left+'px';
+    bar.style.width = bw+'px';
+    bar.style.top   = (rowIndex*ROW_H + Y_PAD)+'px';
+    const color     = statusColor(String(t.status || ''));
+    bar.style.background = color;
+
+    if(color==='#ffffff'){
+      bar.style.borderColor=getComputedStyle(document.documentElement).getPropertyValue('--status-not-border')||'#cfd8dc';
+    }
+
+    const name = document.createElement('div');
+    name.className = 'name';
+    name.textContent = String(t.name || '');
+    bar.appendChild(name);
+
+    // バー外側の M/D ラベル
+    const BAR_H_PX = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--bar-h')) || BAR_H;
+    const centerY = barTop + BAR_H_PX / 2;
+
+    const startLbl = document.createElement('div');
+    startLbl.className = 'date-label start';
+    startLbl.textContent = fmtMD(t.start);
+    startLbl.style.left = left + 'px';
+    startLbl.style.top  = centerY + 'px';
+
+    const endLbl = document.createElement('div');
+    endLbl.className = 'date-label end';
+    endLbl.textContent = fmtMD(t.end);
+    endLbl.style.left = (left + bw) + 'px';
+    endLbl.style.top  = centerY + 'px';
+
+    bars.appendChild(bar);
+    bars.appendChild(startLbl);
+    bars.appendChild(endLbl);
+
+    // --- イナズマ対象：孫タスク(= t.task あり)で未完了/開始前の Start/End 位置を記録 ---
+    const isLeaf = (r.type === 'task' || r.type === 'subtask');
+    if (isLeaf) {
+      const catName = String(r.cat || '').replace(/[　]/g,' ').trim();
+      const st = String(t.status || '').replace(/[　]/g,' ').trim();
+      const excludedFromLightning = (catName === '次フェーズ以降' || st === '次フェーズ以降');
+      if (!excludedFromLightning && st === '開始前' && (t.start instanceof Date)) {
+        __zigTargets.push({
+          type: 'start',
+          rowTop: (rowIndex * ROW_H),
+          rowBottom: (rowIndex * ROW_H) + ROW_H,
+          midY: barTop + ((parseInt(getComputedStyle(document.documentElement).getPropertyValue('--bar-h')) || BAR_H) / 2),
+          startX: left,
+          date: t.start,
+        });
+      } else if (!excludedFromLightning && st !== '完了済み' && (t.end instanceof Date)) {
+        __zigTargets.push({
+          type: 'end',
+          rowTop: (rowIndex * ROW_H),
+          rowBottom: (rowIndex * ROW_H) + ROW_H,
+          midY: barTop + ((parseInt(getComputedStyle(document.documentElement).getPropertyValue('--bar-h')) || BAR_H) / 2),
+          endLbl,
+          date: t.end,
+        });
+      }
+    }
+
+    // 中間チェック ★M/D
+    if (t.check instanceof Date) {
+      const checkDaysFromMin = Math.floor((t.check.getTime() - min.getTime())/86400000);
+      const checkX = checkDaysFromMin * dayWidth;
+      const cx = Math.max(left + 0, Math.min(left + bw, checkX));
+      const cy = barTop + (parseInt(getComputedStyle(document.documentElement).getPropertyValue('--bar-h')) || BAR_H)/2 + 15;
+      const ck = document.createElement('div');
+      ck.className = 'check-label';
+      ck.textContent = '★ ' + fmtMD(t.check) + '中間';
+      ck.style.left = cx + 'px';
+      ck.style.top  = cy + 'px';
+      bars.appendChild(ck);
+    }
+    rowIndex++;
+  }
+
+  // 依存線描画（元仕様どおり）
+  drawDependencies(rows, depsSVG);
+
+  // ヘッダ／同期／ボタン
+  renderHeader(totalDays, RIGHT_PAD);
+  syncHeaderToGrid();
+  fixBottomSync();
+  updateToggleAllBtn();
+  updateGlobalButtons();
+
+  // === 今日“イナズマ線”（Start/End 位置へ“食い込む”） ======================
+  // 0) 事前準備（ターゲット整列） — ※ __todayUTC0 は上部で一度だけ定義済みを再利用
+  const targets = (__zigTargets || [])
+    .filter(x => (x.date instanceof Date) && x.date < __todayUTC0)
+    .sort((a,b)=> a.rowTop - b.rowTop);
+
+  // 1) 今日の X（表示範囲外なら描かない）
+  const todayDaysFromMin = Math.floor((__todayUTC0.getTime() - min.getTime())/86400000);
+  const todayX = Number(todayDaysFromMin) * Number(dayWidth);
+  const canvasWidth = canvas.offsetWidth || widthPx;
+  if (todayX < 0 || todayX > canvasWidth) { if (todayEl) todayEl.hidden = true; }
+
+  // 2) 既存縦線は隠す（重複を避ける）
+  if (todayEl) todayEl.hidden = true;
+
+  // 3) 旧イナズマを消去 → 新規 SVG 追加（ラベルが上に出るよう z-index を低めに）
+  const oldLightning = canvas.querySelector('#todayLightning');
+  if (oldLightning) oldLightning.remove();
+
+  /** @type {SVGSVGElement} */
+  const lightning = /** @type {any} */(
+    document.createElementNS('http://www.w3.org/2000/svg','svg')
+  );
+
+  lightning.setAttribute('id','todayLightning');
+  lightning.setAttribute('width','100%');
+  lightning.setAttribute('height', contentH + 'px');
+  lightning.style.position='absolute';
+  lightning.style.left='0';
+  lightning.style.top='0';
+  lightning.style.pointerEvents='none';
+  lightning.style.overflow='visible';
+  lightning.style.zIndex = '1';   // ← ラベルより下
+  bars.appendChild(lightning);
+
+  // 4) ベジェで“なめらか”に食い込むパスを構築
+  //    縦に降りて、対象行では： todayX → (行上端+R) → Q(丸め) → [startX or labelRightX+bite] → Q → (行下端-R) → todayX
+  const R = 8;         // カーブ半径
+  const TOUCH_GAP = 1;  // ラベル“手前”で止めるギャップ(px)
+  const barsRect = bars.getBoundingClientRect();
+  const parts = [];
+  let cursorY = 0;
+  parts.push(`M ${Math.round(todayX)} ${0}`);
+
+  for (const seg of targets) {
+    const topY = Math.max(0, seg.rowTop);
+    const botY = Math.min(contentH, seg.rowBottom);
+    if (cursorY < topY) {
+      // 対象行の直前まで縦に
+      parts.push(`L ${Math.round(todayX)} ${Math.round(topY + Math.min(R, (botY-topY)/2))}`);
+    }
+
+    const midY  = Math.round(seg.midY);
+    let touchX;
+    if (seg.type === 'start') {
+      const startX = seg.startX || 0;
+      touchX = Math.max(0, Math.min(todayX - 1, startX));
+    } else {
+      const lblRect = seg.endLbl?.getBoundingClientRect();
+      const labelRightX = lblRect ? (lblRect.right - barsRect.left) : 0;
+      touchX = Math.max(0, Math.min(todayX - 1, labelRightX + TOUCH_GAP));
+    }
+
+    // Qベジェで滑らかに左へ → さらに戻る
+    parts.push(`Q ${Math.round(todayX)} ${midY} ${Math.round(touchX)} ${midY}`);
+    parts.push(`Q ${Math.round(todayX)} ${midY} ${Math.round(todayX)} ${Math.round(botY - Math.min(R, (botY-topY)/2))}`);
+
+    cursorY = botY;
+  }
+  if (cursorY < contentH) {
+    parts.push(`L ${Math.round(todayX)} ${Math.round(contentH)}`);
+  }
+
+  // 5) path を描画（太めの濃いピンク＋丸端/丸継ぎ＋高精度レンダリング）
+  const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+  path.setAttribute('d', parts.join(' '));
+  path.setAttribute('fill', 'none');
+  path.setAttribute('stroke', '#d81b60');         // ← 濃いピンク
+  path.setAttribute('stroke-width', '3');         // ← もう少し太く
+  path.setAttribute('stroke-linecap', 'round');   // ← 丸端
+  path.setAttribute('stroke-linejoin', 'round');  // ← 丸継ぎ
+  path.setAttribute('shape-rendering', 'geometricPrecision');
+  lightning.appendChild(path);
+
+  // transform 同期に一本化するためゼロ固定
+  const headerEl = _refs().headerEl;
+  if (headerEl) headerEl.scrollLeft = 0;
+}
+
+/**
+ * ヘッダー部（日付ラベルや縦線）の描画
+ * @param {number} totalDays 全体の日数
+ * @param {number} RIGHT_PAD 右側パディング幅
+ * @returns {void}
+ */
+export function renderHeader(totalDays, RIGHT_PAD){
+  const { monthRow, dayRow, leftHead, gridEl, zoomSel } = _refs();
+  if (!monthRow || !dayRow || !leftHead || !gridEl) return;
+  if (!state.model || !state.model.min) return;
+
+  monthRow.innerHTML='';
+  dayRow.innerHTML='';
+
+  // ローカル変数を定義
+  const min = /** @type {Date} */ (state.model.min);
+  const dayWidth = Number(state.model.dayWidth);
+  const grid = /** @type {GridWithSync} */ (gridEl);
+
+  // ラベル列ぶんだけ押し出す
+  const labelsRoot = document.getElementById('taskLabels');
+  const resizer    = document.getElementById('colResizer');
+  const labelsW = (labelsRoot ? labelsRoot.offsetWidth : 0)
+      || parseInt(getComputedStyle(document.documentElement).getPropertyValue('--labels-w')) || 360;
+  const resizerW = resizer ? resizer.offsetWidth : 0;
+  const offset = labelsW + resizerW;
+  leftHead.style.width = labelsW + 'px';
+  monthRow.style.marginLeft = offset + 'px';
+  dayRow.style.marginLeft   = offset + 'px';
+
+  // 可視幅を本体に合わせる
+  const w = grid ? grid.scrollWidth : 0;
+  if(w){
+    monthRow.style.width = w + 'px';
+    dayRow.style.width   = w + 'px';
+  }
+
+  const mode = /** @type {'day'|'week'|'month'} */ (zoomSel ? zoomSel.value : 'day');
+
+  // ガード分
+  const GUARD_DAYS = 2;
+  const headerWidth = (totalDays + GUARD_DAYS) * dayWidth;
+  dayRow.style.width   = headerWidth + 'px';
+  monthRow.style.width = headerWidth + 'px';
+
+  // 日/週/月 目盛り（境界のみ）
+  let cursor = new Date(min);
+  for(let d=0; d<=totalDays + GUARD_DAYS; d++){
+    const x=d*dayWidth;
+    if(d < totalDays + GUARD_DAYS){
+      if(mode==='day' || __isBoundary(cursor,mode)){
+        const v=document.createElement('div');
+        v.className='vline';
+        v.style.left=x+'px';
+        v.style.height='62px';
+        dayRow.appendChild(v);
+
+        const label=document.createElement('div');
+        label.className='label';
+
+        if(mode==='month'){
+          label.style.left = (x + 6) + 'px';
+          label.style.transform='translateX(0)';
+          label.textContent=(cursor.getUTCMonth()+1)+'月';
+        }else if(mode==='week'){
+          label.style.left = (x + 6) + 'px';
+          label.style.transform='translateX(0)';
+          label.textContent=(cursor.getUTCMonth()+1)+'/'+cursor.getUTCDate();
+        }else{
+          const lx = Number(x) + Number(dayWidth)/2;
+          label.style.left = lx + 'px';
+          label.textContent=String(cursor.getUTCDate());
+        }
+        dayRow.appendChild(label);
+      }
+    }
+    cursor = new Date(cursor.getTime()+86400000);
+  }
+
+  // 月ラベル（dayのみ年+月、他は省略）
+  if(mode!=='month'){
+    let d0 = new Date(min), start = 0;
+    for(let d=0; d<=totalDays + GUARD_DAYS; d++){
+      const d1 = new Date(d0.getTime() + d*86400000);
+      const monthChanged = (d === totalDays + GUARD_DAYS) || (d1.getUTCDate() === 1);
+      if(monthChanged){
+        const span = d - start;
+        const labelDate = new Date(d0.getTime() + start*86400000);
+        const label = document.createElement('div');
+        label.className='label';
+        const leftBase = Number(start) * Number(dayWidth);
+        const spanPx   = Number(span)  * Number(dayWidth) / 2;
+        label.style.left = (leftBase + spanPx) + 'px';
+        label.textContent = `${labelDate.getUTCFullYear()}年 ${labelDate.getUTCMonth()+1}月`;
+        monthRow.appendChild(label);
+        start = d;
+      }
+    }
+  }
+
+  // 右パディング（スクロール末尾揃え）
+  const pad1 = document.createElement('div');
+  pad1.style.position='absolute';
+  pad1.style.left=(totalDays*dayWidth)+'px';
+  pad1.style.width=RIGHT_PAD+'px';
+  pad1.style.height='1px';
+
+  const pad2 = document.createElement('div');
+  pad2.style.position='absolute';
+  pad2.style.left=(totalDays*dayWidth)+'px';
+  pad2.style.width=RIGHT_PAD+'px';
+  pad2.style.height='1px';
+
+  dayRow.appendChild(pad1);
+  monthRow.appendChild(pad2);
+
+  // ヘッダー横スクロール同期（translateXで追従）
+  /** @type {() => void} */
+  const sync = ()=>{
+    const x = (grid.scrollLeft || 0);
+    monthRow.style.transform = `translateX(${-x}px)`;
+    dayRow.style.transform   = `translateX(${-x}px)`;
+  };
+
+  // 既存のハンドラを外してから登録（undefined を addEventListener に渡さない）
+  if (grid.__headerSync) grid.removeEventListener('scroll', grid.__headerSync);
+  grid.__headerSync = sync;
+  grid.addEventListener('scroll', sync, { passive: true });
+  sync();
+}
+
+/**
+ * ラベル部分とバー部分の高さを同期
+ * @returns {void}
+ */
+export function fixBottomSync(){
+  try{
+    const labels = /** @type {HTMLElement|null} */ (document.getElementById('taskLabels'));
+    const grid   = /** @type {HTMLElement|null} */ (document.getElementById('ganttGrid'));
+    const bars   = /** @type {HTMLElement|null} */ (document.getElementById('bars'));
+
+    if(!labels || !grid || !bars) return;
+    const hsb = Math.max(0, grid.offsetHeight - grid.clientHeight);
+    labels.style.paddingBottom = hsb + 'px';
+
+    /** @type {HTMLElement|null} */
+    let spacer = /** @type {HTMLElement|null} */ (document.getElementById('bottomSpacer'));
+
+    if(!spacer){
+      spacer = document.createElement('div');
+      spacer.id = 'bottomSpacer';
+      bars.appendChild(spacer);
+    }
+    if (!spacer) return;
+    const need = Math.max(0, labels.scrollHeight - bars.scrollHeight);
+    spacer.style.height = need + 'px';
+  }catch(e){ console.error(e); }
+}
+
+/**
+ * ヘッダー位置をスクロール位置と同期
+ * @returns {void}
+ */
+function syncHeaderToGrid(){
+  const { gridEl, monthRow, dayRow } = _refs();
+  if (!gridEl || !monthRow || !dayRow) return;
+  const x = gridEl.scrollLeft || 0;
+  monthRow.style.transform = `translateX(${-x}px)`;
+  dayRow.style.transform   = `translateX(${-x}px)`;
+}

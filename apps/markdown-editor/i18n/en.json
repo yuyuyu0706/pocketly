@@ -1,0 +1,62 @@
+{
+  "app": {
+    "title": "Markdown Editor Blue"
+  },
+  "toolbar": {
+    "open": "📂 Open",
+    "save": "💾 Save",
+    "exportPdf": "📄 Export PDF",
+    "exportHtml": "🌐 Export HTML",
+    "insertImage": "🖼 Insert Image",
+    "template": "📋 Templates",
+    "help": "❔ Help",
+    "languageLabel": "Language",
+    "showLineNumbers": "🔢 Numbers On",
+    "hideLineNumbers": "🔢 Numbers Off"
+  },
+  "language": {
+    "english": "English",
+    "japanese": "日本語"
+  },
+  "templates": {
+    "meetingNotes": "Meeting Notes",
+    "systemChangeOverview": "System Change Overview",
+    "systemChangeChecklist": "System Change Checklist",
+    "readme": "Readme",
+    "releaseNotes": "Release Notes"
+  },
+  "dialogs": {
+    "replaceFile": "Replace the current content with the selected file?",
+    "fileReadErrorLog": "Failed to load the Markdown file",
+    "fileReadErrorAlert": "Failed to load the Markdown file. Please check the file and try again.",
+    "replaceTemplate": "Replace the current content with the selected template?",
+    "templateLoadErrorLog": "Failed to load the template",
+    "templateLoadErrorAlert": "Failed to load the template. Please make sure the template files are available.",
+    "saveFilenamePrompt": "Enter a file name to save",
+    "defaultFileName": "document.md",
+    "defaultHtmlFileName": "preview.html",
+    "previewTitle": "Preview"
+  },
+  "editor": {
+    "placeholder": "Type Markdown here..."
+  },
+  "help": {
+    "close": "Close",
+    "markdownTitle": "Markdown Cheat Sheet",
+    "markdownCheatsheet": "# Heading 1\n## Heading 2\n\n- List\n1. Numbered list\n\n**Bold** *Italic*\n> Quote\n`Code`\n\n```\nCode block\n```\n\n[Link](URL)",
+    "mermaidTitle": "Mermaid Cheat Sheet",
+    "mermaidCheatsheet": "```mermaid\ngraph TD\n  A[Start] --> B{Condition}\n  B -->|Yes| C[Process 1]\n  B -->|No| D[Process 2]\n```"
+  },
+  "formatting": {
+    "bold": "𝐁 Bold",
+    "inlineCode": "</> Code",
+    "externalLink": "🔗 Add External Link",
+    "copy": "📋 Copy",
+    "cut": "✂️ Cut",
+    "paste": "📥 Paste"
+  },
+  "image": {
+    "fallback": "[Image: {filename}]",
+    "markdownTemplate": "\n<!-- image:{filename} -->\n[Image: {filename}]\n<!-- /image -->\n"
+  }
+}
