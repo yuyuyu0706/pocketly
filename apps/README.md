@@ -20,3 +20,7 @@ apps/
 | CSV Gantt Viewer | `csv-gantt-viewer/` | `index.html`, `app.js`, `main.js`, `js/`, `styles.css`, `config.json` | `README.md` | `tests/`, `playwright.config.js` | `csv/`, `images/` | `html2canvas.min.js`, package metadata for npm dev dependencies |
 | Avro Viewer | `avro-viewer/` | `index.html`, `app.js`, `styles.css`, `workers/` | `README.md`, `sample/README.md` | Not included in migrated app | `images/`, `sample/` | `vendor/avsc.js`, `vendor/avsc-LICENSE.txt` |
 | reStructuredText Editor | `restructuredtext-editor/` | `index.html`, `app.js`, `style.css` | `README.md` | Not included in migrated app | `assets/`, `images/` | CDN-loaded libraries documented in the app README |
+## Baseline documentation
+
+The initial monorepo migration baseline is recorded in [`docs/monorepo-migration-baseline.md`](../docs/monorepo-migration-baseline.md). It summarizes the official app layout, GitHub Pages routes, prior migration PRs, verification results, known environment constraints, follow-up items, and the post-merge baseline tag name.
+
