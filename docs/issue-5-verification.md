@@ -8,10 +8,10 @@ GitHub Pages publishes the repository root, so each migrated app is reachable th
 
 | App | Pages path | Result |
 | --- | --- | --- |
-| Markdown Editor | `/apps/markdown-editor/` | Initial static route present. Uses relative local assets and CDN dependencies from `index.html`. |
-| CSV Gantt Viewer | `/apps/csv-gantt-viewer/` | Initial static route present. CSV sample paths remain relative to the app directory. |
-| Avro Viewer | `/apps/avro-viewer/` | Initial static route present. Vendored `vendor/avsc.js` and module worker paths remain relative to the app directory. |
-| reStructuredText Editor | `/apps/restructuredtext-editor/` | Initial static route present. Local assets and CDN dependencies are loaded from the app page. |
+| Markdown Editor | `/pocketly/apps/markdown-editor/` | Initial static route present. Uses relative local assets and CDN dependencies from `index.html`. |
+| CSV Gantt Viewer | `/pocketly/apps/csv-gantt-viewer/` | Initial static route present. CSV sample paths remain relative to the app directory. |
+| Avro Viewer | `/pocketly/apps/avro-viewer/` | Initial static route present. Vendored `vendor/avsc.js` and module worker paths remain relative to the app directory. |
+| reStructuredText Editor | `/pocketly/apps/restructuredtext-editor/` | Initial static route present. Local assets and CDN dependencies are loaded from the app page. |
 
 A root `index.html` provides a minimal app link list for GitHub Pages verification. A root `.nojekyll` file keeps Pages from applying Jekyll processing to the static app tree.
 
