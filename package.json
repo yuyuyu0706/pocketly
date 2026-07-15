@@ -1,0 +1,21 @@
+{
+  "name": "pocketly",
+  "private": true,
+  "description": "A monorepo for small, lightweight web tools.",
+  "engines": {
+    "node": ">=24 <25",
+    "npm": ">=11 <12"
+  },
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": ">=24 <25",
+      "onFail": "error"
+    },
+    "packageManager": {
+      "name": "npm",
+      "version": ">=11 <12",
+      "onFail": "error"
+    }
+  }
+}

@@ -57,6 +57,17 @@ Pocketly のモノリポ開発基盤は、以下の Phase で整備します。
 
 ## 開発を始めるとき
 
+### 開発環境
+
+Pocketly の標準開発環境は以下です。
+
+- Node.js 24 LTS
+- npm 11
+- 標準 package manager は npm
+- `.nvmrc` を利用して Node.js 系列を合わせます
+- npm workspaces と root 共通 scripts は Phase 2 で整備します
+- root `package-lock.json` は Phase 2 の workspace / dependency 構成確定時に管理します
+
 現時点では、リポジトリルートの共通 npm scripts は未整備です。そのため、ルートから一括で実行する共通コマンドは定義していません。
 
 各アプリの利用方法、開発方法、テスト方法は、それぞれのアプリ README を参照してください。
