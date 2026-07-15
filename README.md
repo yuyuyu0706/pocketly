@@ -29,12 +29,22 @@ Pocketly は「小さく、軽く、すぐ使えるWebツールを、同じ開�
 pocketly/
 ├── apps/
 ├── docs/
+├── .github/
+│   └── ISSUE_TEMPLATE/
+├── .editorconfig
+├── .gitignore
+├── .nvmrc
+├── AGENTS.md
+├── package.json
 ├── index.html
 └── .nojekyll
 ```
 
 - `apps/`: Pocketly で管理する各アプリを配置します。
 - `docs/`: 移行・検証・設計に関する文書を配置します。
+- `.github/ISSUE_TEMPLATE/`: Lv1〜Lv4 Issue Template を配置します。
+- `AGENTS.md`: AI エージェントと開発者が守る現在の開発ルールです。
+- `package.json`: ルートの Node.js / npm 方針を記録します。
 - `index.html`: GitHub Pages のルート入口です。
 - `.nojekyll`: GitHub Pages で静的ファイルをそのまま配信するための設定です。
 
@@ -44,12 +54,14 @@ pocketly/
 
 Git tag `monorepo-baseline` は、Phase 0 完了時点のアプリ配置、GitHub Pages 導線、移行検証結果を固定した初期移行基準点です。今後の基盤整備や開発フロー統一は、このベースラインから段階的に進めます。
 
+Phase 1 で固定したルート開発環境の完了状態と Phase 2 への引き継ぎ事項は [`docs/phase-1-root-development-baseline.md`](docs/phase-1-root-development-baseline.md) に記録しています。
+
 ## 開発ロードマップ概要
 
 Pocketly のモノリポ開発基盤は、以下の Phase で整備します。
 
 - Phase 0: 移行ベースライン固定（完了）
-- Phase 1: ルート開発環境
+- Phase 1: ルート開発環境（完了）
 - Phase 2: 開発・テスト入口統一
 - Phase 3: GitHub Actions
 - Phase 4: Pocketly App Contract
@@ -88,4 +100,10 @@ Pocketly では、モノリポ基盤整備やアプリ改善を段階的に進�
 
 PR は原則として実装単位ごとに分離します。アプリ機能改修とモノリポ基盤改修は混在させず、レビューしやすい範囲に保ちます。
 
-詳細な AI 駆動開発ルールは、後続 Issue で整備する `AGENTS.md` に委ねます。
+通常の Issue 起票には `.github/ISSUE_TEMPLATE/` の Lv1〜Lv4 Issue Template を利用します。Issue タイトルは原則として以下の形式にします。
+
+```text
+[アプリ名][Lv1〜Lv4][種別]◯◯する
+```
+
+詳細な AI 駆動開発ルール、Issue-first の変更スコープ原則、タイトル規約、検証結果の記録方法は [`AGENTS.md`](AGENTS.md) を参照してください。
