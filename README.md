@@ -36,6 +36,7 @@ pocketly/
 ├── .nvmrc
 ├── AGENTS.md
 ├── package.json
+├── package-lock.json
 ├── index.html
 └── .nojekyll
 ```
@@ -44,7 +45,8 @@ pocketly/
 - `docs/`: 移行・検証・設計に関する文書を配置します。
 - `.github/ISSUE_TEMPLATE/`: Lv1〜Lv4 Issue Template を配置します。
 - `AGENTS.md`: AI エージェントと開発者が守る現在の開発ルールです。
-- `package.json`: ルートの Node.js / npm 方針を記録します。
+- `package.json`: ルートの Node.js / npm 方針と正式 4 アプリの npm workspaces を記録します。
+- `package-lock.json`: workspace 全体の解決済み dependency tree を固定する唯一の lockfile です。
 - `index.html`: GitHub Pages のルート入口です。
 - `.nojekyll`: GitHub Pages で静的ファイルをそのまま配信するための設定です。
 
@@ -79,10 +81,25 @@ Pocketly の標準開発環境は以下です。
 - npm 11
 - 標準 package manager は npm
 - `.nvmrc` を利用して Node.js 系列を合わせます
-- npm workspaces と root 共通 scripts は Phase 2 で整備します
-- root `package-lock.json` は Phase 2 の workspace / dependency 構成確定時に管理します
+- npm workspaces で正式 4 アプリを管理します
+- 依存関係のインストールはリポジトリルートで行います
+- root `package-lock.json` を workspace 全体の唯一の lockfile として管理します
+- アプリ配下へ `package-lock.json` や `npm-shrinkwrap.json` は作成しません
+- dependency は利用する各アプリの `package.json` で宣言します
 
-現時点では、リポジトリルートの共通 npm scripts は未整備です。そのため、ルートから一括で実行する共通コマンドは定義していません。
+標準の依存関係セットアップは、リポジトリルートで以下を実行します。
+
+```sh
+npm ci
+```
+
+依存関係を変更する場合は、リポジトリルートで以下を実行して root `package-lock.json` を更新します。
+
+```sh
+npm install
+```
+
+現時点では、リポジトリルートの共通 npm scripts は未整備です。そのため、`npm run dev` や `npm test` のようなルートから一括で実行する共通コマンドは定義していません。
 
 各アプリの利用方法、開発方法、テスト方法は、それぞれのアプリ README を参照してください。
 
