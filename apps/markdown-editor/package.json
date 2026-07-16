@@ -1,13 +1,10 @@
 {
   "name": "markdown-editor",
-  "version": "1.0.0",
-  "description": "Simple Markdown editor with initial rendering test",
-  "main": "script.js",
+  "private": true,
+  "description": "Browser-only Markdown editor with live preview, Mermaid rendering, and template support.",
   "scripts": {
     "test": "playwright test"
   },
-  "keywords": [],
-  "author": "",
   "license": "MIT",
   "type": "commonjs",
   "devDependencies": {

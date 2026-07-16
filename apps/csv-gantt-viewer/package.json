@@ -1,7 +1,7 @@
 {
   "name": "csv-gantt-viewer",
-  "version": "1.0.0",
   "private": true,
+  "description": "Browser-only CSV Gantt chart viewer for visualizing and ordering project timelines.",
   "scripts": {
     "test": "playwright test"
   },
