@@ -17,5 +17,11 @@
       "version": ">=11 <12",
       "onFail": "error"
     }
-  }
+  },
+  "workspaces": [
+    "apps/avro-viewer",
+    "apps/csv-gantt-viewer",
+    "apps/markdown-editor",
+    "apps/restructuredtext-editor"
+  ]
 }

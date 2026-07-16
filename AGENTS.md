@@ -103,6 +103,19 @@ root `package.json` の `engines` / `devEngines` を尊重してください。`
 
 `npm --force` 等で検証を継続した場合は、force が必要だった理由と環境差異を検証結果へ明記してください。
 
+
+## npm workspaces / dependency management
+
+Pocketly uses npm workspaces for the four official apps. The root `package.json` explicitly lists the workspace paths; do not replace this list with an `apps/*` glob unless an Issue explicitly scopes that change.
+
+Dependency management rules:
+
+- Run dependency installation from the repository root.
+- Treat root `package-lock.json` as the canonical resolved dependency tree for the whole workspace.
+- Do not create app-level `package-lock.json` files or `npm-shrinkwrap.json`.
+- Declare app dependencies in the package.json of the app that uses them.
+- Do not move app-owned dependencies such as Playwright to root dependencies unless the target Issue explicitly requires it.
+
 ## Test result truthfulness
 
 検証結果は以下を明確に区別して記録します。
@@ -157,9 +170,7 @@ common/
 
 現時点で以下は未整備です。これらが既に存在すると仮定しないでください。
 
-- npm workspaces
 - root common scripts
-- root `package-lock.json`
 - 全アプリ統一 `dev` contract
 - 全アプリ統一 `test` contract
 - Playwright 設定共通化
