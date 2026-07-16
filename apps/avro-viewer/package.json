@@ -1,0 +1,5 @@
+{
+  "name": "avro-viewer",
+  "private": true,
+  "description": "Browser-only Avro OCF viewer using a vendored avsc runtime."
+}

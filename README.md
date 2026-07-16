@@ -56,6 +56,8 @@ Git tag `monorepo-baseline` は、Phase 0 完了時点のアプリ配置、GitHu
 
 Phase 1 で固定したルート開発環境の完了状態と Phase 2 への引き継ぎ事項は [`docs/phase-1-root-development-baseline.md`](docs/phase-1-root-development-baseline.md) に記録しています。
 
+Phase 2 のアプリ package metadata と実行契約は [`docs/phase-2-package-execution-contract.md`](docs/phase-2-package-execution-contract.md) に記録しています。
+
 ## 開発ロードマップ概要
 
 Pocketly のモノリポ開発基盤は、以下の Phase で整備します。
