@@ -1,6 +1,6 @@
 # Phase 2 package metadata and execution contract
 
-This document records the Phase 2 package metadata, workspace, dependency ownership, and execution contract for the four official Pocketly apps. It fixes the current app-level package identities and the root install entrypoint without changing app runtime behavior, Playwright configuration, or test coverage.
+This document records the Phase 2 package metadata, workspace, dependency ownership, and execution contract for the four official Pocketly apps. It fixes the current app-level package identities, root install entrypoint, and shared `dev` HTTP contract without changing app runtime behavior, Playwright configuration, or test coverage.
 
 ## Scope
 
@@ -45,7 +45,8 @@ Each official app package must provide the following minimum metadata:
 ## Dependency ownership contract
 
 - Dependencies are declared by the app that uses them.
-- The root package is the install entrypoint for the whole workspace tree, not the logical owner of app dependencies.
+- The root package is the install entrypoint for the whole workspace tree.
+- Root `devDependencies` own shared development infrastructure used by all workspaces, including `serve-handler` for the common static server.
 - npm may hoist or link packages as a physical installation optimization.
 - App code, tests, and scripts must not rely on undeclared dependencies merely because they are physically present through hoisting.
 - `@playwright/test` remains declared in the Markdown Editor and CSV Gantt Viewer app packages. It is not moved to root `devDependencies`.
@@ -60,24 +61,57 @@ Each official app package must provide the following minimum metadata:
 
 ## Current capability matrix
 
-This matrix records current capabilities only. It does not define future target behavior as already implemented.
+This matrix records current capabilities.
 
-| App | Package name | Runtime model | npm dependencies | Current `test` script | Playwright |
-| --- | --- | --- | --- | --- | --- |
-| Avro Viewer | `avro-viewer` | Browser-only static app using vendored `avsc` runtime | No | No | No |
-| CSV Gantt Viewer | `csv-gantt-viewer` | Browser-only static app with local assets and test-time HTTP serving | Yes: `@playwright/test` as an app dev dependency | Yes: `playwright test` | Yes |
-| Markdown Editor | `markdown-editor` | Browser-only static app with CDN-loaded rendering libraries | Yes: `@playwright/test` as an app dev dependency | Yes: `playwright test` | Yes |
-| reStructuredText Editor | `restructuredtext-editor` | Browser-only static app using CDN-loaded runtime dependencies | No | No | No |
+| App | Package name | Runtime model | npm dependencies | Current `dev` script | Current `test` script | Playwright |
+| --- | --- | --- | --- | --- | --- | --- |
+| Avro Viewer | `avro-viewer` | Browser-only static app using vendored `avsc` runtime | No app dependencies | Yes: shared static HTTP server | No | No |
+| CSV Gantt Viewer | `csv-gantt-viewer` | Browser-only static app with local assets and test-time HTTP serving | Yes: `@playwright/test` as an app dev dependency | Yes: shared static HTTP server | Yes: `playwright test` | Yes |
+| Markdown Editor | `markdown-editor` | Browser-only static app with CDN-loaded rendering libraries | Yes: `@playwright/test` as an app dev dependency | Yes: shared static HTTP server | Yes: `playwright test` | Yes |
+| reStructuredText Editor | `restructuredtext-editor` | Browser-only static app using CDN-loaded runtime dependencies | No app dependencies | Yes: shared static HTTP server | No | No |
 
-## Target execution contract
+## Execution contract
 
 ### `dev`
 
-The Phase 2 target meaning of `dev` is:
+The implemented meaning of `dev` is:
 
-> Start a local development HTTP server and make the target app available in a browser.
+> Serve the target workspace's static files over HTTP at `127.0.0.1:8000`.
 
-The `dev` script is a target contract for later Phase 2 work. It is not implemented in this issue, so none of the four app packages currently declare `dev`.
+The `dev` contract is fixed as follows:
+
+- All four workspaces declare `scripts.dev`.
+- `scripts.dev` is identical in all four workspaces: `node ../../scripts/serve-static.mjs`.
+- The command is run from the repository root with `npm run dev --workspace=<package-name>`.
+- Root `npm ci` is the standard dependency preparation entrypoint.
+- `file://` is not the standard development entrypoint.
+- Python HTTP server usage is not a standard development dependency or entrypoint.
+- The common static server is a root-owned development tool in `scripts/serve-static.mjs`.
+- The standard operation starts one workspace at a time.
+- The host is `127.0.0.1`.
+- The port is `8000`.
+- Browser cache is disabled with `Cache-Control: no-store`.
+- Directory listing is disabled.
+- Build, bundle, transpile, file watch, hot reload, and browser auto-open are not provided.
+
+Standard commands:
+
+```bash
+npm ci
+npm run dev --workspace=<package-name>
+```
+
+Short form:
+
+```bash
+npm run dev -w <package-name>
+```
+
+Standard URL:
+
+```text
+http://127.0.0.1:8000/
+```
 
 ### `test`
 
@@ -100,17 +134,18 @@ Apps without current automated tests must not declare fake passing test scripts.
 This contract does not introduce any of the following:
 
 - root common scripts
-- root dependencies or dev dependencies
-- `dev` scripts
 - root test orchestration
 - fake `test` scripts for apps without tests
+- Playwright browser install policy
+- Playwright config commonization
+- build system, bundling, transpilation, or generated `dist/` output
+- app runtime dependency model changes
+- app HTML, CSS, or JavaScript behavior changes
 - Avro Viewer npm `avsc` dependency
 - reStructuredText Editor npm dependencies for CDN-loaded runtime libraries
 - Playwright version changes
-- Playwright config commonization
-- app HTML, CSS, or JavaScript behavior changes
 
-## Lv3-C handoff
+## Lv3-D handoff
 
 The workspace preparation input for the next Phase 2 step is:
 
@@ -118,8 +153,10 @@ The workspace preparation input for the next Phase 2 step is:
 - Package names are unique and match directory names.
 - All four app packages are `private: true`.
 - Root `npm ci` is the standard dependency preparation entrypoint.
+- Workspace selection is available by package name with `--workspace=<package-name>`.
+- The `dev` contract is implemented for all four workspaces.
+- The shared HTTP server is `127.0.0.1:8000`.
 - Two apps currently have npm dev dependencies and Playwright tests: Markdown Editor and CSV Gantt Viewer.
-- Two apps currently have no npm dependencies and no test scripts: Avro Viewer and reStructuredText Editor.
-- `dev` remains a future implementation target.
-- HTTP server dependencies and per-app `dev` scripts remain for Lv3-C to decide.
+- Two apps currently have no automated test scripts: Avro Viewer and reStructuredText Editor.
+- Root test orchestration is not implemented.
 - `test` remains a capability contract only for apps that actually own automated tests.

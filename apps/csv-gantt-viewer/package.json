@@ -3,6 +3,7 @@
   "private": true,
   "description": "Browser-only CSV Gantt chart viewer for visualizing and ordering project timelines.",
   "scripts": {
+    "dev": "node ../../scripts/serve-static.mjs",
     "test": "playwright test"
   },
   "devDependencies": {
