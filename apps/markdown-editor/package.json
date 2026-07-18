@@ -3,6 +3,7 @@
   "private": true,
   "description": "Browser-only Markdown editor with live preview, Mermaid rendering, and template support.",
   "scripts": {
+    "dev": "node ../../scripts/serve-static.mjs",
     "test": "playwright test"
   },
   "license": "MIT",

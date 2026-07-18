@@ -2,6 +2,17 @@
 
 ブラウザだけで reStructuredText を編集し、HTML プレビューを確認できる静的 Web アプリです。
 
+## 起動方法
+
+標準のローカル開発起動は、リポジトリルートで依存関係を準備してから workspace を指定します。
+
+```bash
+npm ci
+npm run dev --workspace=restructuredtext-editor
+```
+
+その後、`http://127.0.0.1:8000/` を開いてください。停止は起動中の terminal で `Ctrl+C` です。
+
 ## 構成
 
 - `index.html`: アプリ画面と CDN 由来ライブラリの import map を定義します。

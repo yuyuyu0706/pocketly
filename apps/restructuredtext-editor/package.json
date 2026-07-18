@@ -1,5 +1,8 @@
 {
   "name": "restructuredtext-editor",
   "private": true,
-  "description": "Browser-only reStructuredText editor with CDN-loaded runtime dependencies."
+  "description": "Browser-only reStructuredText editor with CDN-loaded runtime dependencies.",
+  "scripts": {
+    "dev": "node ../../scripts/serve-static.mjs"
+  }
 }

@@ -4,12 +4,16 @@
 
 ## 起動方法
 
+標準のローカル開発起動は、リポジトリルートで依存関係を準備してから workspace を指定します。
+
 ```bash
-python -m http.server 8000
+npm ci
+npm run dev --workspace=avro-viewer
 ```
 
-その後、`http://localhost:8000` を開いてください。  
-`index.html` を直接開くこともできますが、ブラウザ設定によってはモジュール読み込みやファイル挙動が変わるため、簡易HTTPサーバを推奨します。
+その後、`http://127.0.0.1:8000/` を開いてください。停止は起動中の terminal で `Ctrl+C` です。
+
+`index.html` の直接オープンや `python -m http.server` は Pocketly の標準起動手順ではありません。ブラウザ設定や `file://` の制約による差異を避けるため、共通の HTTP server で起動します。
 
 ## 使い方
 

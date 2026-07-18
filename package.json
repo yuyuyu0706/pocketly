@@ -23,5 +23,8 @@
     "apps/csv-gantt-viewer",
     "apps/markdown-editor",
     "apps/restructuredtext-editor"
-  ]
+  ],
+  "devDependencies": {
+    "serve-handler": "6.1.7"
+  }
 }

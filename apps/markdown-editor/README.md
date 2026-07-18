@@ -30,15 +30,18 @@ markdown-editor/
 ```
 
 ## 🚀 Getting started
-1. **Clone or download the repository.**
+1. **Prepare dependencies from the repository root.**
    ```bash
-   git clone https://github.com/your-repo/markdown-editor.git
-   cd markdown-editor
+   npm ci
    ```
-2. **Open `index.html` in your browser.**
-   The application is completely static, so no build step is required.
+2. **Start the Markdown Editor workspace from the repository root.**
+   ```bash
+   npm run dev --workspace=markdown-editor
+   ```
+3. **Open `http://127.0.0.1:8000/` in your browser.**
+4. **Stop the server with `Ctrl+C` in the terminal.**
 
-> 💡 If you plan to run the automated tests, install dependencies first: `npm install`.
+The application is completely static, so no build step is required. Opening `index.html` directly with `file://` is not the standard Pocketly development entrypoint; use the shared HTTP server above.
 
 ## 🖊 Using the editor
 | Action | What happens |
@@ -72,10 +75,10 @@ flowchart LR
 The toolbar language selector updates the interface instantly. To add or adjust translations, edit the JSON files under `i18n/` and include matching keys for each language.
 
 ## 🧪 Development & testing
-Playwright tests are provided to guard against regressions.
+Playwright tests are provided to guard against regressions. Prepare dependencies from the repository root and target this workspace when running tests.
 ```bash
-npm install       # first-time setup
-npm test          # run end-to-end tests
+npm ci
+npm test --workspace=markdown-editor
 ```
 
 ## 📄 License

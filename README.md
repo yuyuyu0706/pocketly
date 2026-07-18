@@ -37,6 +37,8 @@ pocketly/
 ├── AGENTS.md
 ├── package.json
 ├── package-lock.json
+├── scripts/
+│   └── serve-static.mjs
 ├── index.html
 └── .nojekyll
 ```
@@ -47,6 +49,7 @@ pocketly/
 - `AGENTS.md`: AI エージェントと開発者が守る現在の開発ルールです。
 - `package.json`: ルートの Node.js / npm 方針と正式 4 アプリの npm workspaces を記録します。
 - `package-lock.json`: workspace 全体の解決済み dependency tree を固定する唯一の lockfile です。
+- `scripts/serve-static.mjs`: 4 アプリ共通の root-owned 静的開発 HTTP server です。
 - `index.html`: GitHub Pages のルート入口です。
 - `.nojekyll`: GitHub Pages で静的ファイルをそのまま配信するための設定です。
 
@@ -99,7 +102,29 @@ npm ci
 npm install
 ```
 
-現時点では、リポジトリルートの共通 npm scripts は未整備です。そのため、`npm run dev` や `npm test` のようなルートから一括で実行する共通コマンドは定義していません。
+### アプリをローカル起動する
+
+4 アプリの標準開発起動は、リポジトリルートから workspace package name を指定します。
+
+```sh
+npm ci
+npm run dev --workspace=<package-name>
+```
+
+標準 URL は全アプリ共通で以下です。
+
+```text
+http://127.0.0.1:8000/
+```
+
+| アプリ | package name | 起動コマンド |
+| --- | --- | --- |
+| Avro Viewer | `avro-viewer` | `npm run dev --workspace=avro-viewer` |
+| CSV Gantt Viewer | `csv-gantt-viewer` | `npm run dev --workspace=csv-gantt-viewer` |
+| Markdown Editor | `markdown-editor` | `npm run dev --workspace=markdown-editor` |
+| reStructuredText Editor | `restructuredtext-editor` | `npm run dev --workspace=restructuredtext-editor` |
+
+停止は起動中の terminal で `Ctrl+C` です。全アプリが `127.0.0.1:8000` を使うため、標準では一度に 1 workspace だけを起動します。root 共通の `npm run dev` は定義しません。また、long-running process と port 競合を避けるため `npm run dev --workspaces` は使用しません。
 
 各アプリの利用方法、開発方法、テスト方法は、それぞれのアプリ README を参照してください。
 

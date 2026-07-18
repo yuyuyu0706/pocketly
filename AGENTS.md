@@ -116,6 +116,22 @@ Dependency management rules:
 - Declare app dependencies in the package.json of the app that uses them.
 - Do not move app-owned dependencies such as Playwright to root dependencies unless the target Issue explicitly requires it.
 
+## Standard local development server
+
+Pocketly の標準開発起動は以下です。
+
+```text
+npm run dev --workspace=<package-name>
+```
+
+標準 URL は以下です。
+
+```text
+http://127.0.0.1:8000/
+```
+
+共通静的 server は root 管理の `scripts/serve-static.mjs` です。標準起動対象は 1 workspace ずつです。`file://` と Python HTTP server は Pocketly の標準起動入口ではありません。
+
 ## Test result truthfulness
 
 検証結果は以下を明確に区別して記録します。
@@ -170,10 +186,10 @@ common/
 
 現時点で以下は未整備です。これらが既に存在すると仮定しないでください。
 
-- root common scripts
-- 全アプリ統一 `dev` contract
+- root test orchestration
 - 全アプリ統一 `test` contract
-- Playwright 設定共通化
+- Playwright browser install方針
+- Playwright設定共通化
 
 ## Completion checklist
 
