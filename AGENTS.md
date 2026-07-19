@@ -196,12 +196,14 @@ npm test
 
 browser 準備の対象は Chromium のみです。Playwright は各 workspace の `npm run dev` を自動起動・停止するため、実行前に手動起動中の port 8000 server を停止してください。Playwright config は app-owned のまま維持し、共通化しません。
 
-## Current Phase 2 deferrals
+## Current CI and deferred work
 
-現時点で以下は未整備です。これらが既に存在すると仮定しないでください。
+GitHub Actions による自動テストは未実装です。CI workflow は Phase 3 で導入するため、CI が存在することを前提に実装完了を判断しないでください。現時点では local / Codex 環境で repository-owned の正式コマンドを実行します。
 
+以下は自動的な残作業ではありません。明示的な Issue がある場合にのみ実施してください。
+
+- GitHub Actions CI workflow の設計・導入
 - Playwright設定共通化
-- GitHub Actions によるテスト実行
 
 ## Completion checklist
 

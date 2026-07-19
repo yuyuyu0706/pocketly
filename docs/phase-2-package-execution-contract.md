@@ -1,6 +1,8 @@
-# Phase 2 package metadata and execution contract
+# Current package metadata and execution contract
 
-This document records the Phase 2 package metadata, workspace, dependency ownership, and execution contract for the four official Pocketly apps. It fixes the current app-level package identities, root install and test entrypoints, shared `dev` HTTP contract, and existing Playwright execution without changing app runtime behavior or test coverage.
+This document is the currently effective package metadata, workspace, dependency ownership, and execution contract for the four official Pocketly apps. Phase 2 established this contract; its completed historical state is fixed separately in [Phase 2 App Execution Baseline](phase-2-app-execution-baseline.md). Update this document when the current contract changes, rather than changing the historical baseline.
+
+It fixes the current app-level package identities, root install and test entrypoints, shared `dev` HTTP contract, and existing Playwright execution without changing app runtime behavior or test coverage.
 
 ## Scope
 
@@ -155,8 +157,9 @@ This contract does not introduce any of the following:
 
 ## Phase 3 handoff
 
-- `npm ci`, `npm run test:browser:install`, and `npm test` are sufficient to execute all existing automated tests.
+- Phase 3 GitHub Actions may use the repository-owned commands `npm ci`, `npm run test:browser:install`, `npm run test:list`, and `npm test`.
+- The workflow sequence is checkout, Node.js 24 / npm 11 setup, `npm ci`, Chromium and any required OS dependency preparation, `npm run test:list`, then `npm test`.
 - Chromium installation is app-owned but orchestrated from root.
 - CSV Gantt Viewer and Markdown Editor tests use their app-owned HTTP server configs and port 8000 sequentially.
 - Avro Viewer and reStructuredText Editor are intentionally skipped by root test orchestration until they acquire real tests.
-- Phase 3 can use this command contract for GitHub Actions without changing test ownership or adding fake passes.
+- Concrete GitHub Actions workflow design is decided in Phase 3; this contract does not add a workflow or change test ownership.
