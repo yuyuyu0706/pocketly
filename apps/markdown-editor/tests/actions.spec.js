@@ -3,7 +3,6 @@ const fs = require('fs/promises');
 const os = require('os');
 const path = require('path');
 
-const fileUrl = 'file://' + path.resolve(__dirname, '../index.html');
 const VIEWPORT = { width: 1280, height: 1024 };
 const STORAGE_IGNORE_KEYS = [
   'md:text',
@@ -144,7 +143,7 @@ async function waitForStorageChange(page, previousSnapshot, options = {}) {
 }
 
 test('exports PDF via button', async ({ page }) => {
-  await page.goto(fileUrl);
+  await page.goto('/');
   await page.evaluate(() => {
     const originalOpen = window.open;
     window.open = (...args) => {
@@ -164,7 +163,7 @@ test('exports PDF via button', async ({ page }) => {
 });
 
 test('exports preview HTML via button', async ({ page }) => {
-  await page.goto(fileUrl);
+  await page.goto('/');
   const [download] = await Promise.all([
     page.waitForEvent('download'),
     page.click('#export-html'),
@@ -182,7 +181,7 @@ test('exports preview HTML via button', async ({ page }) => {
 });
 
 test('inserts image into preview', async ({ page }) => {
-  await page.goto(fileUrl);
+  await page.goto('/');
   const buffer = Buffer.from(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAE0lEQVR42mP8z/D/PwMDAwMAAAIABJACJ1gAAAAASUVORK5CYII=',
     'base64'
@@ -197,7 +196,7 @@ test('inserts image into preview', async ({ page }) => {
 });
 
 test('divider can move horizontally', async ({ page }) => {
-  await page.goto(fileUrl);
+  await page.goto('/');
   const editor = page.locator('#editor');
   const divider = page.locator('#divider');
   const initialWidth = await editor.evaluate(e => e.offsetWidth);
@@ -214,7 +213,7 @@ test('divider can move horizontally', async ({ page }) => {
 
 test('divider persists width ratio after reload', async ({ page }) => {
   await page.setViewportSize(VIEWPORT);
-  await page.goto(fileUrl);
+  await page.goto('/');
   await page.waitForLoadState('load');
   await page.evaluate(() => {
     try {
@@ -310,7 +309,7 @@ test('divider persists width ratio after reload', async ({ page }) => {
 });
 
 test('saves markdown to file', async ({ page }) => {
-  await page.goto(fileUrl);
+  await page.goto('/');
   const [download] = await Promise.all([
     page.waitForEvent('download'),
     page.click('#save-md'),
@@ -319,7 +318,7 @@ test('saves markdown to file', async ({ page }) => {
 });
 
 test('opens markdown file into editor', async ({ page }) => {
-  await page.goto(fileUrl);
+  await page.goto('/');
   const [fileChooser] = await Promise.all([
     page.waitForEvent('filechooser'),
     page.click('#open-md'),
@@ -334,7 +333,7 @@ test('opens markdown file into editor', async ({ page }) => {
 });
 
 test('renders mermaid diagram in preview', async ({ page }) => {
-  await page.goto(fileUrl);
+  await page.goto('/');
   await page.waitForFunction(() => window.mermaid);
   await page.fill('#editor', '```mermaid\nflowchart LR\nA-->B\n```');
   await page.waitForSelector('#preview .mermaid svg');

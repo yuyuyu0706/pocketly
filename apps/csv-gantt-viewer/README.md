@@ -44,4 +44,12 @@ npm ci
 npm test --workspace=csv-gantt-viewer
 ```
 
-テスト入口の本格的な root orchestration 統一は後続 Issue で扱います。
+Chromium を準備して root から既存テストを実行する場合は、以下を使用します。
+
+```bash
+npm run test:browser:install
+npm run test:list
+npm test
+```
+
+Playwright はこの workspace の `npm run dev` を自動で起動・停止し、`http://127.0.0.1:8000/` へ接続します。実行前に手動起動中の port 8000 server を停止してください。

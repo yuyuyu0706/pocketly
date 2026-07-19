@@ -81,5 +81,15 @@ npm ci
 npm test --workspace=markdown-editor
 ```
 
+Chromium を準備して root から既存テストを一覧・実行する場合は、以下を使用します。
+
+```bash
+npm run test:browser:install
+npm run test:list
+npm test
+```
+
+Playwright はこの workspace の `npm run dev` を自動で起動・停止し、`http://127.0.0.1:8000/` で HTTP 経由のテストを実行します。実行前に手動起動中の port 8000 server を停止してください。
+
 ## 📄 License
 MIT License. See [LICENSE](./LICENSE) for details.

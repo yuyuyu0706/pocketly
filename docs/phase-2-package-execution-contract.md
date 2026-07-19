@@ -1,6 +1,6 @@
 # Phase 2 package metadata and execution contract
 
-This document records the Phase 2 package metadata, workspace, dependency ownership, and execution contract for the four official Pocketly apps. It fixes the current app-level package identities, root install entrypoint, and shared `dev` HTTP contract without changing app runtime behavior, Playwright configuration, or test coverage.
+This document records the Phase 2 package metadata, workspace, dependency ownership, and execution contract for the four official Pocketly apps. It fixes the current app-level package identities, root install and test entrypoints, shared `dev` HTTP contract, and existing Playwright execution without changing app runtime behavior or test coverage.
 
 ## Scope
 
@@ -78,85 +78,85 @@ The implemented meaning of `dev` is:
 
 > Serve the target workspace's static files over HTTP at `127.0.0.1:8000`.
 
-The `dev` contract is fixed as follows:
-
-- All four workspaces declare `scripts.dev`.
-- `scripts.dev` is identical in all four workspaces: `node ../../scripts/serve-static.mjs`.
-- The command is run from the repository root with `npm run dev --workspace=<package-name>`.
+- All four workspaces declare the identical `dev` script: `node ../../scripts/serve-static.mjs`.
+- Run one workspace at a time from the root with `npm run dev --workspace=<package-name>`.
 - Root `npm ci` is the standard dependency preparation entrypoint.
-- `file://` is not the standard development entrypoint.
-- Python HTTP server usage is not a standard development dependency or entrypoint.
-- The common static server is a root-owned development tool in `scripts/serve-static.mjs`.
-- The standard operation starts one workspace at a time.
-- The host is `127.0.0.1`.
-- The port is `8000`.
-- Browser cache is disabled with `Cache-Control: no-store`.
-- Directory listing is disabled.
-- Build, bundle, transpile, file watch, hot reload, and browser auto-open are not provided.
-
-Standard commands:
-
-```bash
-npm ci
-npm run dev --workspace=<package-name>
-```
-
-Short form:
-
-```bash
-npm run dev -w <package-name>
-```
-
-Standard URL:
-
-```text
-http://127.0.0.1:8000/
-```
+- `file://` and Python HTTP server usage are not standard development entrypoints.
+- The root-owned server disables browser cache and directory listing; it does not build, bundle, watch, hot reload, or open a browser.
 
 ### `test`
 
-The current meaning of `test` is:
+Only CSV Gantt Viewer and Markdown Editor own automated Playwright tests. They each declare these scripts:
 
-> Run the automated tests that the app currently owns.
+```json
+{
+  "test": "playwright test",
+  "test:list": "playwright test --list",
+  "test:browser:install": "playwright install chromium"
+}
+```
 
-Only apps that currently have automated tests declare `test`:
+Avro Viewer and reStructuredText Editor do not declare fake passing test scripts. The root owns the orchestration scripts:
 
-- `apps/csv-gantt-viewer/`
-- `apps/markdown-editor/`
+```json
+{
+  "test": "npm run test --workspaces --if-present",
+  "test:list": "npm run test:list --workspaces --if-present",
+  "test:browser:install": "npm run test:browser:install --workspaces --if-present"
+}
+```
 
-Apps without current automated tests must not declare fake passing test scripts. The absence of `test` in these apps records that automated tests are not yet implemented:
+`--if-present` skips testless workspaces while preserving the explicit workspace order. Therefore root `npm test` runs CSV Gantt Viewer followed by Markdown Editor and returns non-zero if either fails.
 
-- `apps/avro-viewer/`
-- `apps/restructuredtext-editor/`
+Standard test commands are:
+
+```bash
+npm ci
+npm run test:browser:install
+npm run test:list
+npm test
+```
+
+Individual tests remain available with `npm test --workspace=csv-gantt-viewer` and `npm test --workspace=markdown-editor`. Chromium is the only browser prepared by the repository script. Linux environments needing OS dependencies may run `playwright install --with-deps chromium` outside the repository script.
+
+### Playwright HTTP contract
+
+Each tested app retains its own Playwright config; no common config file is introduced. Both configs start the target workspace's `npm run dev` with this contract:
+
+```js
+webServer: {
+  command: 'npm run dev',
+  url: 'http://127.0.0.1:8000/',
+  reuseExistingServer: false,
+  stdout: 'pipe',
+  stderr: 'pipe',
+},
+use: {
+  baseURL: 'http://127.0.0.1:8000/',
+  headless: true,
+}
+```
+
+Playwright automatically starts and stops the server. A manually running server on port 8000 must be stopped before tests; with `reuseExistingServer: false`, a port conflict fails intentionally instead of reusing another app. Tests access the app with `page.goto('/')` over HTTP.
 
 ## Explicit non-goals for this contract
 
 This contract does not introduce any of the following:
 
-- root common scripts
-- root test orchestration
 - fake `test` scripts for apps without tests
-- Playwright browser install policy
 - Playwright config commonization
+- Firefox, WebKit, browser matrix, test parallelization, or automatic port allocation
+- coverage or visual regression testing
 - build system, bundling, transpilation, or generated `dist/` output
-- app runtime dependency model changes
-- app HTML, CSS, or JavaScript behavior changes
-- Avro Viewer npm `avsc` dependency
-- reStructuredText Editor npm dependencies for CDN-loaded runtime libraries
-- Playwright version changes
+- app runtime dependency model changes or app HTML, CSS, or JavaScript behavior changes
+- Avro Viewer npm `avsc` dependency or reStructuredText Editor CDN dependency changes
+- Playwright version changes or root ownership of Playwright
+- GitHub Actions (planned for Phase 3)
 
-## Lv3-D handoff
+## Phase 3 handoff
 
-The workspace preparation input for the next Phase 2 step is:
-
-- Workspace targets are exactly the four app directories under `apps/`.
-- Package names are unique and match directory names.
-- All four app packages are `private: true`.
-- Root `npm ci` is the standard dependency preparation entrypoint.
-- Workspace selection is available by package name with `--workspace=<package-name>`.
-- The `dev` contract is implemented for all four workspaces.
-- The shared HTTP server is `127.0.0.1:8000`.
-- Two apps currently have npm dev dependencies and Playwright tests: Markdown Editor and CSV Gantt Viewer.
-- Two apps currently have no automated test scripts: Avro Viewer and reStructuredText Editor.
-- Root test orchestration is not implemented.
-- `test` remains a capability contract only for apps that actually own automated tests.
+- `npm ci`, `npm run test:browser:install`, and `npm test` are sufficient to execute all existing automated tests.
+- Chromium installation is app-owned but orchestrated from root.
+- CSV Gantt Viewer and Markdown Editor tests use their app-owned HTTP server configs and port 8000 sequentially.
+- Avro Viewer and reStructuredText Editor are intentionally skipped by root test orchestration until they acquire real tests.
+- Phase 3 can use this command contract for GitHub Actions without changing test ownership or adding fake passes.
