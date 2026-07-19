@@ -126,6 +126,28 @@ http://127.0.0.1:8000/
 
 停止は起動中の terminal で `Ctrl+C` です。全アプリが `127.0.0.1:8000` を使うため、標準では一度に 1 workspace だけを起動します。root 共通の `npm run dev` は定義しません。また、long-running process と port 競合を避けるため `npm run dev --workspaces` は使用しません。
 
+## テストを実行する
+
+現在、自動テストを保有するのは CSV Gantt Viewer と Markdown Editor のみです。Avro Viewer と reStructuredText Editor には fake pass を追加せず、root orchestration では `--if-present` により skip されます。
+
+Playwright の Chromium を準備してテスト一覧と全既存テストを実行するには、リポジトリルートで以下を実行します。
+
+```sh
+npm ci
+npm run test:browser:install
+npm run test:list
+npm test
+```
+
+個別 workspace のテストも実行できます。
+
+```sh
+npm test --workspace=csv-gantt-viewer
+npm test --workspace=markdown-editor
+```
+
+Playwright は各 workspace の `npm run dev` を自動で起動し、テスト終了時に停止します。テスト前に手動起動した port 8000 の server を停止してください。browser 準備の対象は Chromium のみです。GitHub Actions による自動実行は Phase 3 で導入予定です。
+
 各アプリの利用方法、開発方法、テスト方法は、それぞれのアプリ README を参照してください。
 
 - [`apps/markdown-editor/README.md`](apps/markdown-editor/README.md)

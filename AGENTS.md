@@ -182,14 +182,26 @@ common/
 
 共通化は実需が確認され、対象 Issue が明示的に共通化をスコープへ含める場合に実施します。
 
+## Test execution
+
+root `npm test` は、`test` script を保有する workspace を定義順に順次実行します。テスト未保有の Avro Viewer / reStructuredText Editor には fake pass を追加せず、`--if-present` により skip されます。
+
+Playwright を保有する CSV Gantt Viewer / Markdown Editor では、以下を利用します。
+
+```text
+npm run test:list
+npm run test:browser:install
+npm test
+```
+
+browser 準備の対象は Chromium のみです。Playwright は各 workspace の `npm run dev` を自動起動・停止するため、実行前に手動起動中の port 8000 server を停止してください。Playwright config は app-owned のまま維持し、共通化しません。
+
 ## Current Phase 2 deferrals
 
 現時点で以下は未整備です。これらが既に存在すると仮定しないでください。
 
-- root test orchestration
-- 全アプリ統一 `test` contract
-- Playwright browser install方針
 - Playwright設定共通化
+- GitHub Actions によるテスト実行
 
 ## Completion checklist
 

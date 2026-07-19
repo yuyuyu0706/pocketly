@@ -26,5 +26,10 @@
   ],
   "devDependencies": {
     "serve-handler": "6.1.7"
+  },
+  "scripts": {
+    "test": "npm run test --workspaces --if-present",
+    "test:list": "npm run test:list --workspaces --if-present",
+    "test:browser:install": "npm run test:browser:install --workspaces --if-present"
   }
 }

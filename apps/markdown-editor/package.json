@@ -4,7 +4,9 @@
   "description": "Browser-only Markdown editor with live preview, Mermaid rendering, and template support.",
   "scripts": {
     "dev": "node ../../scripts/serve-static.mjs",
-    "test": "playwright test"
+    "test": "playwright test",
+    "test:list": "playwright test --list",
+    "test:browser:install": "playwright install chromium"
   },
   "license": "MIT",
   "type": "commonjs",

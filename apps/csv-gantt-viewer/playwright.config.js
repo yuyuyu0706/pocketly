@@ -3,12 +3,14 @@ import { defineConfig } from '@playwright/test';
 export default defineConfig({
   testDir: './tests',
   webServer: {
-    command: 'python -m http.server 3000 2>&1 | sed "s/^/::debug::/"',
-    port: 3000,
-    reuseExistingServer: !process.env.CI,
+    command: 'npm run dev',
+    url: 'http://127.0.0.1:8000/',
+    reuseExistingServer: false,
+    stdout: 'pipe',
+    stderr: 'pipe',
   },
   use: {
-    baseURL: 'http://localhost:3000',
+    baseURL: 'http://127.0.0.1:8000/',
     headless: true,
     acceptDownloads: true,
   },

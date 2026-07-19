@@ -1,7 +1,4 @@
 const { test, expect } = require('@playwright/test');
-const path = require('path');
-
-const fileUrl = 'file://' + path.resolve(__dirname, '../index.html');
 
 test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -19,7 +16,7 @@ test.beforeEach(async ({ page }) => {
     }
     window.__lastPreviewScrollTarget = null;
   });
-  await page.goto(fileUrl);
+  await page.goto('/');
   await page.addStyleTag({
     content: `html, body, #preview { scroll-behavior: auto !important; }`,
   });

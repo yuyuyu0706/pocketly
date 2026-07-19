@@ -4,7 +4,9 @@
   "description": "Browser-only CSV Gantt chart viewer for visualizing and ordering project timelines.",
   "scripts": {
     "dev": "node ../../scripts/serve-static.mjs",
-    "test": "playwright test"
+    "test": "playwright test",
+    "test:list": "playwright test --list",
+    "test:browser:install": "playwright install chromium"
   },
   "devDependencies": {
     "@playwright/test": "^1.42.1"
