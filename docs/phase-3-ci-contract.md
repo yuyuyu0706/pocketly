@@ -128,7 +128,7 @@ Configure the setup action's npm cache using the root lockfile:
     cache-dependency-path: package-lock.json
 ```
 
-The cache is npm's package cache only. Do not cache `node_modules`. `package-lock.json` at the repository root is the cache dependency source and remains the single canonical resolved dependency tree. Do not introduce a custom Playwright browser cache in the initial workflow.
+The cache is npm's package cache only. `actions/setup-node` restores it as part of its own workflow step; do not add a separate cache-restore step. Do not cache `node_modules`. `package-lock.json` at the repository root is the cache dependency source and remains the single canonical resolved dependency tree. Do not introduce a custom Playwright browser cache in the initial workflow.
 
 ## 9. Playwright environment preparation
 
@@ -152,15 +152,14 @@ Lv3-B must implement this order:
 
 ```text
 1. Checkout
-2. Node.js setup
+2. Set up Node.js and restore the npm package cache
 3. Log Node.js and npm versions
-4. Restore npm dependency cache
-5. npm ci
-6. Prepare Linux OS dependencies
-7. Prepare Chromium
-8. npm run test:list
-9. npm test
-10. Run failure diagnostics when needed
+4. npm ci
+5. Prepare Linux OS dependencies
+6. Prepare Chromium
+7. npm run test:list
+8. npm test
+9. Run failure diagnostics when needed
 ```
 
 The command steps are:
