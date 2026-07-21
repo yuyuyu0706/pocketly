@@ -44,10 +44,10 @@ The intended runtime is Node.js 24 with npm 11. The tested workspaces remain seq
 | Pull request success | passed | [Run 29754096438](https://github.com/yuyuyu0706/pocketly/actions/runs/29754096438), job [88391876762](https://github.com/yuyuyu0706/pocketly/actions/runs/29754096438/job/88391876762), `pull_request`, attempt 1, commit `aebf2070cbdb4212262b7923ea2813df50f89ec2`, completed `success`. |
 | Main push success | passed | [Run 29755431748](https://github.com/yuyuyu0706/pocketly/actions/runs/29755431748), job [88396441527](https://github.com/yuyuyu0706/pocketly/actions/runs/29755431748/job/88396441527), `push` to `main`, attempt 1, commit `056734be99facf84369fc53484c8a81332f49dd8`, completed `success`. |
 | Manual dispatch success | attempted but blocked | An unauthenticated `POST` to the workflow-dispatch endpoint for `main` returned HTTP 403 `Method forbidden`; no token or write-capable GitHub CLI is available in this environment. |
-| Failure reproduction | attempted but blocked | A safe temporary workflow failure requires creating and pushing a branch commit. This checkout has no configured Git remote or GitHub write credential, so no remote branch/PR can be created without leaving the prescribed environment. |
+| Failure reproduction | attempted but blocked | Temporary commit `3b71d77a92552cd25d2bcddd52b1b2fe60fb3204` changed `Run tests` to print a marker and `exit 32`; its push was blocked because GitHub requested credentials. It was reverted by `25fe11fa60fefc156632fb2bedcd0008ae7f4626` before the final diff. No failed Actions run was created. |
 | Cancellation | attempted but blocked | It depends on two pushed PR commits and observation of an in-progress run. The same missing remote/write capability blocked the safe reproduction. |
 | Rerun | attempted but blocked | An unauthenticated `POST` to the rerun endpoint for run 29755431748 returned HTTP 403 `Method forbidden`; therefore no new attempt was created. |
-| Artifact/report decision | passed | The successful job plus workflow review show no artifact producer or uploader. No real failure output was accessible in this environment; the existing policy of no empty/low-value artifact remains appropriate. |
+| Artifact/report decision | attempted but blocked | No failed Actions output was created because the temporary failure commit could not be pushed. The existing no-artifact policy is retained without treating it as an evidence-based final decision; reassessment is required after an authenticated failure run. |
 
 ## 5. Success-path results
 
@@ -61,7 +61,20 @@ Run 29755431748 was triggered by a `push` to `main` for merge commit `056734be99
 
 The preceding implementation verification recorded successful `npm ci`, Linux dependency preparation, Chromium preparation, test discovery (10 CSV Gantt Viewer and 22 Markdown Editor tests), and all 32 Playwright tests for the PR run. The main-push run completed the same single job successfully; GitHub's public API does not expose the private step log body used to repeat individual command output here.
 
-## 6. Manual, failure, cancellation, and rerun procedures
+## 6. Failure-reproduction attempt
+
+The failure reproduction was prepared on this PR branch as required: commit `3b71d77a92552cd25d2bcddd52b1b2fe60fb3204` changed the existing `Run tests` step to:
+
+```sh
+echo "Issue #32 temporary failure reproduction"
+exit 32
+```
+
+An explicit push attempt to `https://github.com/yuyuyu0706/pocketly.git` for `refs/heads/codex/implement-based-on-issue-32` failed before transmission with `fatal: could not read Username for 'https://github.com': No such device or address`. This environment has neither an authenticated remote nor a GitHub token, so it could not create the failed run, inspect its logs, or produce the requested run/job/check evidence. The change was immediately removed using revert commit `25fe11fa60fefc156632fb2bedcd0008ae7f4626`; the final tree restores `Run tests: npm test` and contains no intentional failure command.
+
+Because no failed run exists, rerun was also attempted against the existing successful main-push run only to verify access. The unauthenticated REST request returned HTTP 403 `Method forbidden`; no rerun attempt was created. A maintainer must perform the following procedure with write access to complete this issue's outstanding failure acceptance criteria.
+
+## 7. Manual, failure, cancellation, and rerun procedures
 
 The following procedures are intentionally retained for a maintainer with repository write access. They must use a temporary branch and must be reverted before the final PR head.
 
@@ -70,21 +83,21 @@ The following procedures are intentionally retained for a maintainer with reposi
 3. **Cancellation:** Push a temporary commit that adds a bounded wait step, wait for it to become `in_progress`, then push a second commit. Confirm the old pull-request run is `cancelled`, the new one starts, and the final diff has no wait step.
 4. **Rerun:** Select the failed or cancelled run in Actions and rerun it. Record the increased attempt number and per-attempt logs. Do not confuse that rerun with the run generated by the reverting commit.
 
-## 7. Failure visibility findings and limitations
+## 8. Failure visibility findings and limitations
 
 The workflow gives each contract boundary a named step: `Install dependencies`, `Prepare Linux OS dependencies`, `Prepare Chromium`, `List tests`, and `Run tests`. Since it has no `continue-on-error`, a failure in any one of those steps fails the job and prevents later ordinary steps from running. The GitHub Actions UI/logs are therefore designed to reveal the failing step, invoked command, exit code, and standard error.
 
-This environment could inspect completed run and job metadata but could not access authenticated Actions operations or create a temporary remote branch. Consequently, actual failure stderr, web-server startup errors, assertion errors, timeout/cancellation UI, and rerun-attempt logs remain **attempted but blocked**, not successful verification.
+This environment could inspect completed run and job metadata but could not access authenticated Actions operations or create a temporary remote branch. Consequently, the actual failed step, check display, command output, exit code, stderr, skipped later steps, web-server startup errors, assertion errors, timeout/cancellation UI, and rerun-attempt logs remain **attempted but blocked**, not successful verification.
 
-## 8. Artifact and report decision
+## 9. Artifact and report decision
 
-**Decision: do not add an artifact or report in this issue.** The workflow produces no explicit HTML report, trace, screenshot, video, or other durable output. Adding an upload step without a demonstrated producer would create empty or low-value artifacts. The named step logs are the primary diagnostic surface and are sufficient for normal command-boundary triage. If a future authenticated failure reproduction demonstrates missing diagnostic information, create a separately scoped issue to define the producer, failure-only upload condition, retention, and `if-no-files-found` behavior.
+**Status: attempted but blocked; no artifact is added.** The workflow produces no explicit HTML report, trace, screenshot, video, or other durable output, and the required failed-run output was unavailable. Adding an upload step without a demonstrated producer would create empty or low-value artifacts, but that is not a substitute for the required real-failure review. After an authenticated failure run, reassess whether the named step log alone identifies the failure; if it does not, create a separately scoped issue to define the producer, failure-only upload condition, retention, and `if-no-files-found` behavior.
 
-## 9. Blocked and not-run items
+## 10. Blocked and not-run items
 
-No scenario is reported as passed merely because it was attempted. Manual dispatch and rerun were explicitly attempted through GitHub's REST endpoints and blocked by HTTP 403. Failure and cancellation were blocked before execution because this checkout has no Git remote or write credential. No unattempted item is represented as a success.
+No scenario is reported as passed merely because it was attempted. Manual dispatch and rerun were explicitly attempted through GitHub's REST endpoints and blocked by HTTP 403. Failure and cancellation were blocked before execution because this checkout has no Git remote or write credential. The required failure evidence and artifact decision remain outstanding, so this document must not be used to close issue #32.
 
-## 10. Lv3-D handoff
+## 11. Lv3-D handoff
 
 Lv3-D should use **`Pocketly CI / Monorepo tests`** as the required-check candidate. Before configuring branch protection or a ruleset, a repository administrator should:
 
