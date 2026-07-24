@@ -19,7 +19,7 @@ The implemented, read-only CI workflow is present and its pull-request and `main
 | Manual dispatch, deterministic failure, cancellation, and rerun | attempted but blocked | The available environment lacks GitHub write credentials. |
 | PR Checks UI label and required-check configuration | attempted but blocked | They require authenticated maintainer access and the UI label has not been confirmed. |
 | Pending/failed/recovery/bypass merge-control evidence | not run | It depends on the required check being configured after the prerequisite evidence is collected. |
-| Artifact/report conclusion from a real failure | deferred | No failed run output exists yet; the no-upload implementation is retained pending that evidence. |
+| Artifact/report conclusion from a real failure | deferred | There is no upload step; decide whether an artifact or report is needed after an actual failure is observed. |
 
 ## 3. Phase 3 timeline
 
@@ -27,7 +27,7 @@ The implemented, read-only CI workflow is present and its pull-request and `main
 | --- | --- | --- | --- | --- |
 | Lv3-A | #28 / #29 | `06443e9b6bba8081a68dd107ccb4a248ace0bc4f` | Defined the CI execution contract. | passed |
 | Lv3-B | #30 / #31 | `056734be99facf84369fc53484c8a81332f49dd8` | Implemented the monorepo workflow. | passed |
-| Lv3-C | #32 / #33 | `5e3035dff035c64f14affbb0b44b13ac75e32c7f` | Recorded successful paths, procedures, and authentication limits. | completed with deferred verification |
+| Lv3-C | #32 / #33 | `5e3035dff035c64f14affbb0b44b13ac75e32c7f` | Recorded successful paths, procedures, and authentication limits. | partial outcome merged; issue remains open with deferred verification |
 | Lv3-D | #34 / #35 | `339b5763942ac30d93210318a728853062a226c4` | Documented the required-check preconditions, settings procedure, and rollback. | completed; operations remain deferred to #27 |
 | Lv3-E | #36 / this PR | Pending merge | Records this completion decision and Phase 4 handoff. | completed with deferred items on merge |
 
@@ -70,13 +70,13 @@ The Linux dependency command prepares the runner; the root browser-install comma
 | --- | --- | --- |
 | Pull-request success | passed | [Run 29754096438](https://github.com/yuyuyu0706/pocketly/actions/runs/29754096438), job 88391876762, completed successfully for commit `aebf2070cbdb4212262b7923ea2813df50f89ec2`. |
 | `main` push success | passed | [Run 29755431748](https://github.com/yuyuyu0706/pocketly/actions/runs/29755431748), job 88396441527, completed successfully for merge commit `056734be99facf84369fc53484c8a81332f49dd8`. |
-| Latest recorded documentation-only PR head | passed | PR #35 head `213d68780fd23d02e60a7d0b997976d91c9d6894`: [run 30076723514](https://github.com/yuyuyu0706/pocketly/actions/runs/30076723514), job 89428993792, succeeded. |
+| PR #35 recorded success | passed | PR #35 head `688978abce70e0f88e89a2d2ed79ed63b7efae37`: [run 30098388265](https://github.com/yuyuyu0706/pocketly/actions/runs/30098388265), job 89498013805, succeeded. |
 | `workflow_dispatch` | attempted but blocked | Unauthenticated dispatch returned HTTP 403; no write-capable credential was available. |
 | Deterministic failure and failure visibility | attempted but blocked | Temporary failure commit `3b71d77a92552cd25d2bcddd52b1b2fe60fb3204` could not be pushed and was reverted by `25fe11fa60fefc156632fb2bedcd0008ae7f4626`; no failed run was created. |
 | Cancellation | attempted but blocked | It requires pushed, overlapping PR commits; missing write access prevented reproduction. |
 | Rerun | attempted but blocked | An unauthenticated rerun request returned HTTP 403; no new attempt was created. |
 | Recovery success | not run | Requires a pushed deterministic failure followed by its revert. |
-| Final successful head for this baseline PR | not run locally | Must be confirmed by the PR's `Pocketly CI / Monorepo tests` result after this branch is pushed. |
+| PR #37 recorded success | passed | PR #37 recorded head `36690abe93a51385118842753266acd4e8359a65`: [run 30103153212](https://github.com/yuyuyu0706/pocketly/actions/runs/30103153212), job 89513983131, succeeded. This is recorded run evidence, not a final fixed SHA. |
 | Artifact/report decision | deferred | Reassess after an authenticated failed run; no failure-output evidence exists. |
 | Actual PR Checks UI label | attempted but blocked | Public metadata confirms the candidate only; a maintainer must inspect the PR Checks UI. |
 | Required-check setting | attempted but blocked | Not readable or changeable without authenticated repository access. |
@@ -87,11 +87,11 @@ The Linux dependency command prepares the runner; the root browser-install comma
 
 `Pocketly CI / Monorepo tests` is a **candidate**, derived from the stable workflow and job names. It is not evidence that GitHub displays exactly that label in the PR Checks UI, nor that it is configured as required.
 
-Read-only public observations recorded on 2026-07-24 established that `main` is the default branch and `GET /repos/yuyuyu0706/pocketly/rulesets` returned an empty array. The unauthenticated branch-protection endpoint returned HTTP 401. Therefore this baseline does not infer the absence of branch protection, hidden rulesets, pull-request requirements, required checks, administrator enforcement, bypass actors, force-push/deletion controls, or merge queue settings. No repository setting was changed in Phase 3.
+Read-only public observations recorded on 2026-07-24 established that `main` is the default branch and `GET /repos/yuyuyu0706/pocketly/rulesets` returned an empty array. The unauthenticated branch-protection endpoint returned HTTP 401. PR #35 and its operations record contain no repository-settings change record; that historical record does not establish the authenticated current state. Therefore this baseline does not infer the absence of branch protection, hidden rulesets, pull-request requirements, required checks, administrator enforcement, bypass actors, force-push/deletion controls, or merge queue settings. The authenticated current configuration remains unconfirmed.
 
 ## 8. Observability, failure handling, and recovery
 
-The workflow fails on setup, dependency, browser, discovery, and test errors; it uses no `continue-on-error`. GitHub Actions step logs are the implemented primary diagnostic surface. There is no artifact upload because the current Playwright configuration does not establish a useful artifact from real failure output.
+The workflow fails on setup, dependency, browser, discovery, and test errors; it uses no `continue-on-error`. GitHub Actions step logs are the implemented primary diagnostic surface. There is no upload step; whether an artifact or report is needed will be decided after an actual failure is observed.
 
 For an authorized completion, use the retained procedures in [`phase-3-ci-verification.md`](phase-3-ci-verification.md) to create a temporary deterministic failure, observe its named step and logs, rerun it, revert it, and record recovery. Use [`phase-3-ci-operations.md`](phase-3-ci-operations.md) for settings selection, merge-control evidence, and rollback. Preserve existing controls and restore captured settings if a newly added check blocks normal operation.
 
@@ -104,7 +104,7 @@ The following decisions are fixed unless a separately scoped issue changes them:
 - Chromium-only preparation; Playwright and its configuration remain owned by the tested apps.
 - Root `--workspaces --if-present` orchestration; test-less workspaces remain honestly test-less.
 - Sequential fixed-port `8000` HTTP test execution; no automatic port allocation or casual parallelization.
-- No `pull_request_target`, secrets, write permissions, Node/browser matrix, workspace job split, path filters, coverage, visual regression, or initial artifacts.
+- No `pull_request_target`, secrets, write permissions, Node/browser matrix, workspace job split, path filters, coverage, visual regression, or artifact upload step initially.
 
 Phase 3 did not modify application behavior, app package ownership, the lockfile, GitHub Pages deployment/path behavior, vendor/license assets, historical Phase 0--2 baselines, or introduce `packages/`, `shared/`, or `common/`.
 
