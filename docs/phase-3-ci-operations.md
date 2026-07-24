@@ -16,7 +16,7 @@ Issue #34 has an explicit gate: required-status-check configuration must not be 
 | Main push success | passed | [Run 29755431748](https://github.com/yuyuyu0706/pocketly/actions/runs/29755431748) completed successfully for a push to `main`. |
 | Failure reproduction | attempted but blocked | The temporary deterministic failure could not be pushed without GitHub write credentials; no failed Actions run exists. |
 | Failure visibility | attempted but blocked | No failed check UI or authenticated step log could be inspected because no failed run was created. |
-| Final head success | passed | PR [#35](https://github.com/yuyuyu0706/pocketly/pull/35) head `213d68780fd23d02e60a7d0b997976d91c9d6894` completed [workflow run 30076723514](https://github.com/yuyuyu0706/pocketly/actions/runs/30076723514) successfully; job [89428993792](https://github.com/yuyuyu0706/pocketly/actions/runs/30076723514/job/89428993792) was also successful. |
+| Recorded PR head success | passed | Recorded PR [#35](https://github.com/yuyuyu0706/pocketly/pull/35) head `213d68780fd23d02e60a7d0b997976d91c9d6894` completed [workflow run 30076723514](https://github.com/yuyuyu0706/pocketly/actions/runs/30076723514) successfully; job [89428993792](https://github.com/yuyuyu0706/pocketly/actions/runs/30076723514/job/89428993792) was also successful. |
 | Actual PR Checks UI label | attempted but blocked | Public run/job metadata establishes the candidate but a maintainer must confirm the label in the PR Checks UI. |
 | Artifact decision from actual failure | attempted but blocked | No real failed-run output exists to support the decision. |
 | Manual dispatch, cancellation, and rerun | attempted but blocked | The unauthenticated dispatch and rerun API attempts returned HTTP 403; cancellation requires pushed commits. |
@@ -36,9 +36,9 @@ Because the gate is not satisfied, **no branch protection or ruleset was created
 
 The candidate is derived from the workflow and job display names.  It is not yet a confirmed PR Checks UI label, so it must not be configured from this document alone.
 
-### Latest PR head evidence
+### Recorded PR run evidence
 
-PR [#35](https://github.com/yuyuyu0706/pocketly/pull/35) head SHA `213d68780fd23d02e60a7d0b997976d91c9d6894` completed successfully in [workflow run 30076723514](https://github.com/yuyuyu0706/pocketly/actions/runs/30076723514).  The `Pocketly CI` workflow's [job 89428993792](https://github.com/yuyuyu0706/pocketly/actions/runs/30076723514/job/89428993792), `Monorepo tests`, concluded `success`.  GitHub Actions reports every job step as `success`: setup, checkout, Node.js setup, runtime-version logging, dependency installation, Linux OS dependency preparation, Chromium preparation, test listing, test execution, post-job cleanup, and job completion.
+The following is recorded past evidence for PR [#35](https://github.com/yuyuyu0706/pocketly/pull/35): head SHA `213d68780fd23d02e60a7d0b997976d91c9d6894` completed successfully in [workflow run 30076723514](https://github.com/yuyuyu0706/pocketly/actions/runs/30076723514).  The `Pocketly CI` workflow's [job 89428993792](https://github.com/yuyuyu0706/pocketly/actions/runs/30076723514/job/89428993792), `Monorepo tests`, concluded `success`.  GitHub Actions reports every job step as `success`: setup, checkout, Node.js setup, runtime-version logging, dependency installation, Linux OS dependency preparation, Chromium preparation, test listing, test execution, post-job cleanup, and job completion.
 
 Local execution evidence is narrower: the CSV Gantt Viewer suite was run and passed with 10 tests.  This document does not claim a local Markdown Editor result.  The full `Monorepo tests` workflow result above is the evidence that all CI steps succeeded for the PR head.
 
@@ -87,7 +87,7 @@ The authorized operator must append the following before treating the control as
 | Failed | The required check fails, merge is blocked, and the failing step/log is reachable. | not run |
 | Recovery / success | After reverting the temporary failure, a new successful required check permits merge. | not run |
 | Direct push / bypass | Current behavior for direct push, administrators, owners, and GitHub Apps is documented. | not run |
-| Final head | PR [#35](https://github.com/yuyuyu0706/pocketly/pull/35) head `213d68780fd23d02e60a7d0b997976d91c9d6894` has a successful [Pocketly CI run 30076723514](https://github.com/yuyuyu0706/pocketly/actions/runs/30076723514) and `Monorepo tests` [job 89428993792](https://github.com/yuyuyu0706/pocketly/actions/runs/30076723514/job/89428993792); no temporary failure or wait command is in this documentation-only change. | passed |
+| Recorded successful head | Recorded PR [#35](https://github.com/yuyuyu0706/pocketly/pull/35) head `213d68780fd23d02e60a7d0b997976d91c9d6894` has a successful [Pocketly CI run 30076723514](https://github.com/yuyuyu0706/pocketly/actions/runs/30076723514) and `Monorepo tests` [job 89428993792](https://github.com/yuyuyu0706/pocketly/actions/runs/30076723514/job/89428993792); no temporary failure or wait command was recorded in that documentation-only change. | passed |
 
 ## 8. Rollback procedure
 
