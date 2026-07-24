@@ -63,6 +63,8 @@ Phase 1 で固定したルート開発環境の完了状態と Phase 2 への引
 
 Phase 2 の完了状態は [`docs/phase-2-app-execution-baseline.md`](docs/phase-2-app-execution-baseline.md) に固定しています。現在有効なアプリ package metadata と実行契約は [`docs/phase-2-package-execution-contract.md`](docs/phase-2-package-execution-contract.md) を参照してください。
 
+Phase 3 の CI 完了状態と Phase 4 への引継ぎは [`docs/phase-3-ci-baseline.md`](docs/phase-3-ci-baseline.md) に記録しています。現在有効な CI 契約は [`docs/phase-3-ci-contract.md`](docs/phase-3-ci-contract.md)、検証記録と必須チェック運用の残作業はそれぞれ [`docs/phase-3-ci-verification.md`](docs/phase-3-ci-verification.md)、[`docs/phase-3-ci-operations.md`](docs/phase-3-ci-operations.md) を参照してください。
+
 ## 開発ロードマップ概要
 
 Pocketly のモノリポ開発基盤は、以下の Phase で整備します。
@@ -70,7 +72,7 @@ Pocketly のモノリポ開発基盤は、以下の Phase で整備します。
 - Phase 0: 移行ベースライン固定（完了）
 - Phase 1: ルート開発環境（完了）
 - Phase 2: 開発・テスト入口統一（完了）
-- Phase 3: GitHub Actions（次に着手）
+- Phase 3: GitHub Actions（完了、運用上の deferred items あり）
 - Phase 4: Pocketly App Contract
 - Phase 5: 必要に応じた共通化
 
@@ -146,7 +148,7 @@ npm test --workspace=csv-gantt-viewer
 npm test --workspace=markdown-editor
 ```
 
-Playwright は各 workspace の `npm run dev` を自動で起動し、テスト終了時に停止します。テスト前に手動起動した port 8000 の server を停止してください。browser 準備の対象は Chromium のみです。GitHub Actions による自動実行は Phase 3 で導入予定です。
+Playwright は各 workspace の `npm run dev` を自動で起動し、テスト終了時に停止します。テスト前に手動起動した port 8000 の server を停止してください。browser 準備の対象は Chromium のみです。GitHub Actions では同じ root command contract を自動実行します。現在の CI 契約と未完了の運用検証は Phase 3 文書を参照してください。
 
 各アプリの利用方法、開発方法、テスト方法は、それぞれのアプリ README を参照してください。
 
