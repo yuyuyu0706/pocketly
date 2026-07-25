@@ -65,7 +65,7 @@ Phase 2 の完了状態は [`docs/phase-2-app-execution-baseline.md`](docs/phase
 
 Phase 3 の CI 完了状態と Phase 4 への引継ぎは [`docs/phase-3-ci-baseline.md`](docs/phase-3-ci-baseline.md) に記録しています。現在有効な CI 契約は [`docs/phase-3-ci-contract.md`](docs/phase-3-ci-contract.md)、検証記録と必須チェック運用の残作業はそれぞれ [`docs/phase-3-ci-verification.md`](docs/phase-3-ci-verification.md)、[`docs/phase-3-ci-operations.md`](docs/phase-3-ci-operations.md) を参照してください。
 
-Phase 4 で定義した現在有効な正式アプリの参加・変更契約は [`docs/pocketly-app-contract.md`](docs/pocketly-app-contract.md) を参照してください。契約定義の入力となった正式4アプリの現行能力棚卸しは [`docs/pocketly-app-capability-matrix.md`](docs/pocketly-app-capability-matrix.md) に記録しています。
+Phase 4 で定義した現在有効な正式アプリの参加・変更契約は [`docs/pocketly-app-contract.md`](docs/pocketly-app-contract.md) を参照してください。アプリの新規追加・既存変更では、契約を実行手順と証跡形式へ変換した [`docs/pocketly-app-onboarding-checklist.md`](docs/pocketly-app-onboarding-checklist.md) を利用します。契約定義の入力となった正式4アプリの現行能力棚卸しは [`docs/pocketly-app-capability-matrix.md`](docs/pocketly-app-capability-matrix.md) に記録しています。
 
 ## 開発ロードマップ概要
 
