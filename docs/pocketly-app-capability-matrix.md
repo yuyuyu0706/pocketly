@@ -58,11 +58,11 @@ All `dev` scripts run the root-owned `node ../../scripts/serve-static.mjs`. The 
 | App | Declared app dependencies | Test/development dependency ownership | Vendored / CDN ownership and attribution | Lockfile status |
 | --- | --- | --- | --- | --- |
 | Avro Viewer | none | not applicable | vendored `avsc.js`; MIT license at `vendor/avsc-LICENSE.txt` | present in root lockfile as workspace; no app lockfile/shrinkwrap |
-| CSV Gantt Viewer | `@playwright/test` in `devDependencies` | app-owned Playwright | local minified `html2canvas.min.js`; separate provenance/update method unconfirmed | present in root lockfile as workspace; no app lockfile/shrinkwrap |
+| CSV Gantt Viewer | `@playwright/test` in `devDependencies` | app-owned Playwright | local `html2canvas.min.js` v1.4.1; upstream `https://html2canvas.hertzen.com`; MIT license; repository-specific update procedure and maintenance record unconfirmed | present in root lockfile as workspace; no app lockfile/shrinkwrap |
 | Markdown Editor | `@playwright/test` in `devDependencies` | app-owned Playwright | `marked` and `mermaid` loaded from CDN; local MIT `LICENSE` for the app | present in root lockfile as workspace; no app lockfile/shrinkwrap |
-| reStructuredText Editor | none | not applicable | runtime CDN resources listed in README/import map; upstream license/attribution records in this repo are unconfirmed | present in root lockfile as workspace; no app lockfile/shrinkwrap |
+| reStructuredText Editor | none | not applicable | runtime CDN resources listed in README/import map; repository-specific introduction, update, and attribution maintenance record unconfirmed | present in root lockfile as workspace; no app lockfile/shrinkwrap |
 
-The root owns the canonical `package-lock.json` and shared development server dependency `serve-handler`. A repository scan found only that root lockfile and no `npm-shrinkwrap.json`; its workspace package entries include both Playwright-owning apps. No undeclared npm package use is identified from the app package/test configuration inventory; non-npm runtime resources are shown separately above. Evidence: root/app `package.json`, [`package-lock.json`](../package-lock.json), and tracked asset paths.
+The root owns the canonical `package-lock.json` and shared development server dependency `serve-handler`. A repository scan found only that root lockfile and no `npm-shrinkwrap.json`; its workspace package entries include both Playwright-owning apps. No undeclared npm package use is identified from the app package/test configuration inventory; non-npm runtime resources are shown separately above. The `html2canvas.min.js` file banner is the evidence for its version, upstream, and license; those facts are not inferred from npm metadata. Evidence: root/app `package.json`, [`package-lock.json`](../package-lock.json), [`apps/csv-gantt-viewer/html2canvas.min.js`](../apps/csv-gantt-viewer/html2canvas.min.js), and tracked asset paths.
 
 ## 7. Development capability matrix
 
@@ -73,10 +73,10 @@ The root owns the canonical `package-lock.json` and shared development server de
 | HTTP endpoint / server | present: `127.0.0.1:8000` / root static server | same | same | same |
 | Directory listing / cache policy | disabled / `no-store` | same | same | same |
 | Build, watch, hot reload | absent by design | absent by design | absent by design | absent by design |
-| `file://` as standard entrypoint | absent by design | unconfirmed in README; shared contract serves over HTTP | absent by design | unconfirmed in README; shared contract serves over HTTP |
+| `file://` as standard entrypoint | absent by design | absent by design | absent by design | absent by design |
 | App-specific manual verification | README usage steps present | README configuration check present | README feature/use steps present | README startup/configuration description present |
 
-The server validates that its working directory is a private, root-listed workspace with `package.json` and `index.html`; it serves one workspace at a time, has no directory listing, sets `Cache-Control: no-store`, and does not implement building, watching, hot reload, or browser opening. Evidence: [`scripts/serve-static.mjs`](../scripts/serve-static.mjs) and app READMEs.
+The server validates that its working directory is a private, root-listed workspace with `package.json` and `index.html`; it serves one workspace at a time, has no directory listing, sets `Cache-Control: no-store`, and does not implement building, watching, hot reload, or browser opening. The repository-wide current execution contract defines HTTP through the shared server as the standard entrypoint and explicitly excludes `file://` from that role, so all four app statuses are **absent by design**. The CSV Gantt Viewer and reStructuredText Editor READMEs document the HTTP start command but, unlike the Avro Viewer and Markdown Editor READMEs, do not explicitly state a direct-open policy; this is a confirmed documentation difference, not an unconfirmed execution status. Evidence: [`scripts/serve-static.mjs`](../scripts/serve-static.mjs), [`phase-2-package-execution-contract.md`](phase-2-package-execution-contract.md), and app READMEs.
 
 ## 8. Test / quality capability matrix
 
@@ -121,9 +121,9 @@ Evidence: [`index.html`](../index.html), [`.nojekyll`](../.nojekyll), [`.github/
 | App | README / purpose / start guidance | Tests and runtime documented | Protected assets, license, maintenance boundary |
 | --- | --- | --- | --- |
 | Avro Viewer | present | vendored runtime and HTTP start documented; automated-test capability absent by design | `vendor/avsc.js` and its MIT license are explicitly recorded; samples documented |
-| CSV Gantt Viewer | present | HTTP start and Playwright commands documented | local CSV/config assets documented; `html2canvas` provenance/update information unconfirmed |
+| CSV Gantt Viewer | present; HTTP start documented, direct-open policy not explicitly stated | HTTP start and Playwright commands documented | local CSV/config assets documented; `html2canvas` v1.4.1, upstream URL, and MIT license confirmed by the file banner; repository-specific update/maintenance record unconfirmed |
 | Markdown Editor | present | static/no-build model, CDN-feature context, and Playwright commands documented | local MIT `LICENSE`; templates/i18n/icons/test boundary described |
-| reStructuredText Editor | present | HTTP start and CDN runtime list documented; automated-test capability absent by design | local sample/icon documented; CDN upstream license/attribution maintenance record unconfirmed |
+| reStructuredText Editor | present; HTTP start documented, direct-open policy not explicitly stated | HTTP start and CDN runtime list documented; automated-test capability absent by design | local sample/icon documented; repository-specific CDN introduction/update/attribution maintenance record unconfirmed |
 
 All four application directories have their own README and thereby retain an app-owned maintenance boundary. The root README documents the four-app list, Pages entry, workspace commands, and repository-wide lockfile/server rules.
 
@@ -157,19 +157,20 @@ The following are decision inputs, not proposed requirements:
 
 ## 15. Unconfirmed items
 
+The runtime files and URLs establish current dependency facts. The items below are limited to repository-specific maintenance history and procedures that are not recorded in the examined files.
+
 | Item | Status and reason |
 | --- | --- |
-| CSV Gantt Viewer's `html2canvas.min.js` upstream provenance, version, license, and update procedure | unconfirmed; the tracked file exists, but the examined package metadata/README do not identify it. |
-| reStructuredText Editor CDN resource license/attribution and update procedure | unconfirmed; its README lists runtime sources but no repository-local attribution/update record was found. |
-| Whether the CSV Gantt and reStructuredText READMEs intentionally permit or forbid `file://` | unconfirmed; their standard procedure is HTTP, but unlike the Avro/Markdown READMEs they do not state a direct-open policy. |
-| Runtime CDN availability/offline behavior | unconfirmed; static source identifies external hosts but this inventory does not perform a network availability test. |
-| GitHub Pages deployment behavior for a production branch | unconfirmed; the current static workflow trigger is `codex/**`, and this issue does not change or exercise deployment settings. |
+| CSV Gantt Viewer's `html2canvas.min.js` repository-specific introduction history, update procedure, and maintenance record | unconfirmed; its file banner confirms version 1.4.1, upstream `https://html2canvas.hertzen.com`, and MIT license, but the examined repository documents do not record how or when this copy was introduced or maintained. |
+| reStructuredText Editor CDN dependency repository-specific introduction history, update procedure, and attribution maintenance record | unconfirmed; its README and source identify current runtime sources, but the examined repository documents do not record the repository-specific introduction and maintenance process. |
+
+The CSV Gantt Viewer and reStructuredText Editor READMEs' lack of an explicit direct-open policy is a **present documentation difference**, recorded in sections 7 and 11. It does not make the repository-wide `file://` execution status unconfirmed. Runtime CDN availability and production Pages execution were not tested by this documentation-only inventory and are not converted into future contract proposals here.
 
 ## 16. Lv3-B / Lv3-C handoff
 
 **Lv3-B (contract definition)** should use sections 12–15 to separate shared minimums from capability-specific conditions without retroactively declaring the observed differences failures. It should explicitly decide the eight questions in section 14, including how exceptions and CDN/vendored assets are recorded.
 
-**Lv3-C (conformance verification)** should validate any later contract against the cited files and current root commands. At minimum it should verify identity/workspace registration, script resolution, lockfile ownership, selected dependency/attribution records, HTTP/Pages subpath behavior, documented test status, and CI reachability. It must report test-less apps as intentional capability cases where the later contract says so, rather than adding fake passing scripts. It should also resolve or carry forward the five unconfirmed items above with evidence.
+**Lv3-C (conformance verification)** should validate any later contract against the cited files and current root commands. At minimum it should verify identity/workspace registration, script resolution, lockfile ownership, selected dependency/attribution records, HTTP/Pages subpath behavior, documented test status, and CI reachability. It must report test-less apps as intentional capability cases where the later contract says so, rather than adding fake passing scripts. It should also resolve or carry forward the two repository-specific unconfirmed items above with evidence.
 
 ## Verification record for this inventory
 
