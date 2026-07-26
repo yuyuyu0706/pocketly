@@ -67,6 +67,8 @@ Phase 3 の CI 完了状態と Phase 4 への引継ぎは [`docs/phase-3-ci-base
 
 Phase 4 で定義した現在有効な正式アプリの参加・変更契約は [`docs/pocketly-app-contract.md`](docs/pocketly-app-contract.md) を参照してください。アプリの新規追加・既存変更では、契約を実行手順と証跡形式へ変換した [`docs/pocketly-app-onboarding-checklist.md`](docs/pocketly-app-onboarding-checklist.md) を利用します。契約定義の入力となった正式4アプリの現行能力棚卸しは [`docs/pocketly-app-capability-matrix.md`](docs/pocketly-app-capability-matrix.md) に記録しています。
 
+Phase 4 の完了判断、既存4アプリの未解消事項、Phase 3 との境界、Phase 5 への引き継ぎ判断は、歴史記録である [`docs/phase-4-app-contract-baseline.md`](docs/phase-4-app-contract-baseline.md) に固定しています。
+
 ## 開発ロードマップ概要
 
 Pocketly のモノリポ開発基盤は、以下の Phase で整備します。
@@ -75,7 +77,7 @@ Pocketly のモノリポ開発基盤は、以下の Phase で整備します。
 - Phase 1: ルート開発環境（完了）
 - Phase 2: 開発・テスト入口統一（完了）
 - Phase 3: GitHub Actions（完了、運用上の deferred items あり）
-- Phase 4: Pocketly App Contract
+- Phase 4: Pocketly App Contract（完了、記録済み follow-up items あり）
 - Phase 5: 必要に応じた共通化
 
 ## 開発を始めるとき
