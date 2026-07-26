@@ -1,4 +1,4 @@
-# Markdown Editor Refine – Phase 1 作業引き継ぎ書
+# Markdown Editor Refine – Phase 1 作業指示書
 
 > 本書は **Claude Code が Phase 1（Lv2-A〜E）を実施するための作業指示書** です。
 > 配置先: `apps/markdown-editor/docs/refine-00-handoff.md`
