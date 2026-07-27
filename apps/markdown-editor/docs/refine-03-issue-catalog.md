@@ -552,7 +552,7 @@
 | 項目 | 内容 |
 | --- | --- |
 | 対象 | `i18n.js` の `dialogs.replaceFile` キー、`saveFilenamePrompt` キー |
-| 事象 | `i18n/ja.json` / `i18n/en.json` に対応する翻訳エントリが存在しない（デッドキー） |
+| 事象 | `dialogs.replaceFile` / `saveFilenamePrompt` キーは `i18n/ja.json` / `i18n/en.json` / `i18n.js` のすべてに定義されているが、`script.js` / `index.html` のいずれからも参照されていない（未使用のデッドキー） |
 | 解消方針 | Phase 3 で `MDE-005`（コードブロック）の i18n キー追加時等、`i18n.js` / `i18n/*.json` に触る機会に合わせて解消する |
 
 ---
