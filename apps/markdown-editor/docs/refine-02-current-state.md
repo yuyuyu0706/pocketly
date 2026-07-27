@@ -1,11 +1,11 @@
 # Markdown Editor – 現状構成と既知課題の原因箇所
 
-> 状態: **Draft**（Lv2-B で実コードに対して検証・確定する）
+> 状態: **確定版**（Lv2-B にて実コードとの突き合わせ検証・行番号確認・未調査領域の補完を完了）
 > 配置先: `apps/markdown-editor/docs/refine-02-current-state.md`
-> 調査基準コミット: `5602ecfb91dce8ddd21fe3aec70f20d93c9ff531`（2026-07-26）
-> 親 Issue: #49 / 対応 Lv2: Lv2-B
+> 調査基準コミット: `6801ff51c30ae20dfbd65bd225c83459ebf5b88e`（2026-07-27）
+> 親 Issue: #49 / 対応 Lv2: Lv2-B（Issue #53）
 
-**行番号はすべて上記コミット時点のもの。** main が進んでいる場合はずれるため、Lv2-B で全件を再確認すること。
+**行番号はすべて上記コミット時点のもの。** 本コミットで全行参照を実コードと照合済み（アプリコードに差分なし）。
 
 ---
 
@@ -237,24 +237,57 @@ Playwright 22 件（`actions.spec.js` 8 件 / `render.spec.js` 14 件）。
 
 ---
 
-## 8. 未調査領域（Lv2-B で調査すること）
+## 8. 未調査領域の調査結果（Lv2-B 完了）
 
-以下はドラフト作成時点で未調査。Lv2-B で確認し、必要なら課題として `MDE-026` 以降へ追加する。
+Lv2-B にて全 8 項目を調査済み。新規検出候補は各項末尾に記載する。
 
-- [ ] `i18n.js` 506 行の実装内容と、翻訳キーの網羅性（`i18n/en.json` と `ja.json` のキー差分）
-- [ ] `js/preview.js` のスクロール同期ロジック（`preview.js:600-680` 付近）の安定性
-- [ ] 画像 Base64 埋め込みのメモリ挙動と、大きな画像を挿入した場合の影響
-- [ ] Mermaid の初期化オプション（`preview.js:88`）とテーマ設定の妥当性
-- [ ] `docs/ci-failure-analysis.md` の内容と、未解決の CI 課題の有無
-- [ ] `template/` 5 種のテンプレート内容が現状の機能と整合しているか
-- [ ] エディタのハイライトオーバーレイ（`script.js:75-337`）が IME 入力時に正しく追従するか
-- [ ] `playwright.config.js` の設定（タイムアウト、リトライ、レポータ）
+### 8-1. i18n キー網羅性（優先調査）
+
+- `i18n/en.json` と `i18n/ja.json` は同一の 42 キーを保持しており、キー差分はゼロ。
+- `i18n.js` 内の埋め込みフォールバック辞書も同一キーセット（fetch 失敗時に使用）。
+- キー参照経路は 3 種類：`i18n.t('key')` 直接呼び出し（`script.js` 内）、HTML の `data-i18n="key"` 属性（`index.html`）、`dataset.i18n` へ動的代入後に `i18n.applyToDOM()` で解決（テンプレートボタン、`script.js:493`）。
+- `toolbar.hideLineNumbers` / `toolbar.showLineNumbers` は変数経由で動的参照（`script.js:861-862`）。
+- **新規検出候補**: `dialogs.replaceFile` と `dialogs.saveFilenamePrompt` の 2 キーは、en.json / ja.json / i18n.js 埋め込み辞書に定義されているが、`script.js` / `index.html` のいずれからも参照されていない（デッドキー候補）。正式付番と優先度判定は Lv2-C に委ねる。
+
+### 8-2. スクロール同期ロジックの安定性（軽微確認）
+
+`preview.js:630-680` 付近を確認。ポインタイベント・タッチ・ホイールによる手動スクロール意図を `editorManualScrollIntentUntil` / `previewManualScrollIntentUntil` で管理し、自動スクロールと干渉しない設計になっている。`compositionstart/update/end` も `attachEditorEvents()` に登録済みで、IME 変換中のスクロール同期は考慮されている（`preview.js:649-653`）。実機テストは未実施（ブラウザ環境なし）。構造上の問題は読解範囲では確認されなかった。
+
+### 8-3. 画像 Base64 メモリ挙動（軽微確認）
+
+`preview.js` 内の `imageMap` オブジェクトに `preview:image` イベントごとにファイル名をキーとして Base64 データを格納する（`preview.js:671-682`）。エビクション処理はなく、挿入した画像はセッション中メモリに保持され続ける。大きな画像を繰り返し挿入した場合のメモリ増大は現実的な懸念だが、ページリロードでリセットされる。現状のユースケースでは許容範囲内と判断するが、将来的な改善候補として記録しておく（新規検出候補・Lv2-C で優先度判定）。
+
+### 8-4. Mermaid 初期化オプション（軽微確認）
+
+`preview.js:88-93` にて以下のオプションで初期化。
+
+```javascript
+{ startOnLoad: false, securityLevel: 'loose', flowchart: { htmlLabels: true } }
+```
+
+`securityLevel: 'loose'` は Mermaid 内で HTML のレンダリングを許可する設定で、XSS リスクを持つ。Markdown のサニタイズ未実施（`preview.js:717-718`）と組み合わさると、悪意ある Markdown を貼り付けた場合に任意スクリプトが実行可能。テーマ設定は未指定（Mermaid のデフォルトが適用）。セキュリティリスクとして Lv2-C の優先度判定に委ねる。
+
+### 8-5. CI 失敗分析（軽微確認）
+
+`docs/ci-failure-analysis.md` を確認。Azure Static Web Apps のステージング環境上限超過（`BadRequest`）が原因。複数回再現が確認済みで未解決のまま（quota 未解放）。アプリコードとは無関係の基盤課題。
+
+### 8-6. テンプレート整合性（軽微確認）
+
+`template/` 配下の 5 ファイル（`meeting-notes.md` / `readme.md` / `release-notes.md` / `system-change-checklist.md` / `system-change-overview.md`）が実際に存在し、`script.js:381-385` の定義と一致していることを確認。整合性に問題なし。
+
+### 8-7. IME 入力時のハイライト追従（優先調査）
+
+`script.js` のエディタハイライトオーバーレイは `input` イベントのみをリッスンしており（`script.js:2289`）、`compositionstart` / `compositionend` の登録はない。ブラウザは IME 変換中にも `input` イベントを発火するため、`isComposing` チェックなしで `updateEditorHighlight()` が呼ばれる。変換候補文字列がオーバーレイに反映される過程でちらつきや同期ずれが生じる可能性がある。一方、スクロール同期側（`preview.js`）は `compositionstart/update/end` を正しく登録済み（§8-2 参照）。ハイライトオーバーレイへの `compositionstart` / `compositionend` 対応は改善候補（新規検出候補・Lv2-C で優先度判定）。実機テストは未実施（ブラウザ環境なし）。
+
+### 8-8. Playwright 設定（軽微確認）
+
+`playwright.config.js` にタイムアウト・リトライの明示設定なし（Playwright デフォルトが適用：テストタイムアウト 30 秒、リトライ 0 回）。レポータは `list` のみ。`webServer.reuseExistingServer: false` のため、毎回 `npm run dev` を起動する。CI 環境での安定性に影響する可能性があるが、現状テストが通る範囲では許容範囲内。
 
 ---
 
-## 9. 参考: 主要な行番号リファレンス
+## 9. 主要な行番号リファレンス
 
-Lv2-B での検証用。
+コミット `6801ff51` にて全件照合済み。
 
 | 対象 | 位置 |
 | --- | --- |
