@@ -299,5 +299,7 @@ Phase 2〜5 の全 Lv2 で MDE-001〜MDE-031（対象外の候補を除く）が
 ## 10. 運用ルール（再発防止）
 
 各 Phase の最初の Lv2 Issue を起票するタイミングで、そのPhaseの Lv1 Issue も
-同時に作成し、Sub-issue として正式に連結すること。Phase 3〜5 の Lv2 起票時
-（各 Phase 着手時）に同じ手順を踏む。
+同時に作成し、GitHub Sub-issue 機能で Lv2 群を正式に連結すること。
+Lv1 は先行する Phase の Lv1 と並列構造とし（例：Phase2 の Lv1 は Phase1 の Lv1 と
+並列であり、その子ではない）、Milestone を対応する Phase 番号に紐づける。
+Phase 3〜5 の Lv2 起票時（各 Phase 着手時）に同じ手順を踏む。
