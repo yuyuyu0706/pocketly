@@ -465,19 +465,16 @@
 
     const replaceStart = mapping.index;
     const replaceEnd = replaceStart + 1;
-    let nextValue = currentValue;
+    const nextValue = currentValue.slice(0, replaceStart) + newChar + currentValue.slice(replaceEnd);
 
-    if (editorEl && typeof editorEl.setRangeText === 'function') {
-      try {
-        editorEl.setRangeText(newChar, replaceStart, replaceEnd, 'preserve');
-        nextValue = editorEl.value;
-      } catch (error) {
-        nextValue =
-          currentValue.slice(0, replaceStart) + newChar + currentValue.slice(replaceEnd);
-        editorEl.value = nextValue;
-      }
-    } else {
-      nextValue = currentValue.slice(0, replaceStart) + newChar + currentValue.slice(replaceEnd);
+    // Use execCommand('insertText') to push the checkbox toggle onto the native undo stack.
+    // setRangeText is replaced here to unify all edit paths under execCommand (MDE-023).
+    // TODO: migrate to EditContext API when it gains broad textarea support.
+    editorEl.selectionStart = replaceStart;
+    editorEl.selectionEnd = replaceEnd;
+    const cmdOk = global.document && global.document.execCommand('insertText', false, newChar);
+    if (!cmdOk) {
+      // Fallback: execCommand not supported
       editorEl.value = nextValue;
     }
 
