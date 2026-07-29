@@ -1,4 +1,8 @@
 /* Document appearance for the preview pane */
+body {
+  font-family: 'Helvetica Neue', sans-serif;
+}
+
 #preview {
   padding: 1rem;
   box-sizing: border-box;
