@@ -166,6 +166,11 @@ https://yuyuyu0706.github.io/pocketly/
 ```text
 apps/avro-viewer/vendor/
 apps/avro-viewer/vendor/avsc-LICENSE.txt
+apps/markdown-editor/vendor/
+apps/markdown-editor/vendor/marked.min.js      (marked@18.0.7, MIT)
+apps/markdown-editor/vendor/marked-LICENSE.txt
+apps/markdown-editor/vendor/mermaid.min.js     (mermaid@11.16.0, MIT)
+apps/markdown-editor/vendor/mermaid-LICENSE.txt
 ```
 
 vendor / license 資材を削除・npm dependency へ置換する場合は、対象 Issue が明示的にその変更をスコープへ含むことを確認してください。
