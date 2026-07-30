@@ -217,12 +217,17 @@
 
     if (hadFocus) {
       focusEditor();
+    } else if (global.document && global.document.activeElement === editorEl) {
+      // Restore: editor was temporarily focused for execCommand but was not originally focused.
+      editorEl.blur();
     }
 
     if (typeof global.requestAnimationFrame === 'function') {
       global.requestAnimationFrame(() => {
         if (hadFocus) {
           focusEditor();
+        } else if (global.document && global.document.activeElement === editorEl) {
+          editorEl.blur();
         }
         applyState();
       });
@@ -469,7 +474,14 @@
 
     // Use execCommand('insertText') to push the checkbox toggle onto the native undo stack.
     // setRangeText is replaced here to unify all edit paths under execCommand (MDE-023).
+    // Focus is required for execCommand to act on the editor; restoreEditorSelection will
+    // return focus to its original state via hadEditorFocus.
     // TODO: migrate to EditContext API when it gains broad textarea support.
+    try {
+      editorEl.focus({ preventScroll: true });
+    } catch (_) {
+      editorEl.focus();
+    }
     editorEl.selectionStart = replaceStart;
     editorEl.selectionEnd = replaceEnd;
     const cmdOk = global.document && global.document.execCommand('insertText', false, newChar);
