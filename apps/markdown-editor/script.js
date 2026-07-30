@@ -13,17 +13,6 @@ function startApp() {
   const editor = document.getElementById('editor');
   let editorPane = document.getElementById('editor-pane');
   let lineNumberGutter = document.getElementById('line-number-gutter');
-  let editorContentContainer = document.getElementById('editor-content-container');
-  let editorHighlightElement = document.getElementById('editor-highlight');
-  let editorHighlightContent =
-    editorHighlightElement &&
-    editorHighlightElement.querySelector('.editor-highlight-content');
-  let lastHighlightMarkup = null;
-  const HIGHLIGHT_PLACEHOLDER = '&#8203;';
-  const HIGHLIGHT_START_TOKEN = '\uF111';
-  const HIGHLIGHT_END_TOKEN = '\uF112';
-  const HEADING_FLASH_DURATION = 2000;
-  const HEADING_FLASH_FADE_DURATION = 600;
   const preview = document.getElementById('preview');
   const divider = document.getElementById('divider');
   const tocDivider = document.getElementById('toc-divider');
@@ -66,275 +55,6 @@ function startApp() {
       editorPane.insertBefore(lineNumberGutter, editorPane.firstChild);
     }
   }
-
-  let editorHeadingFlashTimeout = null;
-  let editorHeadingFadeTimeout = null;
-  let isEditorHeadingFading = false;
-  let editorHeadingHighlightRange = null;
-
-  function ensureEditorHighlightStructure() {
-    if (!editor) {
-      return false;
-    }
-
-    if (!editorContentContainer || !editorContentContainer.isConnected) {
-      const existingContainer = document.getElementById('editor-content-container');
-      if (existingContainer) {
-        editorContentContainer = existingContainer;
-      } else {
-        const container = document.createElement('div');
-        container.id = 'editor-content-container';
-        container.className = 'editor-content-container';
-        editorContentContainer = container;
-      }
-    }
-
-    if (editorPane && editorContentContainer.parentElement !== editorPane) {
-      editorPane.appendChild(editorContentContainer);
-    }
-
-    if (editorContentContainer && !editorContentContainer.contains(editor)) {
-      editorContentContainer.appendChild(editor);
-    }
-
-    if (!editorHighlightElement || !editorHighlightElement.isConnected) {
-      const existingHighlight = document.getElementById('editor-highlight');
-      if (existingHighlight) {
-        editorHighlightElement = existingHighlight;
-      } else {
-        const highlight = document.createElement('div');
-        highlight.id = 'editor-highlight';
-        highlight.setAttribute('aria-hidden', 'true');
-        editorHighlightElement = highlight;
-      }
-    }
-
-    if (!editorHighlightContent || !editorHighlightElement.contains(editorHighlightContent)) {
-      let highlightContent =
-        editorHighlightElement.querySelector('.editor-highlight-content');
-      if (!highlightContent) {
-        highlightContent = document.createElement('div');
-        highlightContent.className = 'editor-highlight-content';
-        editorHighlightElement.innerHTML = '';
-        editorHighlightElement.appendChild(highlightContent);
-      }
-      editorHighlightContent = highlightContent;
-    }
-
-    if (
-      editorContentContainer &&
-      editorHighlightElement &&
-      !editorContentContainer.contains(editorHighlightElement)
-    ) {
-      if (editorHighlightElement.parentElement) {
-        editorHighlightElement.parentElement.removeChild(editorHighlightElement);
-      }
-      editorContentContainer.insertBefore(
-        editorHighlightElement,
-        editorContentContainer.firstChild
-      );
-    }
-
-    if (editorHighlightElement) {
-      editorHighlightElement.style.setProperty(
-        '--heading-flash-fade-duration',
-        `${HEADING_FLASH_FADE_DURATION}ms`
-      );
-    }
-
-    return Boolean(editorHighlightContent);
-  }
-
-  function prefersReducedMotion() {
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
-      return false;
-    }
-    try {
-      return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    } catch (error) {
-      console.warn('[Accessibility] Unable to determine reduced motion preference.', error);
-      return false;
-    }
-  }
-
-  function getEditorHeadingFlashElements() {
-    if (!editorHighlightContent) {
-      return [];
-    }
-    return Array.from(
-      editorHighlightContent.querySelectorAll('.editor-heading-flash')
-    );
-  }
-
-  function clearEditorHeadingFadeState() {
-    const elements = getEditorHeadingFlashElements();
-    for (const element of elements) {
-      element.classList.remove('editor-heading-fade-out');
-    }
-    isEditorHeadingFading = false;
-  }
-
-  function clearEditorHeadingTimers() {
-    if (editorHeadingFlashTimeout) {
-      window.clearTimeout(editorHeadingFlashTimeout);
-      editorHeadingFlashTimeout = null;
-    }
-    if (editorHeadingFadeTimeout) {
-      window.clearTimeout(editorHeadingFadeTimeout);
-      editorHeadingFadeTimeout = null;
-    }
-  }
-
-  function stopEditorHeadingHighlight() {
-    clearEditorHeadingTimers();
-    clearEditorHeadingFadeState();
-    if (editorHeadingHighlightRange) {
-      editorHeadingHighlightRange = null;
-    }
-    lastHighlightMarkup = null;
-    updateEditorHighlight(editor ? editor.value : '');
-  }
-
-  function syncEditorHighlightPadding() {
-    if (!editor || !editorContentContainer) {
-      return;
-    }
-    const styles = window.getComputedStyle(editor);
-    if (!styles) {
-      return;
-    }
-    const paddingSides = ['top', 'right', 'bottom', 'left'];
-    for (const side of paddingSides) {
-      const value = styles.getPropertyValue(`padding-${side}`);
-      if (value) {
-        editorContentContainer.style.setProperty(`--editor-padding-${side}`, value);
-      }
-    }
-    const scrollbarWidth = Math.max(0, editor.offsetWidth - editor.clientWidth);
-    editorContentContainer.style.setProperty(
-      '--editor-scrollbar-width',
-      `${scrollbarWidth}px`
-    );
-    const scrollbarHeight = Math.max(0, editor.offsetHeight - editor.clientHeight);
-    editorContentContainer.style.setProperty(
-      '--editor-scrollbar-height',
-      `${scrollbarHeight}px`
-    );
-  }
-
-  function escapeHighlightHtml(text) {
-    return (text || '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
-  }
-
-  function buildEditorHighlightMarkup(value, highlightRange) {
-    const normalized = typeof value === 'string' ? value.replace(/\r\n?/g, '\n') : '';
-    if (!normalized) {
-      return HIGHLIGHT_PLACEHOLDER;
-    }
-
-    let working = normalized;
-    if (
-      highlightRange &&
-      Number.isFinite(highlightRange.start) &&
-      Number.isFinite(highlightRange.end)
-    ) {
-      const start = Math.max(0, Math.min(highlightRange.start, working.length));
-      const end = Math.max(start, Math.min(highlightRange.end, working.length));
-      if (end > start) {
-        working =
-          working.slice(0, start) +
-          HIGHLIGHT_START_TOKEN +
-          working.slice(start, end) +
-          HIGHLIGHT_END_TOKEN +
-          working.slice(end);
-      }
-    }
-
-    const pattern = /\[([^\]]*?)\]\(([^)]*?)\)/g;
-    let result = '';
-    let lastIndex = 0;
-    let match;
-
-    while ((match = pattern.exec(working)) !== null) {
-      const startIndex = match.index;
-      const endIndex = pattern.lastIndex;
-      result += escapeHighlightHtml(working.slice(lastIndex, startIndex));
-
-      let isImageSyntax = false;
-      let lookbehindIndex = startIndex - 1;
-      while (lookbehindIndex >= 0) {
-        const char = working.charAt(lookbehindIndex);
-        if (char === HIGHLIGHT_START_TOKEN || char === HIGHLIGHT_END_TOKEN) {
-          lookbehindIndex -= 1;
-          continue;
-        }
-        isImageSyntax = char === '!';
-        break;
-      }
-      if (isImageSyntax) {
-        result += escapeHighlightHtml(working.slice(startIndex, endIndex));
-      } else {
-        result += '[';
-        const linkText = match[1];
-        result += `<span class="external-link-text">${escapeHighlightHtml(linkText)}</span>`;
-        result += '](';
-        result += escapeHighlightHtml(match[2]);
-        result += ')';
-      }
-
-      lastIndex = endIndex;
-    }
-
-    result += escapeHighlightHtml(working.slice(lastIndex));
-    const highlightedMarkup = result
-      .split(HIGHLIGHT_START_TOKEN)
-      .join('<span class="editor-heading-flash">')
-      .split(HIGHLIGHT_END_TOKEN)
-      .join('</span>');
-    return highlightedMarkup + HIGHLIGHT_PLACEHOLDER;
-  }
-
-  function syncEditorHighlightScroll() {
-    if (!editor || !editorHighlightContent) {
-      return;
-    }
-    const scrollTop = editor.scrollTop || 0;
-    const scrollLeft = editor.scrollLeft || 0;
-    editorHighlightContent.style.transform = `translate(${-scrollLeft}px, ${-scrollTop}px)`;
-  }
-
-  function updateEditorHighlight(value) {
-    if (!ensureEditorHighlightStructure()) {
-      if (editorContentContainer) {
-        editorContentContainer.classList.remove('editor-highlight-enabled');
-      }
-      return;
-    }
-    syncEditorHighlightPadding();
-    const markup = buildEditorHighlightMarkup(value, editorHeadingHighlightRange);
-    if (markup !== lastHighlightMarkup) {
-      editorHighlightContent.innerHTML = markup;
-      lastHighlightMarkup = markup;
-    }
-    if (isEditorHeadingFading) {
-      const highlightElements = getEditorHeadingFlashElements();
-      for (const element of highlightElements) {
-        element.classList.add('editor-heading-fade-out');
-      }
-    }
-    if (editorContentContainer) {
-      editorContentContainer.classList.add('editor-highlight-enabled');
-    }
-    syncEditorHighlightScroll();
-  }
-
-  ensureEditorHighlightStructure();
-  updateEditorHighlight(editor ? editor.value : '');
 
   function triggerDownloadFromBlob(blob, filename) {
     if (!(blob instanceof Blob)) {
@@ -385,11 +105,6 @@ function startApp() {
     { key: 'templates.releaseNotes', path: 'template/release-notes.md' }
   ];
 
-  const LAYOUT_STORAGE_KEY = 'md:layout:editorWidthRatio';
-  const MIN_EDITOR_WIDTH = 100;
-  let storedEditorWidthRatio = null;
-  let lineNumbersEnabled = false;
-
   const updateDocumentTitle = () => {
     document.title = i18n.t('app.title');
   };
@@ -431,10 +146,12 @@ function startApp() {
           return;
         }
 
+        // Group B: intentional direct assignment — full-document sync on file load.
+        // execCommand would pollute the undo stack with the entire loaded content as a single entry.
         editor.value = result;
         editor.selectionStart = editor.selectionEnd = 0;
 
-        updateEditorHighlight(result);
+        Layout.updateEditorHighlight(result);
         if (typeof editor.focus === 'function') {
           try {
             editor.focus({ preventScroll: true });
@@ -449,7 +166,7 @@ function startApp() {
 
         const resetScrollPositions = () => {
           editor.scrollTop = 0;
-          syncEditorHighlightScroll();
+          Layout.syncEditorHighlightScroll();
           preview.scrollTop = 0;
           if (toc) {
             toc.scrollTop = 0;
@@ -542,10 +259,12 @@ function startApp() {
           throw new Error(`Failed to load template: ${response.status}`);
         }
         const text = await response.text();
+        // Group B: intentional direct assignment — full-document sync on template apply.
+        // execCommand would pollute the undo stack with the entire template as a single entry.
         editor.value = text;
         editor.selectionStart = editor.selectionEnd = 0;
 
-        updateEditorHighlight(text);
+        Layout.updateEditorHighlight(text);
         if (typeof editor.focus === 'function') {
           try {
             editor.focus({ preventScroll: true });
@@ -560,7 +279,7 @@ function startApp() {
 
         const resetScrollPositions = () => {
           editor.scrollTop = 0;
-          syncEditorHighlightScroll();
+          Layout.syncEditorHighlightScroll();
           preview.scrollTop = 0;
           if (toc) {
             toc.scrollTop = 0;
@@ -715,176 +434,6 @@ function startApp() {
   Preview.init();
   adjustTOCPosition();
 
-  const readStoredEditorRatio = () => {
-    try {
-      const raw = window.localStorage.getItem(LAYOUT_STORAGE_KEY);
-      if (raw === null) {
-        return null;
-      }
-      const parsed = parseFloat(raw);
-      return Number.isFinite(parsed) ? parsed : null;
-    } catch (error) {
-      return null;
-    }
-  };
-
-  const writeStoredEditorRatio = ratio => {
-    if (!Number.isFinite(ratio)) {
-      return;
-    }
-    try {
-      window.localStorage.setItem(LAYOUT_STORAGE_KEY, ratio.toFixed(6));
-    } catch (error) {
-      // Ignore persistence errors, such as disabled storage.
-    }
-  };
-
-  const getEditorHorizontalPadding = () => {
-    if (!editor) {
-      return 0;
-    }
-    const styles = window.getComputedStyle(editor);
-    const paddingLeft = parseFloat(styles.paddingLeft) || 0;
-    const paddingRight = parseFloat(styles.paddingRight) || 0;
-    return paddingLeft + paddingRight;
-  };
-
-  const getLineNumberGutterWidth = () => {
-    if (!lineNumberGutter) {
-      return 0;
-    }
-    const styles = window.getComputedStyle(lineNumberGutter);
-    if (styles.display === 'none') {
-      return 0;
-    }
-    const rect = lineNumberGutter.getBoundingClientRect();
-    return Number.isFinite(rect.width) ? rect.width : 0;
-  };
-
-  const getAvailableEditorWidth = () => {
-    const rect = mainContainer.getBoundingClientRect();
-    const tocWidth = toc ? toc.offsetWidth : 0;
-    const tocDividerWidth = tocDivider ? tocDivider.offsetWidth : 0;
-    const dividerWidth = divider ? divider.offsetWidth : 0;
-    const available = rect.width - tocWidth - tocDividerWidth - dividerWidth;
-    return Number.isFinite(available) ? available : 0;
-  };
-
-  const setEditorOuterWidth = width => {
-    if (!Number.isFinite(width)) {
-      return;
-    }
-    const padding = getEditorHorizontalPadding();
-    const gutterWidth = getLineNumberGutterWidth();
-    const minContentWidth = Math.max(0, MIN_EDITOR_WIDTH);
-    const minOuterWidth = MIN_EDITOR_WIDTH + padding + gutterWidth;
-    const normalizedWidth = Math.max(minOuterWidth, Math.round(width));
-    const borderBoxWidth = Math.max(
-      normalizedWidth - gutterWidth,
-      minContentWidth + padding
-    );
-    if (editorPane) {
-      editorPane.style.width = `${normalizedWidth}px`;
-    }
-    if (editor) {
-      editor.style.width = `${borderBoxWidth}px`;
-    }
-    syncEditorHighlightScroll();
-  };
-
-  const clampEditorWidth = (width, totalAvailable) => {
-    const padding = getEditorHorizontalPadding();
-    const gutterWidth = getLineNumberGutterWidth();
-    const minOuterWidth = MIN_EDITOR_WIDTH + padding + gutterWidth;
-    const maxWidth = Math.max(minOuterWidth, totalAvailable - minOuterWidth);
-    if (!Number.isFinite(width)) {
-      return minOuterWidth;
-    }
-    if (width < minOuterWidth) {
-      return minOuterWidth;
-    }
-    if (width > maxWidth) {
-      return maxWidth;
-    }
-    return width;
-  };
-
-  const measureEditorRatio = () => {
-    const totalAvailable = getAvailableEditorWidth();
-    if (!Number.isFinite(totalAvailable) || totalAvailable <= 0) {
-      return null;
-    }
-    const reference = editorPane || editor;
-    const width = clampEditorWidth(
-      reference ? reference.getBoundingClientRect().width : 0,
-      totalAvailable
-    );
-    const ratio = width / totalAvailable;
-    return Number.isFinite(ratio) ? ratio : null;
-  };
-
-  const applyEditorRatio = ratio => {
-    if (!Number.isFinite(ratio)) {
-      return false;
-    }
-    const totalAvailable = getAvailableEditorWidth();
-    if (!Number.isFinite(totalAvailable) || totalAvailable <= 0) {
-      return false;
-    }
-    const padding = getEditorHorizontalPadding();
-    const gutterWidth = getLineNumberGutterWidth();
-    const minOuterWidth = MIN_EDITOR_WIDTH + padding + gutterWidth;
-    const maxOuterWidth = Math.max(minOuterWidth, totalAvailable - minOuterWidth);
-    const minRatio = Math.min(minOuterWidth / totalAvailable, 1);
-    const maxRatio = Math.max(minRatio, Math.min(maxOuterWidth / totalAvailable, 1));
-    const safeRatio = Math.min(Math.max(ratio, minRatio), maxRatio);
-    const desiredWidth = clampEditorWidth(
-      Math.round(safeRatio * totalAvailable),
-      totalAvailable
-    );
-    setEditorOuterWidth(desiredWidth);
-    return true;
-  };
-
-  const syncLineNumberScroll = () => {
-    if (lineNumbersEnabled && lineNumberGutter && editor) {
-      lineNumberGutter.scrollTop = editor.scrollTop;
-    }
-    syncEditorHighlightScroll();
-  };
-
-  const updateLineNumberButtonLabel = () => {
-    if (!toggleLineNumbersBtn) {
-      return;
-    }
-    const key = lineNumbersEnabled
-      ? 'toolbar.hideLineNumbers'
-      : 'toolbar.showLineNumbers';
-    toggleLineNumbersBtn.textContent = i18n.t(key);
-    toggleLineNumbersBtn.setAttribute(
-      'aria-pressed',
-      lineNumbersEnabled ? 'true' : 'false'
-    );
-  };
-
-  const updateLineNumbers = () => {
-    if (!lineNumbersEnabled || !lineNumberGutter || !editor) {
-      return;
-    }
-    const rawValue = editor.value || '';
-    const lineCount = Math.max(1, rawValue.split('\n').length);
-    const currentCount = Number(lineNumberGutter.dataset.count || 0);
-    if (currentCount !== lineCount) {
-      const numbers = [];
-      for (let i = 1; i <= lineCount; i += 1) {
-        numbers.push(`<span class="line-number">${i}</span>`);
-      }
-      lineNumberGutter.innerHTML = numbers.join('');
-      lineNumberGutter.dataset.count = String(lineCount);
-    }
-    syncLineNumberScroll();
-  };
-
   let formattingMenuElement = null;
   let formattingBoldButton = null;
   let formattingExternalLinkButton = null;
@@ -975,6 +524,23 @@ function startApp() {
     }
   }
 
+  // Use execCommand('insertText') to push edits onto the browser's native undo stack.
+  // execCommand is deprecated but remains the only practical textarea undo integration;
+  // migrate to EditContext API when it gains broad textarea support.
+  function replaceEditorRange(start, end, text) {
+    try {
+      editor.focus({ preventScroll: true });
+    } catch (_) {
+      editor.focus();
+    }
+    editor.selectionStart = start;
+    editor.selectionEnd = end;
+    const ok = document.execCommand('insertText', false, text);
+    if (!ok) {
+      editor.value = editor.value.slice(0, start) + text + editor.value.slice(end);
+    }
+  }
+
   function insertTextAtCursor(text) {
     if (!editor || typeof text !== 'string') {
       return;
@@ -989,14 +555,14 @@ function startApp() {
     const nextValue = `${before}${text}${after}`;
     const nextCaret = before.length + text.length;
 
-    editor.value = nextValue;
+    replaceEditorRange(start, end, text);
     editor.scrollTop = previousScrollTop;
     editor.selectionStart = nextCaret;
     editor.selectionEnd = nextCaret;
 
-    updateEditorHighlight(nextValue);
+    Layout.updateEditorHighlight(nextValue);
     AppState.setText(nextValue, 'editor');
-    updateLineNumbers();
+    Layout.updateLineNumbers();
 
     try {
       editor.focus({ preventScroll: true });
@@ -1160,12 +726,13 @@ function startApp() {
     let nextValue = previousValue;
     let nextSelectionStart = selectionStart;
     let nextSelectionEnd = selectionEnd;
+    let replacement = '';
 
     if (selectionStart === selectionEnd) {
-      const insertion = '``';
+      replacement = '``';
       nextValue =
         previousValue.slice(0, selectionStart) +
-        insertion +
+        replacement +
         previousValue.slice(selectionEnd);
       nextSelectionStart = selectionStart + 1;
       nextSelectionEnd = nextSelectionStart;
@@ -1174,31 +741,30 @@ function startApp() {
       selectedText.endsWith('`') &&
       selectedText.length >= 2
     ) {
-      const innerText = selectedText.slice(1, -1);
+      replacement = selectedText.slice(1, -1);
       nextValue =
         previousValue.slice(0, selectionStart) +
-        innerText +
+        replacement +
         previousValue.slice(selectionEnd);
-      nextSelectionEnd = nextSelectionStart + innerText.length;
+      nextSelectionEnd = nextSelectionStart + replacement.length;
     } else {
-      const normalized = selectedText.replace(/\r?\n/g, ' ');
-      const wrapped = `\`${normalized}\``;
+      replacement = `\`${selectedText.replace(/\r?\n/g, ' ')}\``;
       nextValue =
         previousValue.slice(0, selectionStart) +
-        wrapped +
+        replacement +
         previousValue.slice(selectionEnd);
       nextSelectionStart = selectionStart;
-      nextSelectionEnd = selectionStart + wrapped.length;
+      nextSelectionEnd = selectionStart + replacement.length;
     }
 
-    editor.value = nextValue;
+    replaceEditorRange(selectionStart, selectionEnd, replacement);
     editor.scrollTop = prevScrollTop;
     editor.selectionStart = nextSelectionStart;
     editor.selectionEnd = nextSelectionEnd;
 
-    updateEditorHighlight(nextValue);
+    Layout.updateEditorHighlight(nextValue);
     AppState.setText(nextValue, 'editor');
-    updateLineNumbers();
+    Layout.updateLineNumbers();
 
     try {
       editor.focus({ preventScroll: true });
@@ -1227,33 +793,34 @@ function startApp() {
     let nextValue = previousValue;
     let nextSelectionStart = selectionStart;
     let nextSelectionEnd = selectionEnd;
+    let replacement = '';
 
     if (selectionStart === selectionEnd) {
-      const insertion = '[]()';
+      replacement = '[]()';
       nextValue =
         previousValue.slice(0, selectionStart) +
-        insertion +
+        replacement +
         previousValue.slice(selectionEnd);
       nextSelectionStart = selectionStart + 1;
       nextSelectionEnd = nextSelectionStart;
     } else {
-      const wrapped = `[${selectedText}]()`;
+      replacement = `[${selectedText}]()`;
       nextValue =
         previousValue.slice(0, selectionStart) +
-        wrapped +
+        replacement +
         previousValue.slice(selectionEnd);
       nextSelectionStart = selectionStart + selectedText.length + 3;
       nextSelectionEnd = nextSelectionStart;
     }
 
-    editor.value = nextValue;
+    replaceEditorRange(selectionStart, selectionEnd, replacement);
     editor.scrollTop = prevScrollTop;
     editor.selectionStart = nextSelectionStart;
     editor.selectionEnd = nextSelectionEnd;
 
-    updateEditorHighlight(nextValue);
+    Layout.updateEditorHighlight(nextValue);
     AppState.setText(nextValue, 'editor');
-    updateLineNumbers();
+    Layout.updateLineNumbers();
 
     try {
       editor.focus({ preventScroll: true });
@@ -1281,12 +848,13 @@ function startApp() {
     let nextValue = previousValue;
     let nextSelectionStart = selectionStart;
     let nextSelectionEnd = selectionEnd;
+    let replacement = '';
 
     if (selectionStart === selectionEnd) {
-      const insertion = '****';
+      replacement = '****';
       nextValue =
         previousValue.slice(0, selectionStart) +
-        insertion +
+        replacement +
         previousValue.slice(selectionEnd);
       nextSelectionStart = selectionStart + 2;
       nextSelectionEnd = nextSelectionStart;
@@ -1295,29 +863,29 @@ function startApp() {
       selectedText.endsWith('**') &&
       selectedText.length >= 4
     ) {
-      const innerText = selectedText.slice(2, -2);
+      replacement = selectedText.slice(2, -2);
       nextValue =
         previousValue.slice(0, selectionStart) +
-        innerText +
+        replacement +
         previousValue.slice(selectionEnd);
-      nextSelectionEnd = nextSelectionStart + innerText.length;
+      nextSelectionEnd = nextSelectionStart + replacement.length;
     } else {
-      const wrapped = `**${selectedText}**`;
+      replacement = `**${selectedText}**`;
       nextValue =
         previousValue.slice(0, selectionStart) +
-        wrapped +
+        replacement +
         previousValue.slice(selectionEnd);
-      nextSelectionEnd = nextSelectionStart + wrapped.length;
+      nextSelectionEnd = nextSelectionStart + replacement.length;
     }
 
-    editor.value = nextValue;
+    replaceEditorRange(selectionStart, selectionEnd, replacement);
     editor.scrollTop = prevScrollTop;
     editor.selectionStart = nextSelectionStart;
     editor.selectionEnd = nextSelectionEnd;
 
-    updateEditorHighlight(nextValue);
+    Layout.updateEditorHighlight(nextValue);
     AppState.setText(nextValue, 'editor');
-    updateLineNumbers();
+    Layout.updateLineNumbers();
 
     try {
       editor.focus({ preventScroll: true });
@@ -1425,13 +993,13 @@ function startApp() {
       const nextValue = `${before}${after}`;
       const nextCaret = before.length;
 
-      editor.value = nextValue;
+      replaceEditorRange(selectionStart, selectionEnd, '');
       editor.selectionStart = nextCaret;
       editor.selectionEnd = nextCaret;
 
-      updateEditorHighlight(nextValue);
+      Layout.updateEditorHighlight(nextValue);
       AppState.setText(nextValue, 'editor');
-      updateLineNumbers();
+      Layout.updateLineNumbers();
 
       try {
         editor.focus({ preventScroll: true });
@@ -1654,123 +1222,19 @@ function startApp() {
     window.addEventListener('resize', hideFormattingMenu);
   }
 
-  const applyLineNumbersEnabled = next => {
-    const normalized = Boolean(next);
-    const stateChanged = lineNumbersEnabled !== normalized;
-    lineNumbersEnabled = normalized;
-    if (lineNumberGutter) {
-      lineNumberGutter.classList.toggle('line-numbers-visible', lineNumbersEnabled);
-      lineNumberGutter.setAttribute(
-        'aria-hidden',
-        lineNumbersEnabled ? 'false' : 'true'
-      );
-      if (!lineNumbersEnabled) {
-        lineNumberGutter.innerHTML = '';
-        lineNumberGutter.scrollTop = 0;
-        delete lineNumberGutter.dataset.count;
-      }
-    }
-    updateLineNumberButtonLabel();
-    if (lineNumbersEnabled) {
-      updateLineNumbers();
-    }
-    if (stateChanged && editorPane) {
-      const currentWidth = editorPane.getBoundingClientRect().width;
-      setEditorOuterWidth(currentWidth);
-    }
-  };
-
-  const setLineNumbersEnabled = next => {
-    const normalized = Boolean(next);
-    if (normalized === lineNumbersEnabled) {
-      return;
-    }
-    applyLineNumbersEnabled(normalized);
-    AppState.setSetting('showLineNumbers', normalized);
-  };
-
-  const persistEditorWidthRatio = () => {
-    const ratio = measureEditorRatio();
-    if (ratio === null) {
-      return;
-    }
-    storedEditorWidthRatio = ratio;
-    writeStoredEditorRatio(ratio);
-  };
-
-  const restoreEditorWidthRatio = () => {
-    const stored = readStoredEditorRatio();
-    if (stored !== null && applyEditorRatio(stored)) {
-      storedEditorWidthRatio = stored;
-    } else {
-      storedEditorWidthRatio = measureEditorRatio();
-    }
-  };
-
-  restoreEditorWidthRatio();
-
   initializeFormattingMenu();
 
-  // Enable drag to resize panes
-  let isDraggingEditor = false;
-  let isDraggingTOC = false;
-
-  divider.addEventListener('mousedown', e => {
-    isDraggingEditor = true;
-    document.body.style.cursor = 'col-resize';
-    e.preventDefault();
-  });
-
-  tocDivider.addEventListener('mousedown', e => {
-    isDraggingTOC = true;
-    document.body.style.cursor = 'col-resize';
-    e.preventDefault();
-  });
-
-  document.addEventListener('mousemove', e => {
-    const rect = mainContainer.getBoundingClientRect();
-    if (isDraggingEditor) {
-      const tocWidth =
-        (toc ? toc.offsetWidth : 0) + (tocDivider ? tocDivider.offsetWidth : 0);
-      const dividerWidth = divider.offsetWidth;
-      const totalAvailable = rect.width - tocWidth - dividerWidth;
-      if (!Number.isFinite(totalAvailable) || totalAvailable <= 0) {
-        return;
-      }
-      const proposedWidth =
-        e.clientX - rect.left - tocWidth - dividerWidth / 2;
-      const clampedWidth = clampEditorWidth(proposedWidth, totalAvailable);
-      setEditorOuterWidth(clampedWidth);
-    } else if (isDraggingTOC) {
-      const dividerWidth = tocDivider.offsetWidth;
-      let newTocWidth = e.clientX - rect.left;
-      const editorOuterWidth = editorPane ? editorPane.offsetWidth : editor.offsetWidth;
-      const padding = getEditorHorizontalPadding();
-      const gutterWidth = getLineNumberGutterWidth();
-      const minPreviewOuter = MIN_EDITOR_WIDTH + padding + gutterWidth;
-      const minTocWidth = MIN_EDITOR_WIDTH;
-      const maxWidth =
-        rect.width -
-        dividerWidth -
-        divider.offsetWidth -
-        editorOuterWidth -
-        minPreviewOuter;
-      if (newTocWidth < minTocWidth) newTocWidth = minTocWidth;
-      if (newTocWidth > maxWidth) newTocWidth = maxWidth;
-      toc.style.width = `${newTocWidth}px`;
-    }
-  });
-
-  document.addEventListener('mouseup', () => {
-    const wasDraggingEditor = isDraggingEditor;
-    if (isDraggingEditor || isDraggingTOC) {
-      isDraggingEditor = false;
-      isDraggingTOC = false;
-      document.body.style.cursor = '';
-    }
-    if (wasDraggingEditor) {
-      persistEditorWidthRatio();
-    }
+  Layout.init({
+    editor,
+    editorPane,
+    lineNumberGutter,
+    mainContainer,
+    toc,
+    tocDivider,
+    divider,
+    toggleLineNumbersBtn,
+    i18n,
+    AppState,
   });
 
   function getHeaderOffset() {
@@ -1784,11 +1248,7 @@ function startApp() {
 
   window.addEventListener('resize', () => {
     adjustTOCPosition();
-    if (storedEditorWidthRatio !== null && !isDraggingEditor) {
-      applyEditorRatio(storedEditorWidthRatio);
-    }
-    syncEditorHighlightPadding();
-    syncEditorHighlightScroll();
+    Layout.onResize();
   });
 
   // Update preview and expand stored Base64 images
@@ -1803,6 +1263,9 @@ function startApp() {
     const prevScrollTop = editor.scrollTop;
 
     if (source !== 'editor' && editor.value !== text) {
+      // Group B: intentional direct assignment — full-document sync driven by Bus 'text:changed'.
+      // This fires on checkbox toggle and language switch; using execCommand for the whole document
+      // would coarsen undo granularity and destabilise selection/scroll position restoration.
       editor.value = text;
       if (source === 'init') {
         editor.selectionStart = editor.selectionEnd = 0;
@@ -1813,9 +1276,9 @@ function startApp() {
         editor.scrollTop = prevScrollTop;
       }
     }
-    updateEditorHighlight(text);
-    updateLineNumbers();
-    syncLineNumberScroll();
+    Layout.updateEditorHighlight(text);
+    Layout.updateLineNumbers();
+    Layout.syncLineNumberScroll();
     Preview.render(text);
     buildTOC();
     updateTOCHighlight();
@@ -1999,7 +1462,7 @@ function startApp() {
     }
 
     cursorHeadingHighlightId = headingInfo.id;
-    flashEditorHeading(headingInfo);
+    Layout.flashEditorHeading(headingInfo);
     if (
       hasUserActivatedHeadingHighlight &&
       Preview &&
@@ -2141,7 +1604,7 @@ function startApp() {
       return;
     }
     editor.scrollTop = value;
-    syncLineNumberScroll();
+    Layout.syncLineNumberScroll();
   }
 
   function animateEditorScrollTo(target) {
@@ -2203,62 +1666,6 @@ function startApp() {
     }
   }
 
-  function getHeadingSelectionRange(headingInfo) {
-    if (!headingInfo) {
-      return { start: 0, end: 0 };
-    }
-    const start = Number.isFinite(headingInfo.start) ? headingInfo.start : 0;
-    let end = Number.isFinite(headingInfo.end) ? headingInfo.end : start;
-    if (!Number.isFinite(end) || end < start) {
-      const value = editor && typeof editor.value === 'string' ? editor.value : '';
-      if (value) {
-        const newlineIndex = value.indexOf('\n', start);
-        end = newlineIndex === -1 ? value.length : newlineIndex;
-      } else {
-        end = start;
-      }
-    }
-    if (end < start) {
-      end = start;
-    }
-    return { start, end };
-  }
-
-  function flashEditorHeading(headingInfo) {
-    if (!editor || !headingInfo) {
-      return;
-    }
-    const range = getHeadingSelectionRange(headingInfo);
-    if (!range || range.end <= range.start) {
-      return;
-    }
-    editorHeadingHighlightRange = range;
-    clearEditorHeadingTimers();
-    clearEditorHeadingFadeState();
-    lastHighlightMarkup = null;
-    updateEditorHighlight(editor.value);
-    editorHeadingFlashTimeout = window.setTimeout(() => {
-      editorHeadingFlashTimeout = null;
-      if (prefersReducedMotion()) {
-        stopEditorHeadingHighlight();
-        return;
-      }
-      const highlightElements = getEditorHeadingFlashElements();
-      if (!highlightElements.length) {
-        stopEditorHeadingHighlight();
-        return;
-      }
-      for (const element of highlightElements) {
-        element.classList.add('editor-heading-fade-out');
-      }
-      isEditorHeadingFading = true;
-      editorHeadingFadeTimeout = window.setTimeout(() => {
-        editorHeadingFadeTimeout = null;
-        stopEditorHeadingHighlight();
-      }, HEADING_FLASH_FADE_DURATION);
-    }, HEADING_FLASH_DURATION);
-  }
-
   function focusEditorOnHeading(headingInfo, previewDetail) {
     if (!editor || !headingInfo) {
       return;
@@ -2280,7 +1687,7 @@ function startApp() {
     }
     if (!preventScrollWorked && editor.scrollTop !== previousScrollTop) {
       editor.scrollTop = previousScrollTop;
-      syncLineNumberScroll();
+      Layout.syncLineNumberScroll();
     }
     updateTOCHighlight();
     alignEditorScrollToHeading(headingInfo.start, previewDetail);
@@ -2288,13 +1695,13 @@ function startApp() {
 
   editor.addEventListener('input', () => {
     hideFormattingMenu();
-    stopEditorHeadingHighlight();
+    Layout.stopEditorHeadingHighlight();
     AppState.setText(editor.value, 'editor');
-    updateLineNumbers();
+    Layout.updateLineNumbers();
   });
   editor.addEventListener('scroll', () => {
     hideFormattingMenu();
-    syncLineNumberScroll();
+    Layout.syncLineNumberScroll();
   });
 
   function continueListOnEnter(event) {
@@ -2349,10 +1756,9 @@ function startApp() {
       nextMarker = `${nextNumber}${orderedMatch[2]}`;
     }
 
-    let remainder = value.slice(selectionEnd);
-    if (remainder.startsWith(' ')) {
-      remainder = remainder.slice(1);
-    }
+    const remainderRaw = value.slice(selectionEnd);
+    const spaceOffset = remainderRaw.startsWith(' ') ? 1 : 0;
+    const remainder = remainderRaw.slice(spaceOffset);
 
     const checkboxSegment = hasCheckbox ? '[ ] ' : '';
     const insertion = `\n${indent}${nextMarker} ${checkboxSegment}`;
@@ -2362,11 +1768,11 @@ function startApp() {
     const newCursorPos = selectionStart + insertion.length;
     const prevScrollTop = editor.scrollTop;
 
-    editor.value = newValue;
+    replaceEditorRange(selectionStart, selectionStart + spaceOffset, insertion);
     editor.scrollTop = prevScrollTop;
     editor.selectionStart = editor.selectionEnd = newCursorPos;
 
-    updateEditorHighlight(editor.value);
+    Layout.updateEditorHighlight(editor.value);
     AppState.setText(editor.value, 'editor');
 
     return true;
@@ -2416,263 +1822,15 @@ function startApp() {
         currentValue.slice(0, cursorPos) +
         markdownImage +
         currentValue.slice(cursorPos);
-      editor.value = newValue;
+      replaceEditorRange(cursorPos, cursorPos, markdownImage);
 
-      updateEditorHighlight(newValue);
+      Layout.updateEditorHighlight(newValue);
       AppState.setText(newValue, 'editor');
     };
     reader.readAsDataURL(file);
   });
 
-  if (exportPdfBtn) {
-    exportPdfBtn.addEventListener('click', () => {
-      const win = window.open('', '', 'width=800,height=600');
-      if (!win) {
-        return;
-      }
-      const cssLink = document.querySelector('link[rel="stylesheet"]');
-      const cssHref = cssLink ? cssLink.href : '';
-      const previewTitle = i18n.t('dialogs.previewTitle');
-      const langAttr =
-        document.documentElement.getAttribute('lang') || i18n.getCurrentLang();
-      const linkTag = cssHref
-        ? `<link rel="stylesheet" href="${cssHref}">`
-        : '';
-      win.document.write(
-        `<!DOCTYPE html><html lang="${langAttr}"><head><meta charset="UTF-8"><title>${previewTitle}</title>${linkTag}</head><body>${preview.innerHTML}</body></html>`
-      );
-      win.document.close();
-      win.onload = () => {
-        win.focus();
-        win.print();
-        win.close();
-      };
-    });
-  }
-
-const EXPORT_STYLESHEET_FALLBACK = String.raw`
-body {
-  margin: 0;
-  font-family: 'Helvetica Neue', sans-serif;
-  background-color: #f6faff;
-  color: #002244;
-}
-
-#preview {
-  padding: 1rem;
-  box-sizing: border-box;
-  background-color: #ffffff;
-  color: #002244;
-}
-
-#preview img,
-#preview .mermaid svg {
-  max-width: 100%;
-  height: auto;
-}
-
-.mermaid .label foreignObject > div {
-  white-space: pre-wrap;
-  word-break: break-all;
-  overflow-wrap: anywhere;
-}
-
-#preview h1,
-#preview h2,
-#preview h3,
-#preview h4,
-#preview h5 {
-  border-bottom: 1px solid #aac8ff;
-  color: #0055aa;
-}
-
-pre {
-  background: #dfefff;
-  padding: 0.5rem;
-  overflow-x: auto;
-  border-left: 4px solid #88b4ff;
-}
-
-code {
-  background: #cce0ff;
-  padding: 0.2rem 0.4rem;
-  border-radius: 4px;
-  color: #003366;
-}
-
-pre code {
-  display: block;
-  padding: 0;
-  background: transparent;
-  color: inherit;
-}
-
-a {
-  color: #0077cc;
-  text-decoration: none;
-}
-
-a:hover {
-  text-decoration: underline;
-}
-
-@media print {
-  pre {
-    white-space: pre-wrap;
-    overflow-x: visible;
-  }
-}
-`;
-
-  async function getInlineStylesheetContent() {
-    const link = document.querySelector('link[rel="stylesheet"]');
-    if (!link) {
-      return EXPORT_STYLESHEET_FALLBACK;
-    }
-
-    const { sheet } = link;
-    if (sheet) {
-      try {
-        const rules = sheet.cssRules || sheet.rules;
-        if (rules && rules.length) {
-          return Array.from(rules)
-            .map(rule => rule.cssText)
-            .join('\n');
-        }
-      } catch (error) {
-        console.warn('[Export] Unable to read stylesheet rules directly.', error);
-      }
-    }
-
-    const href = typeof link.href === 'string' ? link.href : '';
-    if (!href) {
-      return EXPORT_STYLESHEET_FALLBACK;
-    }
-
-    const fetchStylesheet = async () => {
-      if (typeof fetch !== 'function') {
-        return EXPORT_STYLESHEET_FALLBACK;
-      }
-
-      const response = await fetch(href, { cache: 'no-store' });
-      if (!response.ok) {
-        throw new Error(`Stylesheet request failed with status ${response.status}`);
-      }
-
-      return await response.text();
-    };
-
-    try {
-      const text = await fetchStylesheet();
-      if (text) {
-        return text;
-      }
-    } catch (error) {
-      console.warn('[Export] Failed to fetch stylesheet for HTML export.', error);
-
-      if (href.startsWith('file:') && typeof XMLHttpRequest !== 'undefined') {
-        try {
-          const text = await new Promise((resolve, reject) => {
-            const xhr = new XMLHttpRequest();
-            xhr.open('GET', href, true);
-            xhr.responseType = 'text';
-            xhr.onload = () => {
-              if (xhr.status === 0 || (xhr.status >= 200 && xhr.status < 300)) {
-                resolve(xhr.responseText);
-              } else {
-                reject(
-                  new Error(
-                    `XHR request failed with status ${xhr.status || '0'} for ${href}`
-                  )
-                );
-              }
-            };
-            xhr.onerror = () => {
-              reject(new Error(`XHR request encountered a network error for ${href}`));
-            };
-            xhr.send();
-          });
-
-          if (typeof text === 'string') {
-            return text;
-          }
-        } catch (xhrError) {
-          console.warn('[Export] XHR fallback failed to read stylesheet.', xhrError);
-        }
-      }
-
-      console.info('[Export] Falling back to bundled preview styles for HTML export.');
-      return EXPORT_STYLESHEET_FALLBACK;
-    }
-
-    if (href.startsWith('file:')) {
-      console.info('[Export] Using bundled preview styles for file protocol HTML export.');
-      return EXPORT_STYLESHEET_FALLBACK;
-    }
-
-    return '';
-  }
-
-  if (exportHtmlBtn) {
-    exportHtmlBtn.addEventListener('click', async () => {
-      try {
-        if (!preview) {
-          throw new Error('Preview element is not available.');
-        }
-
-        const previewTitle = i18n.t('dialogs.previewTitle');
-        const langAttr =
-          document.documentElement.getAttribute('lang') || i18n.getCurrentLang();
-        const cssLink = document.querySelector('link[rel="stylesheet"]');
-        const cssHref = cssLink ? cssLink.href : '';
-        const inlineStyles = await getInlineStylesheetContent();
-        let headStyles = '';
-        if (inlineStyles) {
-          const sanitized = inlineStyles.replace(/<\/style/gi, '<\\/style');
-          headStyles = `<style>${sanitized}</style>`;
-        } else if (cssHref) {
-          headStyles = `<link rel="stylesheet" href="${cssHref}">`;
-        }
-        const bodyContent = `<div id="preview" class="export-preview">${preview.innerHTML}</div>`;
-        const html =
-          `<!DOCTYPE html><html lang="${langAttr}"><head><meta charset="UTF-8"><title>${previewTitle}</title>${headStyles}</head><body>${bodyContent}</body></html>`;
-
-        const defaultName = i18n.t('dialogs.defaultHtmlFileName');
-        const trimmedName =
-          typeof defaultName === 'string' && defaultName.trim()
-            ? defaultName.trim()
-            : 'preview.html';
-        const filename = trimmedName.endsWith('.html')
-          ? trimmedName
-          : `${trimmedName}.html`;
-
-        triggerDownloadFromBlob(
-          new Blob([html], { type: 'text/html;charset=utf-8' }),
-          filename
-        );
-      } catch (error) {
-        console.error('[Export] Failed to download preview HTML.', error);
-      }
-    });
-  }
-
-  saveMdBtn.addEventListener('click', () => {
-    const defaultName = i18n.t('dialogs.defaultFileName');
-    const trimmedName =
-      typeof defaultName === 'string' && defaultName.trim()
-        ? defaultName.trim()
-        : 'document.md';
-    const filename = trimmedName.endsWith('.md') ? trimmedName : `${trimmedName}.md`;
-
-    try {
-      triggerDownloadFromBlob(
-        new Blob([AppState.getText()], { type: 'text/markdown;charset=utf-8' }),
-        filename
-      );
-    } catch (error) {
-      console.error('[Export] Failed to download Markdown file.', error);
-    }
-  });
+  Export.init({ preview, i18n, triggerDownloadFromBlob, AppState, exportPdfBtn, exportHtmlBtn, saveMdBtn });
 
   helpBtn.addEventListener('click', () => {
     helpWindow.classList.toggle('hidden');
@@ -2684,7 +1842,7 @@ a:hover {
 
   if (toggleLineNumbersBtn) {
     toggleLineNumbersBtn.addEventListener('click', () => {
-      setLineNumbersEnabled(!lineNumbersEnabled);
+      Layout.setLineNumbersEnabled(!Layout.isLineNumbersEnabled());
     });
   }
 
@@ -2732,7 +1890,7 @@ a:hover {
     if (matchesHighlight) {
       pendingHeadingHighlightId = null;
       if (headingInfo && hasUserActivatedHeadingHighlight) {
-        flashEditorHeading(headingInfo);
+        Layout.flashEditorHeading(headingInfo);
       }
       if (
         hasUserActivatedHeadingHighlight &&
@@ -2753,7 +1911,7 @@ a:hover {
         langSwitch.value = event.value;
       }
     } else if (event.key === 'showLineNumbers') {
-      applyLineNumbersEnabled(Boolean(event.value));
+      Layout.applyLineNumbersEnabled(Boolean(event.value));
     }
   });
 
@@ -2763,7 +1921,7 @@ a:hover {
   });
 
   const initialSettings = AppState.getSettings();
-  applyLineNumbersEnabled(Boolean(initialSettings.showLineNumbers));
+  Layout.applyLineNumbersEnabled(Boolean(initialSettings.showLineNumbers));
 
 }
 
