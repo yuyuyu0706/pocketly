@@ -146,6 +146,8 @@ function startApp() {
           return;
         }
 
+        // Group B: intentional direct assignment — full-document sync on file load.
+        // execCommand would pollute the undo stack with the entire loaded content as a single entry.
         editor.value = result;
         editor.selectionStart = editor.selectionEnd = 0;
 
@@ -257,6 +259,8 @@ function startApp() {
           throw new Error(`Failed to load template: ${response.status}`);
         }
         const text = await response.text();
+        // Group B: intentional direct assignment — full-document sync on template apply.
+        // execCommand would pollute the undo stack with the entire template as a single entry.
         editor.value = text;
         editor.selectionStart = editor.selectionEnd = 0;
 
@@ -520,6 +524,23 @@ function startApp() {
     }
   }
 
+  // Use execCommand('insertText') to push edits onto the browser's native undo stack.
+  // execCommand is deprecated but remains the only practical textarea undo integration;
+  // migrate to EditContext API when it gains broad textarea support.
+  function replaceEditorRange(start, end, text) {
+    try {
+      editor.focus({ preventScroll: true });
+    } catch (_) {
+      editor.focus();
+    }
+    editor.selectionStart = start;
+    editor.selectionEnd = end;
+    const ok = document.execCommand('insertText', false, text);
+    if (!ok) {
+      editor.value = editor.value.slice(0, start) + text + editor.value.slice(end);
+    }
+  }
+
   function insertTextAtCursor(text) {
     if (!editor || typeof text !== 'string') {
       return;
@@ -534,7 +555,7 @@ function startApp() {
     const nextValue = `${before}${text}${after}`;
     const nextCaret = before.length + text.length;
 
-    editor.value = nextValue;
+    replaceEditorRange(start, end, text);
     editor.scrollTop = previousScrollTop;
     editor.selectionStart = nextCaret;
     editor.selectionEnd = nextCaret;
@@ -705,12 +726,13 @@ function startApp() {
     let nextValue = previousValue;
     let nextSelectionStart = selectionStart;
     let nextSelectionEnd = selectionEnd;
+    let replacement = '';
 
     if (selectionStart === selectionEnd) {
-      const insertion = '``';
+      replacement = '``';
       nextValue =
         previousValue.slice(0, selectionStart) +
-        insertion +
+        replacement +
         previousValue.slice(selectionEnd);
       nextSelectionStart = selectionStart + 1;
       nextSelectionEnd = nextSelectionStart;
@@ -719,24 +741,23 @@ function startApp() {
       selectedText.endsWith('`') &&
       selectedText.length >= 2
     ) {
-      const innerText = selectedText.slice(1, -1);
+      replacement = selectedText.slice(1, -1);
       nextValue =
         previousValue.slice(0, selectionStart) +
-        innerText +
+        replacement +
         previousValue.slice(selectionEnd);
-      nextSelectionEnd = nextSelectionStart + innerText.length;
+      nextSelectionEnd = nextSelectionStart + replacement.length;
     } else {
-      const normalized = selectedText.replace(/\r?\n/g, ' ');
-      const wrapped = `\`${normalized}\``;
+      replacement = `\`${selectedText.replace(/\r?\n/g, ' ')}\``;
       nextValue =
         previousValue.slice(0, selectionStart) +
-        wrapped +
+        replacement +
         previousValue.slice(selectionEnd);
       nextSelectionStart = selectionStart;
-      nextSelectionEnd = selectionStart + wrapped.length;
+      nextSelectionEnd = selectionStart + replacement.length;
     }
 
-    editor.value = nextValue;
+    replaceEditorRange(selectionStart, selectionEnd, replacement);
     editor.scrollTop = prevScrollTop;
     editor.selectionStart = nextSelectionStart;
     editor.selectionEnd = nextSelectionEnd;
@@ -772,26 +793,27 @@ function startApp() {
     let nextValue = previousValue;
     let nextSelectionStart = selectionStart;
     let nextSelectionEnd = selectionEnd;
+    let replacement = '';
 
     if (selectionStart === selectionEnd) {
-      const insertion = '[]()';
+      replacement = '[]()';
       nextValue =
         previousValue.slice(0, selectionStart) +
-        insertion +
+        replacement +
         previousValue.slice(selectionEnd);
       nextSelectionStart = selectionStart + 1;
       nextSelectionEnd = nextSelectionStart;
     } else {
-      const wrapped = `[${selectedText}]()`;
+      replacement = `[${selectedText}]()`;
       nextValue =
         previousValue.slice(0, selectionStart) +
-        wrapped +
+        replacement +
         previousValue.slice(selectionEnd);
       nextSelectionStart = selectionStart + selectedText.length + 3;
       nextSelectionEnd = nextSelectionStart;
     }
 
-    editor.value = nextValue;
+    replaceEditorRange(selectionStart, selectionEnd, replacement);
     editor.scrollTop = prevScrollTop;
     editor.selectionStart = nextSelectionStart;
     editor.selectionEnd = nextSelectionEnd;
@@ -826,12 +848,13 @@ function startApp() {
     let nextValue = previousValue;
     let nextSelectionStart = selectionStart;
     let nextSelectionEnd = selectionEnd;
+    let replacement = '';
 
     if (selectionStart === selectionEnd) {
-      const insertion = '****';
+      replacement = '****';
       nextValue =
         previousValue.slice(0, selectionStart) +
-        insertion +
+        replacement +
         previousValue.slice(selectionEnd);
       nextSelectionStart = selectionStart + 2;
       nextSelectionEnd = nextSelectionStart;
@@ -840,22 +863,22 @@ function startApp() {
       selectedText.endsWith('**') &&
       selectedText.length >= 4
     ) {
-      const innerText = selectedText.slice(2, -2);
+      replacement = selectedText.slice(2, -2);
       nextValue =
         previousValue.slice(0, selectionStart) +
-        innerText +
+        replacement +
         previousValue.slice(selectionEnd);
-      nextSelectionEnd = nextSelectionStart + innerText.length;
+      nextSelectionEnd = nextSelectionStart + replacement.length;
     } else {
-      const wrapped = `**${selectedText}**`;
+      replacement = `**${selectedText}**`;
       nextValue =
         previousValue.slice(0, selectionStart) +
-        wrapped +
+        replacement +
         previousValue.slice(selectionEnd);
-      nextSelectionEnd = nextSelectionStart + wrapped.length;
+      nextSelectionEnd = nextSelectionStart + replacement.length;
     }
 
-    editor.value = nextValue;
+    replaceEditorRange(selectionStart, selectionEnd, replacement);
     editor.scrollTop = prevScrollTop;
     editor.selectionStart = nextSelectionStart;
     editor.selectionEnd = nextSelectionEnd;
@@ -970,7 +993,7 @@ function startApp() {
       const nextValue = `${before}${after}`;
       const nextCaret = before.length;
 
-      editor.value = nextValue;
+      replaceEditorRange(selectionStart, selectionEnd, '');
       editor.selectionStart = nextCaret;
       editor.selectionEnd = nextCaret;
 
@@ -1240,6 +1263,9 @@ function startApp() {
     const prevScrollTop = editor.scrollTop;
 
     if (source !== 'editor' && editor.value !== text) {
+      // Group B: intentional direct assignment — full-document sync driven by Bus 'text:changed'.
+      // This fires on checkbox toggle and language switch; using execCommand for the whole document
+      // would coarsen undo granularity and destabilise selection/scroll position restoration.
       editor.value = text;
       if (source === 'init') {
         editor.selectionStart = editor.selectionEnd = 0;
@@ -1730,10 +1756,9 @@ function startApp() {
       nextMarker = `${nextNumber}${orderedMatch[2]}`;
     }
 
-    let remainder = value.slice(selectionEnd);
-    if (remainder.startsWith(' ')) {
-      remainder = remainder.slice(1);
-    }
+    const remainderRaw = value.slice(selectionEnd);
+    const spaceOffset = remainderRaw.startsWith(' ') ? 1 : 0;
+    const remainder = remainderRaw.slice(spaceOffset);
 
     const checkboxSegment = hasCheckbox ? '[ ] ' : '';
     const insertion = `\n${indent}${nextMarker} ${checkboxSegment}`;
@@ -1743,7 +1768,7 @@ function startApp() {
     const newCursorPos = selectionStart + insertion.length;
     const prevScrollTop = editor.scrollTop;
 
-    editor.value = newValue;
+    replaceEditorRange(selectionStart, selectionStart + spaceOffset, insertion);
     editor.scrollTop = prevScrollTop;
     editor.selectionStart = editor.selectionEnd = newCursorPos;
 
@@ -1797,7 +1822,7 @@ function startApp() {
         currentValue.slice(0, cursorPos) +
         markdownImage +
         currentValue.slice(cursorPos);
-      editor.value = newValue;
+      replaceEditorRange(cursorPos, cursorPos, markdownImage);
 
       Layout.updateEditorHighlight(newValue);
       AppState.setText(newValue, 'editor');
@@ -1805,255 +1830,7 @@ function startApp() {
     reader.readAsDataURL(file);
   });
 
-  if (exportPdfBtn) {
-    exportPdfBtn.addEventListener('click', () => {
-      const win = window.open('', '', 'width=800,height=600');
-      if (!win) {
-        return;
-      }
-      const cssLink = document.querySelector('link[rel="stylesheet"]');
-      const cssHref = cssLink ? cssLink.href : '';
-      const previewTitle = i18n.t('dialogs.previewTitle');
-      const langAttr =
-        document.documentElement.getAttribute('lang') || i18n.getCurrentLang();
-      const linkTag = cssHref
-        ? `<link rel="stylesheet" href="${cssHref}">`
-        : '';
-      win.document.write(
-        `<!DOCTYPE html><html lang="${langAttr}"><head><meta charset="UTF-8"><title>${previewTitle}</title>${linkTag}</head><body>${preview.innerHTML}</body></html>`
-      );
-      win.document.close();
-      win.onload = () => {
-        win.focus();
-        win.print();
-        win.close();
-      };
-    });
-  }
-
-const EXPORT_STYLESHEET_FALLBACK = String.raw`
-body {
-  margin: 0;
-  font-family: 'Helvetica Neue', sans-serif;
-  background-color: #f6faff;
-  color: #002244;
-}
-
-#preview {
-  padding: 1rem;
-  box-sizing: border-box;
-  background-color: #ffffff;
-  color: #002244;
-}
-
-#preview img,
-#preview .mermaid svg {
-  max-width: 100%;
-  height: auto;
-}
-
-.mermaid .label foreignObject > div {
-  white-space: pre-wrap;
-  word-break: break-all;
-  overflow-wrap: anywhere;
-}
-
-#preview h1,
-#preview h2,
-#preview h3,
-#preview h4,
-#preview h5 {
-  border-bottom: 1px solid #aac8ff;
-  color: #0055aa;
-}
-
-pre {
-  background: #dfefff;
-  padding: 0.5rem;
-  overflow-x: auto;
-  border-left: 4px solid #88b4ff;
-}
-
-code {
-  background: #cce0ff;
-  padding: 0.2rem 0.4rem;
-  border-radius: 4px;
-  color: #003366;
-}
-
-pre code {
-  display: block;
-  padding: 0;
-  background: transparent;
-  color: inherit;
-}
-
-a {
-  color: #0077cc;
-  text-decoration: none;
-}
-
-a:hover {
-  text-decoration: underline;
-}
-
-@media print {
-  pre {
-    white-space: pre-wrap;
-    overflow-x: visible;
-  }
-}
-`;
-
-  async function getInlineStylesheetContent() {
-    const link = document.querySelector('link[rel="stylesheet"]');
-    if (!link) {
-      return EXPORT_STYLESHEET_FALLBACK;
-    }
-
-    const { sheet } = link;
-    if (sheet) {
-      try {
-        const rules = sheet.cssRules || sheet.rules;
-        if (rules && rules.length) {
-          return Array.from(rules)
-            .map(rule => rule.cssText)
-            .join('\n');
-        }
-      } catch (error) {
-        console.warn('[Export] Unable to read stylesheet rules directly.', error);
-      }
-    }
-
-    const href = typeof link.href === 'string' ? link.href : '';
-    if (!href) {
-      return EXPORT_STYLESHEET_FALLBACK;
-    }
-
-    const fetchStylesheet = async () => {
-      if (typeof fetch !== 'function') {
-        return EXPORT_STYLESHEET_FALLBACK;
-      }
-
-      const response = await fetch(href, { cache: 'no-store' });
-      if (!response.ok) {
-        throw new Error(`Stylesheet request failed with status ${response.status}`);
-      }
-
-      return await response.text();
-    };
-
-    try {
-      const text = await fetchStylesheet();
-      if (text) {
-        return text;
-      }
-    } catch (error) {
-      console.warn('[Export] Failed to fetch stylesheet for HTML export.', error);
-
-      if (href.startsWith('file:') && typeof XMLHttpRequest !== 'undefined') {
-        try {
-          const text = await new Promise((resolve, reject) => {
-            const xhr = new XMLHttpRequest();
-            xhr.open('GET', href, true);
-            xhr.responseType = 'text';
-            xhr.onload = () => {
-              if (xhr.status === 0 || (xhr.status >= 200 && xhr.status < 300)) {
-                resolve(xhr.responseText);
-              } else {
-                reject(
-                  new Error(
-                    `XHR request failed with status ${xhr.status || '0'} for ${href}`
-                  )
-                );
-              }
-            };
-            xhr.onerror = () => {
-              reject(new Error(`XHR request encountered a network error for ${href}`));
-            };
-            xhr.send();
-          });
-
-          if (typeof text === 'string') {
-            return text;
-          }
-        } catch (xhrError) {
-          console.warn('[Export] XHR fallback failed to read stylesheet.', xhrError);
-        }
-      }
-
-      console.info('[Export] Falling back to bundled preview styles for HTML export.');
-      return EXPORT_STYLESHEET_FALLBACK;
-    }
-
-    if (href.startsWith('file:')) {
-      console.info('[Export] Using bundled preview styles for file protocol HTML export.');
-      return EXPORT_STYLESHEET_FALLBACK;
-    }
-
-    return '';
-  }
-
-  if (exportHtmlBtn) {
-    exportHtmlBtn.addEventListener('click', async () => {
-      try {
-        if (!preview) {
-          throw new Error('Preview element is not available.');
-        }
-
-        const previewTitle = i18n.t('dialogs.previewTitle');
-        const langAttr =
-          document.documentElement.getAttribute('lang') || i18n.getCurrentLang();
-        const cssLink = document.querySelector('link[rel="stylesheet"]');
-        const cssHref = cssLink ? cssLink.href : '';
-        const inlineStyles = await getInlineStylesheetContent();
-        let headStyles = '';
-        if (inlineStyles) {
-          const sanitized = inlineStyles.replace(/<\/style/gi, '<\\/style');
-          headStyles = `<style>${sanitized}</style>`;
-        } else if (cssHref) {
-          headStyles = `<link rel="stylesheet" href="${cssHref}">`;
-        }
-        const bodyContent = `<div id="preview" class="export-preview">${preview.innerHTML}</div>`;
-        const html =
-          `<!DOCTYPE html><html lang="${langAttr}"><head><meta charset="UTF-8"><title>${previewTitle}</title>${headStyles}</head><body>${bodyContent}</body></html>`;
-
-        const defaultName = i18n.t('dialogs.defaultHtmlFileName');
-        const trimmedName =
-          typeof defaultName === 'string' && defaultName.trim()
-            ? defaultName.trim()
-            : 'preview.html';
-        const filename = trimmedName.endsWith('.html')
-          ? trimmedName
-          : `${trimmedName}.html`;
-
-        triggerDownloadFromBlob(
-          new Blob([html], { type: 'text/html;charset=utf-8' }),
-          filename
-        );
-      } catch (error) {
-        console.error('[Export] Failed to download preview HTML.', error);
-      }
-    });
-  }
-
-  saveMdBtn.addEventListener('click', () => {
-    const defaultName = i18n.t('dialogs.defaultFileName');
-    const trimmedName =
-      typeof defaultName === 'string' && defaultName.trim()
-        ? defaultName.trim()
-        : 'document.md';
-    const filename = trimmedName.endsWith('.md') ? trimmedName : `${trimmedName}.md`;
-
-    try {
-      triggerDownloadFromBlob(
-        new Blob([AppState.getText()], { type: 'text/markdown;charset=utf-8' }),
-        filename
-      );
-    } catch (error) {
-      console.error('[Export] Failed to download Markdown file.', error);
-    }
-  });
+  Export.init({ preview, i18n, triggerDownloadFromBlob, AppState, exportPdfBtn, exportHtmlBtn, saveMdBtn });
 
   helpBtn.addEventListener('click', () => {
     helpWindow.classList.toggle('hidden');
