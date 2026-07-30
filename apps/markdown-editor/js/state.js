@@ -221,12 +221,9 @@
       }
       state.cursor = Object.assign({}, state.cursor, cursor);
     },
-    /** Placeholder for future undo support. */
-    undo() {},
-    /** Placeholder for future redo support. */
-    redo() {},
-    /** Placeholder for future patch application. */
-    applyPatch() {}
+    // undo/redo: delegated to the browser's native undo stack via execCommand('insertText')
+    // in replaceEditorRange (script.js). A custom AppState undo stack is not needed for
+    // the current scope; revisit if fine-grained multi-step undo is required in a future phase.
   };
 
   global.AppState = AppState;

@@ -431,6 +431,8 @@ function startApp() {
           return;
         }
 
+        // Group B: intentional direct assignment — full-document sync on file load.
+        // execCommand would pollute the undo stack with the entire loaded content as a single entry.
         editor.value = result;
         editor.selectionStart = editor.selectionEnd = 0;
 
@@ -542,6 +544,8 @@ function startApp() {
           throw new Error(`Failed to load template: ${response.status}`);
         }
         const text = await response.text();
+        // Group B: intentional direct assignment — full-document sync on template apply.
+        // execCommand would pollute the undo stack with the entire template as a single entry.
         editor.value = text;
         editor.selectionStart = editor.selectionEnd = 0;
 
@@ -975,6 +979,23 @@ function startApp() {
     }
   }
 
+  // Use execCommand('insertText') to push edits onto the browser's native undo stack.
+  // execCommand is deprecated but remains the only practical textarea undo integration;
+  // migrate to EditContext API when it gains broad textarea support.
+  function replaceEditorRange(start, end, text) {
+    try {
+      editor.focus({ preventScroll: true });
+    } catch (_) {
+      editor.focus();
+    }
+    editor.selectionStart = start;
+    editor.selectionEnd = end;
+    const ok = document.execCommand('insertText', false, text);
+    if (!ok) {
+      editor.value = editor.value.slice(0, start) + text + editor.value.slice(end);
+    }
+  }
+
   function insertTextAtCursor(text) {
     if (!editor || typeof text !== 'string') {
       return;
@@ -989,7 +1010,7 @@ function startApp() {
     const nextValue = `${before}${text}${after}`;
     const nextCaret = before.length + text.length;
 
-    editor.value = nextValue;
+    replaceEditorRange(start, end, text);
     editor.scrollTop = previousScrollTop;
     editor.selectionStart = nextCaret;
     editor.selectionEnd = nextCaret;
@@ -1160,12 +1181,13 @@ function startApp() {
     let nextValue = previousValue;
     let nextSelectionStart = selectionStart;
     let nextSelectionEnd = selectionEnd;
+    let replacement = '';
 
     if (selectionStart === selectionEnd) {
-      const insertion = '``';
+      replacement = '``';
       nextValue =
         previousValue.slice(0, selectionStart) +
-        insertion +
+        replacement +
         previousValue.slice(selectionEnd);
       nextSelectionStart = selectionStart + 1;
       nextSelectionEnd = nextSelectionStart;
@@ -1174,24 +1196,23 @@ function startApp() {
       selectedText.endsWith('`') &&
       selectedText.length >= 2
     ) {
-      const innerText = selectedText.slice(1, -1);
+      replacement = selectedText.slice(1, -1);
       nextValue =
         previousValue.slice(0, selectionStart) +
-        innerText +
+        replacement +
         previousValue.slice(selectionEnd);
-      nextSelectionEnd = nextSelectionStart + innerText.length;
+      nextSelectionEnd = nextSelectionStart + replacement.length;
     } else {
-      const normalized = selectedText.replace(/\r?\n/g, ' ');
-      const wrapped = `\`${normalized}\``;
+      replacement = `\`${selectedText.replace(/\r?\n/g, ' ')}\``;
       nextValue =
         previousValue.slice(0, selectionStart) +
-        wrapped +
+        replacement +
         previousValue.slice(selectionEnd);
       nextSelectionStart = selectionStart;
-      nextSelectionEnd = selectionStart + wrapped.length;
+      nextSelectionEnd = selectionStart + replacement.length;
     }
 
-    editor.value = nextValue;
+    replaceEditorRange(selectionStart, selectionEnd, replacement);
     editor.scrollTop = prevScrollTop;
     editor.selectionStart = nextSelectionStart;
     editor.selectionEnd = nextSelectionEnd;
@@ -1227,26 +1248,27 @@ function startApp() {
     let nextValue = previousValue;
     let nextSelectionStart = selectionStart;
     let nextSelectionEnd = selectionEnd;
+    let replacement = '';
 
     if (selectionStart === selectionEnd) {
-      const insertion = '[]()';
+      replacement = '[]()';
       nextValue =
         previousValue.slice(0, selectionStart) +
-        insertion +
+        replacement +
         previousValue.slice(selectionEnd);
       nextSelectionStart = selectionStart + 1;
       nextSelectionEnd = nextSelectionStart;
     } else {
-      const wrapped = `[${selectedText}]()`;
+      replacement = `[${selectedText}]()`;
       nextValue =
         previousValue.slice(0, selectionStart) +
-        wrapped +
+        replacement +
         previousValue.slice(selectionEnd);
       nextSelectionStart = selectionStart + selectedText.length + 3;
       nextSelectionEnd = nextSelectionStart;
     }
 
-    editor.value = nextValue;
+    replaceEditorRange(selectionStart, selectionEnd, replacement);
     editor.scrollTop = prevScrollTop;
     editor.selectionStart = nextSelectionStart;
     editor.selectionEnd = nextSelectionEnd;
@@ -1281,12 +1303,13 @@ function startApp() {
     let nextValue = previousValue;
     let nextSelectionStart = selectionStart;
     let nextSelectionEnd = selectionEnd;
+    let replacement = '';
 
     if (selectionStart === selectionEnd) {
-      const insertion = '****';
+      replacement = '****';
       nextValue =
         previousValue.slice(0, selectionStart) +
-        insertion +
+        replacement +
         previousValue.slice(selectionEnd);
       nextSelectionStart = selectionStart + 2;
       nextSelectionEnd = nextSelectionStart;
@@ -1295,22 +1318,22 @@ function startApp() {
       selectedText.endsWith('**') &&
       selectedText.length >= 4
     ) {
-      const innerText = selectedText.slice(2, -2);
+      replacement = selectedText.slice(2, -2);
       nextValue =
         previousValue.slice(0, selectionStart) +
-        innerText +
+        replacement +
         previousValue.slice(selectionEnd);
-      nextSelectionEnd = nextSelectionStart + innerText.length;
+      nextSelectionEnd = nextSelectionStart + replacement.length;
     } else {
-      const wrapped = `**${selectedText}**`;
+      replacement = `**${selectedText}**`;
       nextValue =
         previousValue.slice(0, selectionStart) +
-        wrapped +
+        replacement +
         previousValue.slice(selectionEnd);
-      nextSelectionEnd = nextSelectionStart + wrapped.length;
+      nextSelectionEnd = nextSelectionStart + replacement.length;
     }
 
-    editor.value = nextValue;
+    replaceEditorRange(selectionStart, selectionEnd, replacement);
     editor.scrollTop = prevScrollTop;
     editor.selectionStart = nextSelectionStart;
     editor.selectionEnd = nextSelectionEnd;
@@ -1425,7 +1448,7 @@ function startApp() {
       const nextValue = `${before}${after}`;
       const nextCaret = before.length;
 
-      editor.value = nextValue;
+      replaceEditorRange(selectionStart, selectionEnd, '');
       editor.selectionStart = nextCaret;
       editor.selectionEnd = nextCaret;
 
@@ -1803,6 +1826,9 @@ function startApp() {
     const prevScrollTop = editor.scrollTop;
 
     if (source !== 'editor' && editor.value !== text) {
+      // Group B: intentional direct assignment — full-document sync driven by Bus 'text:changed'.
+      // This fires on checkbox toggle and language switch; using execCommand for the whole document
+      // would coarsen undo granularity and destabilise selection/scroll position restoration.
       editor.value = text;
       if (source === 'init') {
         editor.selectionStart = editor.selectionEnd = 0;
@@ -2349,10 +2375,9 @@ function startApp() {
       nextMarker = `${nextNumber}${orderedMatch[2]}`;
     }
 
-    let remainder = value.slice(selectionEnd);
-    if (remainder.startsWith(' ')) {
-      remainder = remainder.slice(1);
-    }
+    const remainderRaw = value.slice(selectionEnd);
+    const spaceOffset = remainderRaw.startsWith(' ') ? 1 : 0;
+    const remainder = remainderRaw.slice(spaceOffset);
 
     const checkboxSegment = hasCheckbox ? '[ ] ' : '';
     const insertion = `\n${indent}${nextMarker} ${checkboxSegment}`;
@@ -2362,12 +2387,12 @@ function startApp() {
     const newCursorPos = selectionStart + insertion.length;
     const prevScrollTop = editor.scrollTop;
 
-    editor.value = newValue;
+    replaceEditorRange(selectionStart, selectionStart + spaceOffset, insertion);
     editor.scrollTop = prevScrollTop;
     editor.selectionStart = editor.selectionEnd = newCursorPos;
 
-    updateEditorHighlight(editor.value);
-    AppState.setText(editor.value, 'editor');
+    updateEditorHighlight(newValue);
+    AppState.setText(newValue, 'editor');
 
     return true;
   }
@@ -2416,7 +2441,7 @@ function startApp() {
         currentValue.slice(0, cursorPos) +
         markdownImage +
         currentValue.slice(cursorPos);
-      editor.value = newValue;
+      replaceEditorRange(cursorPos, cursorPos, markdownImage);
 
       updateEditorHighlight(newValue);
       AppState.setText(newValue, 'editor');
