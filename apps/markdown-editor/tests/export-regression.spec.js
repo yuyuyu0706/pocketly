@@ -14,7 +14,8 @@ test('exported HTML contains preview.css style (#0055aa)', async ({ page }) => {
   const targetPath = path.join(tempDir, suggestedFilename);
   await download.saveAs(targetPath);
   const html = await fs.readFile(targetPath, 'utf8');
-  expect(html).toContain('#0055aa');
+  // Browser serializes #0055aa as rgb(0, 85, 170) in computed styles
+  expect(html).toContain('rgb(0, 85, 170)');
 });
 
 test('exported HTML does not contain app.css styles (100vh, #e8f0ff)', async ({ page }) => {
