@@ -30,5 +30,5 @@ test('exported HTML does not contain app.css styles (100vh, #e8f0ff)', async ({ 
   await download.saveAs(targetPath);
   const html = await fs.readFile(targetPath, 'utf8');
   expect(html).not.toContain('100vh');
-  expect(html).not.toContain('#e8f0ff');
+  expect(html).not.toContain('rgb(232, 240, 255)'); // #e8f0ff の CSSOM 正規化後の値
 });
