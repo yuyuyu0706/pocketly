@@ -462,7 +462,7 @@
       pendingHeadingHighlightId = event.id;
       const headingInfo = headingInfoById.get(event.id);
       const previewDetail = getPreviewScrollTargetForHeading(event.id);
-      if (headingInfo) {
+      if (headingInfo && _AppState.getSettings().mode !== 'read') {
         focusEditorOnHeading(headingInfo, previewDetail);
       }
       if (_Preview && typeof _Preview.scrollToHeading === 'function') {

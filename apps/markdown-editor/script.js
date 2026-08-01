@@ -547,8 +547,34 @@ function startApp() {
       }
     } else if (event.key === 'showLineNumbers') {
       Layout.applyLineNumbersEnabled(Boolean(event.value));
+    } else if (event.key === 'mode') {
+      applyMode(event.value);
     }
   });
+
+  const toggleModeBtn = document.getElementById('toggle-mode');
+
+  function applyMode(mode) {
+    document.body.dataset.mode = mode === 'edit' ? 'edit' : 'read';
+    if (toggleModeBtn) {
+      toggleModeBtn.textContent = mode === 'edit' ? '👁 Read' : '✏️ Edit';
+      toggleModeBtn.setAttribute('aria-pressed', String(mode === 'edit'));
+    }
+    if (mode === 'edit') {
+      requestAnimationFrame(() => {
+        Layout.syncEditorHighlightPadding();
+        Layout.updateEditorHighlight(editor ? editor.value : '');
+        Layout.updateLineNumbers();
+      });
+    }
+  }
+
+  if (toggleModeBtn) {
+    toggleModeBtn.addEventListener('click', () => {
+      const current = AppState.getSettings().mode;
+      AppState.setSetting('mode', current === 'edit' ? 'read' : 'edit');
+    });
+  }
 
   AppState.init({
     text: editor.value,
@@ -557,6 +583,7 @@ function startApp() {
 
   const initialSettings = AppState.getSettings();
   Layout.applyLineNumbersEnabled(Boolean(initialSettings.showLineNumbers));
+  applyMode(initialSettings.mode);
 
 }
 

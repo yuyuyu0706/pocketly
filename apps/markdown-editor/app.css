@@ -397,3 +397,17 @@ main {
   border: none;
   cursor: pointer;
 }
+
+/* Mode-based layout */
+body[data-mode="read"] #editor-pane,
+body[data-mode="read"] #divider {
+  display: none;
+}
+
+body[data-mode="read"] [data-mode-visible="edit"] {
+  display: none !important;
+}
+
+body[data-mode="edit"] [data-mode-visible="read"] {
+  display: none !important;
+}

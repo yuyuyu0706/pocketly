@@ -8,18 +8,19 @@
   <link rel="stylesheet" href="document.css">
   <link rel="icon" href="./images/icons.png">
 </head>
-<body>
+<body data-mode="read">
   <header id="toolbar">
     <h1 id="app-title" data-i18n="app.title">Markdown Editor Blue</h1>
     <div id="toolbar-actions">
       <button id="open-md" class="toolbar-button" type="button" data-i18n="toolbar.open">📂 Open</button>
-      <button id="save-md" class="toolbar-button" type="button" data-i18n="toolbar.save">💾 Save</button>
+      <button id="save-md" class="toolbar-button" type="button" data-i18n="toolbar.save" data-mode-visible="edit">💾 Save</button>
       <button id="export-pdf" class="toolbar-button" type="button" data-i18n="toolbar.exportPdf">📄 Export PDF</button>
       <button
         id="export-html"
         class="toolbar-button"
         type="button"
         data-i18n="toolbar.exportHtml"
+        data-mode-visible="edit"
       >
         🌐 Export HTML
       </button>
@@ -28,10 +29,11 @@
         class="toolbar-button"
         type="button"
         data-i18n="toolbar.insertImage"
+        data-mode-visible="edit"
       >
         🖼 Insert Image
       </button>
-      <div id="template-menu">
+      <div id="template-menu" data-mode-visible="edit">
         <button
           id="template-btn"
           class="toolbar-button"
@@ -50,8 +52,17 @@
         class="toolbar-button"
         type="button"
         aria-pressed="false"
+        data-mode-visible="edit"
       >
         🔢 Numbers On
+      </button>
+      <button
+        id="toggle-mode"
+        class="toolbar-button"
+        type="button"
+        aria-pressed="false"
+      >
+        ✏️ Edit
       </button>
       <button id="help-btn" class="toolbar-button" type="button" data-i18n="toolbar.help">
         ❔ Help
