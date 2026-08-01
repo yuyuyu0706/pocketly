@@ -1,0 +1,7 @@
+/* Print and export only */
+@media print {
+  pre {
+    white-space: pre-wrap;
+    overflow-x: visible;
+  }
+}
