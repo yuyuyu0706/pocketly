@@ -74,6 +74,54 @@ test('exported PDF spans multiple pages for long documents', async ({ page }) =>
   expect(pageCount).toBeGreaterThan(1);
 });
 
+test('exported HTML spans multiple pages when printed for long documents', async ({ page, context }) => {
+  await page.goto('/');
+
+  // Lv3-B と同じ長文生成ロジックを流用（見出し60件・段落8件）
+  const longMarkdown = Array.from({ length: 60 }, (_, i) =>
+    `## Section ${i + 1}\n\n` +
+    Array.from({ length: 8 }, (_, j) =>
+      `Paragraph ${j + 1}: Lorem ipsum dolor sit amet, consectetur adipiscing elit. ` +
+      'Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. ' +
+      'Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. ' +
+      'Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.'
+    ).join('\n\n')
+  ).join('\n\n');
+
+  await page.evaluate((md) => {
+    const editor = document.getElementById('editor');
+    editor.value = md;
+    editor.dispatchEvent(new Event('input'));
+  }, longMarkdown);
+
+  // HTML ファイルをダウンロード保存（Lv3-A と同じパターン）
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.click('#export-html'),
+  ]);
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'md-html-print-regression-'));
+  const htmlPath = path.join(tempDir, await download.suggestedFilename());
+  await download.saveAs(htmlPath);
+
+  // ダウンロードした HTML を新規ページとして直接開く（window.print() 経路を経ないため Lv3-B よりシンプル）
+  const filePage = await context.newPage();
+  await filePage.goto(`file://${htmlPath}`);
+  await filePage.waitForLoadState('load');
+
+  // Lv3-B で確立した正規表現手法でページ数を検証
+  const pdfPath = path.join(tempDir, `html-print-regression-${Date.now()}.pdf`);
+  await filePage.pdf({ path: pdfPath });
+
+  const pdfBuffer = await fs.readFile(pdfPath);
+  const matches = pdfBuffer.toString('latin1').match(/\/Type\s*\/Page(?!s)/g);
+  const pageCount = matches ? matches.length : 0;
+
+  await filePage.close();
+  await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
+
+  expect(pageCount).toBeGreaterThan(1);
+});
+
 test('exported HTML does not contain app.css styles (100vh, #e8f0ff)', async ({ page }) => {
   await page.goto('/');
   const [download] = await Promise.all([
