@@ -164,6 +164,7 @@ test('exports PDF via button', async ({ page }) => {
 
 test('exports preview HTML via button', async ({ page }) => {
   await page.goto('/');
+  await page.click('#toggle-mode');
   const [download] = await Promise.all([
     page.waitForEvent('download'),
     page.click('#export-html'),
@@ -197,6 +198,7 @@ test('inserts image into preview', async ({ page }) => {
 
 test('divider can move horizontally', async ({ page }) => {
   await page.goto('/');
+  await page.click('#toggle-mode');
   const editor = page.locator('#editor');
   const divider = page.locator('#divider');
   const initialWidth = await editor.evaluate(e => e.offsetWidth);
@@ -214,6 +216,7 @@ test('divider can move horizontally', async ({ page }) => {
 test('divider persists width ratio after reload', async ({ page }) => {
   await page.setViewportSize(VIEWPORT);
   await page.goto('/');
+  await page.click('#toggle-mode');
   await page.waitForLoadState('load');
   await page.evaluate(() => {
     try {
@@ -224,6 +227,7 @@ test('divider persists width ratio after reload', async ({ page }) => {
     }
   });
   await page.reload({ waitUntil: 'load' });
+  await page.click('#toggle-mode');
   await page.waitForSelector('#divider');
   await waitForPaneLayout(page);
 
@@ -254,6 +258,7 @@ test('divider persists width ratio after reload', async ({ page }) => {
   expect(Number.isFinite(storedRatioAfterExpand)).toBe(true);
 
   await page.reload({ waitUntil: 'load' });
+  await page.click('#toggle-mode');
   await waitForPaneLayout(page);
 
   const reloadedMetrics = await getPaneMetrics(page);
@@ -292,6 +297,7 @@ test('divider persists width ratio after reload', async ({ page }) => {
   expect(Number.isFinite(storedRatioAfterContract)).toBe(true);
 
   await page.reload({ waitUntil: 'load' });
+  await page.click('#toggle-mode');
   await waitForPaneLayout(page);
 
   const finalMetrics = await getPaneMetrics(page);
@@ -310,6 +316,7 @@ test('divider persists width ratio after reload', async ({ page }) => {
 
 test('saves markdown to file', async ({ page }) => {
   await page.goto('/');
+  await page.click('#toggle-mode');
   const [download] = await Promise.all([
     page.waitForEvent('download'),
     page.click('#save-md'),
@@ -334,6 +341,7 @@ test('opens markdown file into editor', async ({ page }) => {
 
 test('renders mermaid diagram in preview', async ({ page }) => {
   await page.goto('/');
+  await page.click('#toggle-mode');
   await page.waitForFunction(() => window.mermaid);
   await page.fill('#editor', '```mermaid\nflowchart LR\nA-->B\n```');
   await page.waitForSelector('#preview .mermaid svg');

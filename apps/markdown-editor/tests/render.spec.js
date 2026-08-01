@@ -17,6 +17,7 @@ test.beforeEach(async ({ page }) => {
     window.__lastPreviewScrollTarget = null;
   });
   await page.goto('/');
+  await page.click('#toggle-mode');
   await page.addStyleTag({
     content: `html, body, #preview { scroll-behavior: auto !important; }`,
   });

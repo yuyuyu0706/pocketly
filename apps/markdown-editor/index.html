@@ -67,11 +67,13 @@
       <button id="help-btn" class="toolbar-button" type="button" data-i18n="toolbar.help">
         ❔ Help
       </button>
-      <label for="lang-switch" id="lang-label" data-i18n="toolbar.languageLabel">Language</label>
-      <select id="lang-switch">
-        <option value="en" data-i18n="language.english">English</option>
-        <option value="ja" data-i18n="language.japanese">日本語</option>
-      </select>
+      <div id="lang-wrapper">
+        <label for="lang-switch" id="lang-label" data-i18n="toolbar.languageLabel">Language</label>
+        <select id="lang-switch">
+          <option value="en" data-i18n="language.english">English</option>
+          <option value="ja" data-i18n="language.japanese">日本語</option>
+        </select>
+      </div>
     </div>
     <input type="file" id="imageInput" accept="image/*" hidden>
     <input
