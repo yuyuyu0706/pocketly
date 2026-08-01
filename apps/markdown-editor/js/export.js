@@ -204,38 +204,15 @@ body {
         const langAttr =
           document.documentElement.getAttribute('lang') || i18n.getCurrentLang();
         const linkTags = cssLinks.map(l => `<link rel="stylesheet" href="${l.href}">`).join('');
-
-        const doctype = win.document.implementation.createDocumentType('html', '', '');
-        const htmlEl = win.document.createElement('html');
-        htmlEl.setAttribute('lang', langAttr);
-
-        const head = win.document.createElement('head');
-        const meta = win.document.createElement('meta');
-        meta.setAttribute('charset', 'UTF-8');
-        const title = win.document.createElement('title');
-        title.textContent = previewTitle;
-        head.appendChild(meta);
-        head.appendChild(title);
-
-        cssLinks.forEach(l => {
-          const link = win.document.createElement('link');
-          link.rel = 'stylesheet';
-          link.href = l.href;
-          head.appendChild(link);
-        });
-
-        const body = win.document.createElement('body');
-        const wrapper = win.document.createElement('div');
-        wrapper.id = 'preview';
-        wrapper.innerHTML = preview.innerHTML;
-        body.appendChild(wrapper);
-
-        htmlEl.appendChild(head);
-        htmlEl.appendChild(body);
-        win.document.appendChild(doctype);
-        win.document.appendChild(htmlEl);
+        const bodyContent = `<div id="preview">${preview.innerHTML}</div>`;
 
         win.addEventListener('afterprint', () => win.close());
+
+        win.document.open();
+        win.document.write(
+          `<!DOCTYPE html><html lang="${langAttr}"><head><meta charset="UTF-8"><title>${previewTitle}</title>${linkTags}</head><body>${bodyContent}</body></html>`
+        );
+        win.document.close();
 
         win.onload = () => {
           win.focus();
