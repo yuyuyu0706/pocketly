@@ -223,6 +223,7 @@
 | 方針案 | エクスポートには `document.css` のみを使い、アプリシェル CSS を流出させない。`@page { size: A4; margin: … }`、`html, body { height: auto; overflow: visible }`、`pre, table, figure, .mermaid { break-inside: avoid }`、`h1, h2, h3 { break-after: avoid }`、`thead { display: table-header-group }` を含める |
 | 判定根拠 | ゲート条件 a)（現在すでに壊れている）に該当 |
 | 備考 | `EXPORT_STYLESHEET_FALLBACK`（`script.js:2453-2525`）には `height: 100vh` が無く、`file://` でフォールバックした場合のみ印刷が通る。**症状が環境で異なる原因はこれ。** 再現確認は HTTP 経由（`npm run dev`）で行うこと |
+| **状態** | **実装済み**（Issue #88）。`document.css` の `@media print` に `@page`・`html,body { height: auto; overflow: visible }`・`#preview { height: auto; overflow: visible }`・`break-inside: avoid`・`break-after: avoid`・`thead { display: table-header-group }` を追加 |
 
 ---
 
@@ -239,6 +240,7 @@
 | 依存 | `MDE-024` → `MDE-025` |
 | 方針案 | `document.write` をやめ `win.document.body.append(...)` へ。`win.addEventListener('afterprint', () => win.close())` でクローズ制御。`MDE-001` と同じ `document.css` を使う |
 | 判定根拠 | ゲート条件 a)（現在すでに壊れている）に該当 |
+| **状態** | **実装済み**（Issue #88）。`js/export.js` で `document.write` を廃止し DOM API（`createElement`/`appendChild`）へ置換。`preview.innerHTML` を `<div id="preview" class="export-preview">` でラップして `preview.css` 装飾を適用。`afterprint` リスナーによるクローズ制御を実装し、DOM構築後に同期的に `win.print()` を呼ぶことで `onload` タイミング問題を解消 |
 
 ---
 

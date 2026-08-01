@@ -203,16 +203,34 @@ body {
         const previewTitle = i18n.t('dialogs.previewTitle');
         const langAttr =
           document.documentElement.getAttribute('lang') || i18n.getCurrentLang();
-        const linkTags = cssLinks.map(l => `<link rel="stylesheet" href="${l.href}">`).join('');
-        win.document.write(
-          `<!DOCTYPE html><html lang="${langAttr}"><head><meta charset="UTF-8"><title>${previewTitle}</title>${linkTags}</head><body>${preview.innerHTML}</body></html>`
-        );
-        win.document.close();
-        win.onload = () => {
-          win.focus();
-          win.print();
-          win.close();
-        };
+
+        win.document.documentElement.setAttribute('lang', langAttr);
+
+        const meta = win.document.createElement('meta');
+        meta.setAttribute('charset', 'UTF-8');
+        win.document.head.appendChild(meta);
+
+        const titleEl = win.document.createElement('title');
+        titleEl.textContent = previewTitle;
+        win.document.head.appendChild(titleEl);
+
+        cssLinks.forEach(l => {
+          const link = win.document.createElement('link');
+          link.rel = 'stylesheet';
+          link.href = l.href;
+          win.document.head.appendChild(link);
+        });
+
+        const wrapper = win.document.createElement('div');
+        wrapper.id = 'preview';
+        wrapper.className = 'export-preview';
+        wrapper.innerHTML = preview.innerHTML;
+        win.document.body.appendChild(wrapper);
+
+        win.addEventListener('afterprint', () => win.close());
+
+        win.focus();
+        win.print();
       });
     }
 
