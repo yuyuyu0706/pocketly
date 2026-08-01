@@ -240,7 +240,7 @@
 | 依存 | `MDE-024` → `MDE-025` |
 | 方針案 | `document.write` をやめ `win.document.body.append(...)` へ。`win.addEventListener('afterprint', () => win.close())` でクローズ制御。`MDE-001` と同じ `document.css` を使う |
 | 判定根拠 | ゲート条件 a)（現在すでに壊れている）に該当 |
-| **状態** | **実装済み**（Issue #88）。`js/export.js` で `document.write` → DOM API（`document.createElement` 等）へ置換。`preview.innerHTML` を `<div id="preview">` でラップして `preview.css` 装飾を適用。`afterprint` リスナーによるクローズ制御を実装 |
+| **状態** | **実装済み**（Issue #88）。`js/export.js` で `document.write` を廃止し DOM API（`createElement`/`appendChild`）へ置換。`preview.innerHTML` を `<div id="preview" class="export-preview">` でラップして `preview.css` 装飾を適用。`afterprint` リスナーによるクローズ制御を実装し、DOM構築後に同期的に `win.print()` を呼ぶことで `onload` タイミング問題を解消 |
 
 ---
 
