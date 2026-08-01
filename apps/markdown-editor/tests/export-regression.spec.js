@@ -3,6 +3,10 @@ const fs = require('fs/promises');
 const os = require('os');
 const path = require('path');
 
+// 手順①事前検証: Chromium PDF の /Type /Page マーカーを latin1 文字列として正規表現でカウントできることを確認済み。
+// Chromium headless の pdf() API が生成する PDF は圧縮オbjStm を使わず
+// /Type /Page エントリが生バイト列に含まれるため、この手法が有効。
+
 test('exported HTML contains preview.css style (#0055aa)', async ({ page }) => {
   await page.goto('/');
   const [download] = await Promise.all([
@@ -16,6 +20,59 @@ test('exported HTML contains preview.css style (#0055aa)', async ({ page }) => {
   const html = await fs.readFile(targetPath, 'utf8');
   // Browser serializes #0055aa as rgb(0, 85, 170) in computed styles
   expect(html).toContain('rgb(0, 85, 170)');
+});
+
+test('exported PDF spans multiple pages for long documents', async ({ page }) => {
+  test.fail(); // MDE-002修正まで既知の失敗として記録
+  await page.goto('/');
+
+  // 手順②: A4換算10ページ相当の長文を動的生成して流し込む
+  const longMarkdown = Array.from({ length: 60 }, (_, i) =>
+    `## Section ${i + 1}\n\n` +
+    Array.from({ length: 8 }, (_, j) =>
+      `Paragraph ${j + 1}: Lorem ipsum dolor sit amet, consectetur adipiscing elit. ` +
+      'Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. ' +
+      'Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. ' +
+      'Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.'
+    ).join('\n\n')
+  ).join('\n\n');
+
+  await page.evaluate((md) => {
+    const editor = document.getElementById('editor');
+    editor.value = md;
+    editor.dispatchEvent(new Event('input'));
+  }, longMarkdown);
+
+  // 手順③: win.print/win.close をスタブしてポップアップが自動クローズしないようにする
+  await page.evaluate(() => {
+    const orig = window.open.bind(window);
+    window.open = (...args) => {
+      const win = orig(...args);
+      if (win) {
+        win.print = () => {};
+        win.close = () => {};
+      }
+      return win;
+    };
+  });
+
+  const [popup] = await Promise.all([
+    page.waitForEvent('popup'),
+    page.click('#export-pdf'),
+  ]);
+
+  await popup.waitForLoadState('load');
+
+  const tempPath = path.join(os.tmpdir(), `pdf-regression-${Date.now()}.pdf`);
+  await popup.pdf({ path: tempPath });
+
+  const pdfBuffer = await fs.readFile(tempPath);
+  const matches = pdfBuffer.toString('latin1').match(/\/Type\s*\/Page(?!s)/g);
+  const pageCount = matches ? matches.length : 0;
+
+  await fs.unlink(tempPath).catch(() => {});
+
+  expect(pageCount).toBeGreaterThan(1);
 });
 
 test('exported HTML does not contain app.css styles (100vh, #e8f0ff)', async ({ page }) => {
