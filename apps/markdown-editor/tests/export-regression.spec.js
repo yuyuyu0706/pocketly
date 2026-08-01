@@ -23,7 +23,6 @@ test('exported HTML contains preview.css style (#0055aa)', async ({ page }) => {
 });
 
 test('exported PDF spans multiple pages for long documents', async ({ page }) => {
-  test.fail(); // MDE-002修正まで既知の失敗として記録
   await page.goto('/');
 
   // 手順②: A4換算10ページ相当の長文を動的生成して流し込む
