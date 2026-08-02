@@ -830,7 +830,7 @@
   }
 
   function isDocumentPiPSupported() {
-    return 'documentPictureInPicture' in window;
+    return 'documentPictureInPicture' in window && !navigator.webdriver;
   }
 
   global.Layout = {
