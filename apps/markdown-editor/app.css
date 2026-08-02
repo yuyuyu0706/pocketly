@@ -419,7 +419,6 @@ body[data-mode="edit"] #divider {
 body[data-mode="edit"] #editor-pane {
   position: fixed;
   z-index: 200;
-  flex-direction: column;
   border: 1px solid #aac8ff;
   box-shadow: 0 4px 20px rgba(0, 85, 170, 0.25);
   border-radius: 6px;
@@ -428,10 +427,15 @@ body[data-mode="edit"] #editor-pane {
   min-width: 200px;
   min-height: 150px;
   box-sizing: border-box;
+  padding-top: 28px;
 }
 
 #editor-drag-handle {
   display: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
   height: 28px;
   background: #cde1ff;
   border-bottom: 1px solid #aac8ff;
@@ -442,7 +446,7 @@ body[data-mode="edit"] #editor-pane {
   font-size: 0.8rem;
   color: #003366;
   font-weight: 500;
-  flex-shrink: 0;
+  z-index: 1;
 }
 
 body[data-mode="edit"] #editor-drag-handle {
