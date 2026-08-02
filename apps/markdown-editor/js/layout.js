@@ -46,6 +46,7 @@
   let _mirrorLastValue = null;
   let _lineHeightPx = 0;
   let _editorResizeObserver = null;
+  let _paneResizeObserver = null;
 
   // === Highlight functions ===
 
@@ -813,6 +814,18 @@
         }
       });
       _editorResizeObserver.observe(_editor);
+    }
+
+    if (_editorPane && typeof ResizeObserver !== 'undefined') {
+      if (_paneResizeObserver) {
+        _paneResizeObserver.disconnect();
+      }
+      _paneResizeObserver = new ResizeObserver(() => {
+        if (_isFloating) {
+          setEditorOuterWidth(_editorPane.offsetWidth);
+        }
+      });
+      _paneResizeObserver.observe(_editorPane);
     }
   }
 
