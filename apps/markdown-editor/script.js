@@ -554,6 +554,7 @@ function startApp() {
 
   const toggleModeBtn = document.getElementById('toggle-mode');
   const editorDragHandle = document.getElementById('editor-drag-handle');
+  const editorCloseBtn = document.getElementById('editor-close-btn');
 
   // --- Floating panel persistence (separate from md:settings which resets on reload) ---
   const FLOATING_PANEL_KEY = 'md:layout:floatingPanel';
@@ -605,6 +606,17 @@ function startApp() {
       left: Math.round(rect.left),
       top: Math.round(rect.top),
       height: Math.round(rect.height),
+    });
+  }
+
+  if (editorCloseBtn) {
+    editorCloseBtn.addEventListener('mousedown', e => {
+      e.stopPropagation();
+    });
+    editorCloseBtn.addEventListener('click', () => {
+      if (toggleModeBtn) {
+        toggleModeBtn.click();
+      }
     });
   }
 

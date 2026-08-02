@@ -47,6 +47,9 @@
     "mermaidTitle": "Mermaid Cheat Sheet",
     "mermaidCheatsheet": "```mermaid\ngraph TD\n  A[Start] --> B{Condition}\n  B -->|Yes| C[Process 1]\n  B -->|No| D[Process 2]\n```"
   },
+  "editorPanel": {
+    "close": "Close editor panel"
+  },
   "formatting": {
     "bold": "𝐁 Bold",
     "inlineCode": "</> Code",
