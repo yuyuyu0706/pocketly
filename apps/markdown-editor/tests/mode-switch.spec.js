@@ -66,4 +66,20 @@ test.describe('Mode switch', () => {
     });
     expect(stored).toBe('edit');
   });
+
+  test('read mode: clicking a TOC heading makes that TOC item active', async ({ page }) => {
+    const md = '## Alpha\n\ntext\n\n## Beta\n\ntext';
+    await page.evaluate(text => {
+      const editor = document.getElementById('editor');
+      editor.value = text;
+      editor.dispatchEvent(new Event('input', { bubbles: true }));
+    }, md);
+
+    await page.waitForSelector('#toc .toc-item');
+
+    const betaItem = page.locator('#toc .toc-item[data-target="beta"]');
+    await betaItem.click();
+
+    await expect(betaItem).toHaveClass(/active/);
+  });
 });

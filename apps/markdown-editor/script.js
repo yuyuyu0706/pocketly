@@ -565,6 +565,7 @@ function startApp() {
       Layout.syncEditorHighlightPadding();
       Layout.updateEditorHighlight(editor ? editor.value : '');
       Layout.updateLineNumbers();
+      Toc.updateTOCHighlight();
     }
   }
 

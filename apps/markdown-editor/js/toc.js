@@ -295,6 +295,12 @@
     return headingInfo;
   }
 
+  function setActiveTocItem(id) {
+    tocItems.forEach(item => {
+      item.classList.toggle('active', item.dataset.target === id);
+    });
+  }
+
   function updateTOCHighlight() {
     if (!headingPositions.length) return;
     const start = Number.isFinite(_editor.selectionStart) ? _editor.selectionStart : 0;
@@ -465,6 +471,7 @@
       if (headingInfo && _AppState.getSettings().mode !== 'read') {
         focusEditorOnHeading(headingInfo, previewDetail);
       }
+      setActiveTocItem(event.id);
       if (_Preview && typeof _Preview.scrollToHeading === 'function') {
         _Preview.scrollToHeading(event.id);
       }
