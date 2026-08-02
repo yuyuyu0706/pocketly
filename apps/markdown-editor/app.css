@@ -352,11 +352,13 @@ main {
   list-style: none;
   padding-left: 1rem;
   margin: 0;
+  pointer-events: none;
 }
 
 #toc .toc-item {
   cursor: pointer;
   margin: 0.2rem 0;
+  pointer-events: auto;
 }
 
 #toc .toc-item.active {
