@@ -494,7 +494,10 @@
 
   const syncLineNumberScroll = () => {
     if (lineNumbersEnabled && _lineNumberGutter && _editor) {
-      _lineNumberGutter.scrollTop = _editor.scrollTop;
+      const editorMax = _editor.scrollHeight - _editor.clientHeight;
+      const gutterMax = _lineNumberGutter.scrollHeight - _lineNumberGutter.clientHeight;
+      const ratio = editorMax > 0 ? _editor.scrollTop / editorMax : 0;
+      _lineNumberGutter.scrollTop = ratio * gutterMax;
     }
     syncEditorHighlightScroll();
   };
@@ -531,7 +534,7 @@
       _lineNumberGutter.dataset.count = String(lineCount);
     }
     if (digits !== currentDigits) {
-      _lineNumberGutter.style.minWidth = (digits + 1) + 'ch';
+      _lineNumberGutter.style.minWidth = `calc(${digits}ch + 0.875rem)`;
       _lineNumberGutter.dataset.digits = String(digits);
       const currentWidth = _editorPane ? _editorPane.offsetWidth : (_editor ? _editor.offsetWidth : 0);
       setEditorOuterWidth(currentWidth);
