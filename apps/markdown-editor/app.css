@@ -410,7 +410,8 @@ main {
 
 /* Mode-based layout */
 body[data-mode="read"] #editor-pane,
-body[data-mode="read"] #divider {
+body[data-mode="read"] #divider,
+body[data-mode="edit"] #divider {
   display: none;
 }
 

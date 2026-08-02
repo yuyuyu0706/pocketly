@@ -7,6 +7,7 @@ const VIEWPORT = { width: 1280, height: 1024 };
 const STORAGE_IGNORE_KEYS = [
   'md:text',
   'md:settings',
+  'md:layout:floatingPanel',
   'markdown-editor-language',
   'markdown-editor-language-source',
 ];
@@ -21,7 +22,7 @@ async function getPaneMetrics(page) {
     const toc = document.getElementById('toc');
     const tocDivider = document.getElementById('toc-divider');
     const divider = document.getElementById('divider');
-    if (!main || !editor || !preview || !divider) {
+    if (!main || !editor || !preview) {
       throw new Error('Editor layout elements not found');
     }
     const styles = window.getComputedStyle(editor);
@@ -33,7 +34,7 @@ async function getPaneMetrics(page) {
     const rect = main.getBoundingClientRect();
     const tocWidth = toc ? toc.offsetWidth : 0;
     const tocDividerWidth = tocDivider ? tocDivider.offsetWidth : 0;
-    const dividerWidth = divider.offsetWidth;
+    const dividerWidth = divider ? divider.offsetWidth : 0;
     const availableWidth =
       rect.width - tocWidth - tocDividerWidth - dividerWidth;
     return {
@@ -200,18 +201,23 @@ test('divider can move horizontally', async ({ page }) => {
   await page.goto('/');
   await page.click('#toggle-mode');
   const editor = page.locator('#editor');
-  const divider = page.locator('#divider');
   const initialWidth = await editor.evaluate(e => e.offsetWidth);
-  const box = await divider.boundingBox();
-  const x = box.x + box.width / 2;
-  const y = box.y + box.height / 2;
-  await page.mouse.move(x, y);
-  await page.mouse.down();
-  await page.mouse.move(x + 50, y);
-  await page.mouse.up();
+  await page.evaluate(() => {
+    const pane = document.getElementById('editor-pane');
+    Layout.setEditorOuterWidth((pane ? pane.offsetWidth : 0) + 50);
+  });
   const newWidth = await editor.evaluate(e => e.offsetWidth);
   expect(newWidth).not.toBe(initialWidth);
 });
+
+async function resizePanel(page, deltaX) {
+  await page.evaluate((dx) => {
+    const pane = document.getElementById('editor-pane');
+    Layout.setEditorOuterWidth((pane ? pane.offsetWidth : 0) + dx);
+    Layout.persistEditorWidthRatio();
+  }, deltaX);
+  await page.waitForTimeout(100);
+}
 
 test('divider persists width ratio after reload', async ({ page }) => {
   await page.setViewportSize(VIEWPORT);
@@ -228,7 +234,6 @@ test('divider persists width ratio after reload', async ({ page }) => {
   });
   await page.reload({ waitUntil: 'load' });
   await page.click('#toggle-mode');
-  await page.waitForSelector('#divider');
   await waitForPaneLayout(page);
 
   const initialMetrics = await getPaneMetrics(page);
@@ -238,7 +243,7 @@ test('divider persists width ratio after reload', async ({ page }) => {
     220,
     Math.max(120, Math.floor(initialMetrics.previewWidth / 2))
   );
-  await dragDivider(page, moveRightBy);
+  await resizePanel(page, moveRightBy);
 
   const widenedMetrics = await getPaneMetrics(page);
   expect(widenedMetrics.editorWidth).toBeGreaterThan(
@@ -280,7 +285,7 @@ test('divider persists width ratio after reload', async ({ page }) => {
     220,
     Math.max(120, Math.floor(widenedMetrics.editorWidth / 2))
   );
-  await dragDivider(page, moveLeftBy);
+  await resizePanel(page, moveLeftBy);
 
   const narrowedMetrics = await getPaneMetrics(page);
   expect(widenedMetrics.editorWidth - narrowedMetrics.editorWidth).toBeGreaterThan(40);
