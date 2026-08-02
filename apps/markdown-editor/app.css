@@ -356,12 +356,18 @@ main {
 }
 
 #toc .toc-item {
-  cursor: pointer;
+  cursor: default;
   margin: 0.2rem 0;
-  pointer-events: auto;
+  pointer-events: none;
 }
 
-#toc .toc-item.active {
+#toc .toc-label {
+  cursor: pointer;
+  pointer-events: auto;
+  display: block;
+}
+
+#toc .toc-item.active .toc-label {
   color: #0055aa;
   font-weight: bold;
 }

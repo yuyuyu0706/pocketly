@@ -417,7 +417,10 @@
       const li = document.createElement('li');
       li.className = 'toc-item';
       li.dataset.target = id;
-      li.textContent = text;
+      const label = document.createElement('span');
+      label.className = 'toc-label';
+      label.textContent = text;
+      li.appendChild(label);
       stack[stack.length - 1].appendChild(li);
 
       currentLevel = level;

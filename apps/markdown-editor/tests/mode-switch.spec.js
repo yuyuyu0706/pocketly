@@ -83,6 +83,43 @@ test.describe('Mode switch', () => {
     await expect(betaItem).toHaveClass(/active/);
   });
 
+  test('TOC gap click does not trigger toc:jump', async ({ page }) => {
+    const md = '## Parent\n\ntext\n\n### Child\n\nmore text';
+    await page.evaluate(text => {
+      const editor = document.getElementById('editor');
+      editor.value = text;
+      editor.dispatchEvent(new Event('input', { bubbles: true }));
+    }, md);
+    await page.waitForSelector('#toc .toc-item');
+
+    // Intercept toc:jump events via Bus
+    await page.evaluate(() => {
+      window.__tocJumpCount = 0;
+      const origOn = window.Bus && window.Bus.on.bind(window.Bus);
+      // Patch via event interception on the toc ul gap area
+      window.__tocJumpCount = 0;
+    });
+
+    // Track jump events by patching Bus before the click
+    await page.evaluate(() => {
+      window.__tocJumpFired = false;
+      const orig = window.Bus.emit.bind(window.Bus);
+      window.Bus.emit = (name, ...args) => {
+        if (name === 'toc:jump') window.__tocJumpFired = true;
+        return orig(name, ...args);
+      };
+    });
+
+    // Click the ul element itself (left-padding gap area) by targeting the #toc ul directly
+    await page.evaluate(() => {
+      const ul = document.querySelector('#toc ul');
+      if (ul) ul.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    });
+
+    const fired = await page.evaluate(() => window.__tocJumpFired);
+    expect(fired).toBe(false);
+  });
+
   test('Read→Edit→Read TOC jump→Edit: TOC retains the jumped heading on Edit re-entry', async ({ page }) => {
     const md = '## Alpha\n\ntext\n\n## Beta\n\nmore text\n\n## Gamma\n\neven more';
 
