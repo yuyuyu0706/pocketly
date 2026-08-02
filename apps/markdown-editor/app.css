@@ -27,6 +27,8 @@ body {
   padding: 0.75rem 1.5rem;
   background-color: #cde1ff;
   border-bottom: 1px solid #aac8ff;
+  position: relative;
+  z-index: 300;
 }
 
 #app-title {
@@ -425,10 +427,6 @@ body[data-mode="edit"] #editor-pane {
   min-width: 200px;
   min-height: 150px;
   box-sizing: border-box;
-}
-
-body[data-mode="edit"] #divider {
-  display: none;
 }
 
 #editor-drag-handle {

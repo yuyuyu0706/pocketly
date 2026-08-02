@@ -36,6 +36,7 @@
   let isDraggingEditor = false;
   let isDraggingTOC = false;
   let _isFloating = false;
+  let _lastMouseX = 0;
 
   // === Highlight functions ===
 
@@ -594,6 +595,7 @@
   function initDragHandlers() {
     _divider.addEventListener('mousedown', e => {
       isDraggingEditor = true;
+      _lastMouseX = e.clientX;
       document.body.style.cursor = 'col-resize';
       e.preventDefault();
     });
@@ -614,10 +616,18 @@
         if (!Number.isFinite(totalAvailable) || totalAvailable <= 0) {
           return;
         }
-        const proposedWidth =
-          e.clientX - rect.left - tocWidth - dividerWidth / 2;
-        const clampedWidth = clampEditorWidth(proposedWidth, totalAvailable);
-        setEditorOuterWidth(clampedWidth);
+        if (_isFloating) {
+          const dx = e.clientX - _lastMouseX;
+          _lastMouseX = e.clientX;
+          const currentWidth = _editorPane ? _editorPane.offsetWidth : 0;
+          const clampedWidth = clampEditorWidth(currentWidth + dx, totalAvailable);
+          setEditorOuterWidth(clampedWidth);
+        } else {
+          const proposedWidth =
+            e.clientX - rect.left - tocWidth - dividerWidth / 2;
+          const clampedWidth = clampEditorWidth(proposedWidth, totalAvailable);
+          setEditorOuterWidth(clampedWidth);
+        }
       } else if (isDraggingTOC) {
         const dividerWidth = _tocDivider.offsetWidth;
         let newTocWidth = e.clientX - rect.left;
@@ -696,5 +706,6 @@
     onResize,
     isLineNumbersEnabled: () => lineNumbersEnabled,
     setFloating: (value) => { _isFloating = Boolean(value); },
+    isDraggingDivider: () => isDraggingEditor,
   };
 })(typeof window !== 'undefined' ? window : this);

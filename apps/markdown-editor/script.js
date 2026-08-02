@@ -557,7 +557,7 @@ function startApp() {
 
   // --- Floating panel persistence (separate from md:settings which resets on reload) ---
   const FLOATING_PANEL_KEY = 'md:layout:floatingPanel';
-  const FLOATING_PANEL_DEFAULTS = { left: 20, top: 60, width: 480, height: 500 };
+  const FLOATING_PANEL_DEFAULTS = { left: 780, top: 120, height: 450 };
 
   function readFloatingPanelGeometry() {
     try {
@@ -594,8 +594,8 @@ function startApp() {
     const g = readFloatingPanelGeometry();
     editorPane.style.left = g.left + 'px';
     editorPane.style.top = g.top + 'px';
-    editorPane.style.width = g.width + 'px';
     editorPane.style.height = g.height + 'px';
+    Layout.restoreEditorWidthRatio();
   }
 
   function saveFloatingPanelGeometry() {
@@ -604,7 +604,6 @@ function startApp() {
     writeFloatingPanelGeometry({
       left: Math.round(rect.left),
       top: Math.round(rect.top),
-      width: Math.round(rect.width),
       height: Math.round(rect.height),
     });
   }
@@ -640,8 +639,9 @@ function startApp() {
   // --- Floating panel: resize (native CSS resize) ---
   if (editorPane && typeof ResizeObserver !== 'undefined') {
     const _panelRO = new ResizeObserver(() => {
-      if (!_isDraggingPanel && document.body.dataset.mode === 'edit') {
+      if (!_isDraggingPanel && !Layout.isDraggingDivider() && document.body.dataset.mode === 'edit') {
         saveFloatingPanelGeometry();
+        Layout.persistEditorWidthRatio();
       }
     });
     _panelRO.observe(editorPane);
