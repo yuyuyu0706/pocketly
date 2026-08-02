@@ -309,7 +309,7 @@ main {
   min-width: 2ch;
   box-sizing: border-box;
   border-right: 1px solid #d6e4ff;
-  overflow: visible;
+  overflow: hidden;
 }
 
 #line-number-gutter.line-numbers-visible {
