@@ -35,6 +35,7 @@
   let lineNumbersEnabled = false;
   let isDraggingEditor = false;
   let isDraggingTOC = false;
+  let _isFloating = false;
 
   // === Highlight functions ===
 
@@ -583,7 +584,7 @@
   };
 
   const onResize = () => {
-    if (storedEditorWidthRatio !== null && !isDraggingEditor) {
+    if (!_isFloating && storedEditorWidthRatio !== null && !isDraggingEditor) {
       applyEditorRatio(storedEditorWidthRatio);
     }
     syncEditorHighlightPadding();
@@ -694,5 +695,6 @@
     restoreEditorWidthRatio,
     onResize,
     isLineNumbersEnabled: () => lineNumbersEnabled,
+    setFloating: (value) => { _isFloating = Boolean(value); },
   };
 })(typeof window !== 'undefined' ? window : this);

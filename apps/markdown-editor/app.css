@@ -412,6 +412,53 @@ body[data-mode="read"] #divider {
   display: none;
 }
 
+/* Floating panel (edit mode) */
+body[data-mode="edit"] #editor-pane {
+  position: fixed;
+  z-index: 200;
+  flex-direction: column;
+  border: 1px solid #aac8ff;
+  box-shadow: 0 4px 20px rgba(0, 85, 170, 0.25);
+  border-radius: 6px;
+  overflow: hidden;
+  resize: both;
+  min-width: 200px;
+  min-height: 150px;
+  box-sizing: border-box;
+}
+
+body[data-mode="edit"] #divider {
+  display: none;
+}
+
+#editor-drag-handle {
+  display: none;
+  height: 28px;
+  background: #cde1ff;
+  border-bottom: 1px solid #aac8ff;
+  cursor: grab;
+  user-select: none;
+  align-items: center;
+  padding: 0 0.5rem;
+  font-size: 0.8rem;
+  color: #003366;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+body[data-mode="edit"] #editor-drag-handle {
+  display: flex;
+}
+
+#editor-drag-handle:active {
+  cursor: grabbing;
+}
+
+body[data-mode="edit"] #editor-pane.panel-dragging {
+  opacity: 0.9;
+  box-shadow: 0 8px 32px rgba(0, 85, 170, 0.35);
+}
+
 body[data-mode="read"] [data-mode-visible="edit"] {
   display: none !important;
 }
