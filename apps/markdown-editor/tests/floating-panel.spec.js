@@ -172,6 +172,21 @@ test.describe('Floating panel (edit mode)', () => {
     expect(Math.round(afterRect.top)).toBe(Math.round(beforeRect.top));
   });
 
+  test('editor width follows pane width after native resize', async ({ page }) => {
+    await page.locator('#toggle-mode').click();
+    await page.evaluate(() => {
+      const pane = document.getElementById('editor-pane');
+      pane.style.width = (pane.offsetWidth + 150) + 'px';
+    });
+    await page.waitForTimeout(200);
+    const gap = await page.evaluate(() => {
+      const pane = document.getElementById('editor-pane');
+      const editor = document.getElementById('editor');
+      return pane.getBoundingClientRect().right - editor.getBoundingClientRect().right;
+    });
+    expect(gap).toBeLessThan(20);
+  });
+
   test('existing mode-switch tests still pass: N_read=5 in read mode', async ({ page }) => {
     const visibleCount = await page.evaluate(() => {
       return Array.from(document.querySelectorAll('#toolbar-actions > *')).filter(el => {
