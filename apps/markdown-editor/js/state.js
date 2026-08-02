@@ -8,7 +8,8 @@
 
   const DEFAULT_SETTINGS = {
     lang: 'en',
-    showLineNumbers: false
+    showLineNumbers: false,
+    mode: 'read'
   };
 
   const state = {

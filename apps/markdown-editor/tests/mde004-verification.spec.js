@@ -32,8 +32,12 @@ async function setEditorValue(page, value, { triggerPreview = false } = {}) {
 
 test.describe('MDE-004: Ctrl+Z undo 検証 (replaceEditorRange / execCommand)', () => {
 
-  test('太字 相当: replaceEditorRange で wrap した変更を Ctrl+Z で元に戻せる', async ({ page }) => {
+  test.beforeEach(async ({ page }) => {
     await page.goto('/');
+    await page.click('#toggle-mode');
+  });
+
+  test('太字 相当: replaceEditorRange で wrap した変更を Ctrl+Z で元に戻せる', async ({ page }) => {
 
     const initial = 'hello world';
     await setEditorValue(page, initial);
@@ -57,8 +61,6 @@ test.describe('MDE-004: Ctrl+Z undo 検証 (replaceEditorRange / execCommand)', 
   });
 
   test('インラインコード 相当: replaceEditorRange で wrap した変更を Ctrl+Z で元に戻せる', async ({ page }) => {
-    await page.goto('/');
-
     const initial = 'print hello';
     await setEditorValue(page, initial);
 
@@ -79,8 +81,6 @@ test.describe('MDE-004: Ctrl+Z undo 検証 (replaceEditorRange / execCommand)', 
   });
 
   test('外部リンク 相当: replaceEditorRange で wrap した変更を Ctrl+Z で元に戻せる', async ({ page }) => {
-    await page.goto('/');
-
     const initial = 'visit example site';
     await setEditorValue(page, initial);
 
@@ -101,8 +101,6 @@ test.describe('MDE-004: Ctrl+Z undo 検証 (replaceEditorRange / execCommand)', 
   });
 
   test('リスト自動継続: Enter で挿入された "- " を Ctrl+Z で元に戻せる', async ({ page }) => {
-    await page.goto('/');
-
     // continueListOnEnter はカーソルが行末にある状態で Enter を押すとリスト行を追加する
     const initial = '- item1';
     await setEditorValue(page, initial);
@@ -130,8 +128,6 @@ test.describe('MDE-004: Ctrl+Z undo 検証 (replaceEditorRange / execCommand)', 
   });
 
   test('チェックボックストグル: プレビューのチェック操作を Ctrl+Z で元に戻せる', async ({ page }) => {
-    await page.goto('/');
-
     const initial = '- [ ] タスク1\n- [ ] タスク2';
     // チェックボックス描画のためプレビューレンダリングを発火
     await setEditorValue(page, initial, { triggerPreview: true });

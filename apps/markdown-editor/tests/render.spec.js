@@ -17,6 +17,7 @@ test.beforeEach(async ({ page }) => {
     window.__lastPreviewScrollTarget = null;
   });
   await page.goto('/');
+  await page.click('#toggle-mode');
   await page.addStyleTag({
     content: `html, body, #preview { scroll-behavior: auto !important; }`,
   });
@@ -55,10 +56,12 @@ test('startup shows Welcome and clears md:text (including empty/invisible values
       }, scenario.value);
 
       await page.reload({ waitUntil: 'load' });
+      await page.click('#toggle-mode');
       await expectWelcomeState();
 
       await test.step('subsequent reload without editing keeps Welcome state', async () => {
         await page.reload({ waitUntil: 'load' });
+        await page.click('#toggle-mode');
         await expectWelcomeState();
       });
 

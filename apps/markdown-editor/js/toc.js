@@ -295,6 +295,12 @@
     return headingInfo;
   }
 
+  function setActiveTocItem(id) {
+    tocItems.forEach(item => {
+      item.classList.toggle('active', item.dataset.target === id);
+    });
+  }
+
   function updateTOCHighlight() {
     if (!headingPositions.length) return;
     const start = Number.isFinite(_editor.selectionStart) ? _editor.selectionStart : 0;
@@ -411,7 +417,10 @@
       const li = document.createElement('li');
       li.className = 'toc-item';
       li.dataset.target = id;
-      li.textContent = text;
+      const label = document.createElement('span');
+      label.className = 'toc-label';
+      label.textContent = text;
+      li.appendChild(label);
       stack[stack.length - 1].appendChild(li);
 
       currentLevel = level;
@@ -463,8 +472,17 @@
       const headingInfo = headingInfoById.get(event.id);
       const previewDetail = getPreviewScrollTargetForHeading(event.id);
       if (headingInfo) {
-        focusEditorOnHeading(headingInfo, previewDetail);
+        if (_AppState.getSettings().mode !== 'read') {
+          focusEditorOnHeading(headingInfo, previewDetail);
+        } else if (_editor) {
+          if (typeof _editor.setSelectionRange === 'function') {
+            _editor.setSelectionRange(headingInfo.start, headingInfo.start);
+          } else {
+            _editor.selectionStart = _editor.selectionEnd = headingInfo.start;
+          }
+        }
       }
+      setActiveTocItem(event.id);
       if (_Preview && typeof _Preview.scrollToHeading === 'function') {
         _Preview.scrollToHeading(event.id);
       }

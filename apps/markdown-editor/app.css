@@ -352,14 +352,22 @@ main {
   list-style: none;
   padding-left: 1rem;
   margin: 0;
+  pointer-events: none;
 }
 
 #toc .toc-item {
-  cursor: pointer;
+  cursor: default;
   margin: 0.2rem 0;
+  pointer-events: none;
 }
 
-#toc .toc-item.active {
+#toc .toc-label {
+  cursor: pointer;
+  pointer-events: auto;
+  display: block;
+}
+
+#toc .toc-item.active .toc-label {
   color: #0055aa;
   font-weight: bold;
 }
@@ -396,4 +404,18 @@ main {
   background: none;
   border: none;
   cursor: pointer;
+}
+
+/* Mode-based layout */
+body[data-mode="read"] #editor-pane,
+body[data-mode="read"] #divider {
+  display: none;
+}
+
+body[data-mode="read"] [data-mode-visible="edit"] {
+  display: none !important;
+}
+
+body[data-mode="edit"] [data-mode-visible="read"] {
+  display: none !important;
 }
