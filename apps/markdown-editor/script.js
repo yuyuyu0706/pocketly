@@ -561,6 +561,7 @@ function startApp() {
       toggleModeBtn.setAttribute('aria-pressed', String(mode === 'edit'));
     }
     if (mode === 'edit') {
+      Layout.restoreEditorWidthRatio();
       Layout.syncEditorHighlightPadding();
       Layout.updateEditorHighlight(editor ? editor.value : '');
       Layout.updateLineNumbers();
