@@ -28,7 +28,7 @@ test.describe('Floating panel (edit mode)', () => {
     expect(visible).toBe(false);
   });
 
-  test('floating panel position is applied from DEFAULT_SETTINGS on first edit entry', async ({ page }) => {
+  test('floating panel position is applied from FLOATING_PANEL_DEFAULTS on first edit entry', async ({ page }) => {
     await page.locator('#toggle-mode').click();
     const rect = await page.evaluate(() => {
       const el = document.getElementById('editor-pane');
