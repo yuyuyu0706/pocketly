@@ -320,6 +320,10 @@ main {
   display: block;
 }
 
+#line-number-gutter .line-number-continuation {
+  display: block;
+}
+
 #divider,
 #toc-divider {
   width: 5px;
