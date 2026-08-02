@@ -133,4 +133,79 @@ test.describe('Line number gutter – wrapped line support', () => {
     // After narrowing, total spans should be >= before (more wrapping possible)
     expect(after.totalSpans).toBeGreaterThanOrEqual(before.totalSpans);
   });
+
+  test('wrapped document: gutter scrollHeight matches editor scrollHeight', async ({ page }) => {
+    // Narrow the editor to force wrapping
+    await page.evaluate(() => {
+      const editor = document.getElementById('editor');
+      const pane = document.getElementById('editor-pane');
+      editor.style.width = '180px';
+      if (pane) pane.style.width = '210px';
+    });
+    await page.waitForTimeout(100);
+
+    const longLine = 'This long line will wrap in the narrow editor and must produce continuation spans of proper height in the gutter.';
+    const lines = Array.from({ length: 30 }, (_, i) =>
+      i % 3 === 0 ? longLine : `Short line ${i + 1}`
+    );
+    await page.locator('#editor').fill(lines.join('\n'));
+    await page.waitForTimeout(300);
+
+    const result = await page.evaluate(() => {
+      const editor = document.getElementById('editor');
+      const gutter = document.getElementById('line-number-gutter');
+      return {
+        editorScrollHeight: editor.scrollHeight,
+        gutterScrollHeight: gutter.scrollHeight,
+        editorClientHeight: editor.clientHeight,
+        gutterClientHeight: gutter.clientHeight,
+      };
+    });
+    // scrollHeight must be equal so that 1:1 scrollTop sync works end-to-end
+    expect(result.gutterScrollHeight).toBe(result.editorScrollHeight);
+  });
+
+  test('wrapped long document (350+ lines): both reach bottom simultaneously', async ({ page }) => {
+    // Narrow to force wrapping
+    await page.evaluate(() => {
+      const editor = document.getElementById('editor');
+      const pane = document.getElementById('editor-pane');
+      editor.style.width = '200px';
+      if (pane) pane.style.width = '230px';
+    });
+    await page.waitForTimeout(100);
+
+    const longLine = 'Wrapped line that is long enough to fold in a 200px wide textarea producing continuation rows.';
+    const lines = Array.from({ length: 360 }, (_, i) =>
+      i % 5 === 0 ? longLine : `Line ${i + 1}`
+    );
+    await page.locator('#editor').fill(lines.join('\n'));
+    await page.waitForTimeout(300);
+
+    // Scroll editor to the very bottom
+    await page.evaluate(() => {
+      const editor = document.getElementById('editor');
+      editor.scrollTop = editor.scrollHeight;
+      editor.dispatchEvent(new Event('scroll'));
+    });
+    await page.waitForTimeout(100);
+
+    const result = await page.evaluate(() => {
+      const editor = document.getElementById('editor');
+      const gutter = document.getElementById('line-number-gutter');
+      const editorAtBottom = editor.scrollTop >= editor.scrollHeight - editor.clientHeight - 1;
+      const gutterAtBottom = gutter.scrollTop >= gutter.scrollHeight - gutter.clientHeight - 1;
+      return {
+        editorScrollTop: editor.scrollTop,
+        gutterScrollTop: gutter.scrollTop,
+        editorAtBottom,
+        gutterAtBottom,
+        editorScrollHeight: editor.scrollHeight,
+        gutterScrollHeight: gutter.scrollHeight,
+      };
+    });
+    expect(result.gutterScrollTop).toBe(result.editorScrollTop);
+    expect(result.editorAtBottom).toBe(true);
+    expect(result.gutterAtBottom).toBe(true);
+  });
 });

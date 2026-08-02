@@ -624,7 +624,7 @@
       const rows = rowsPerLine[i] || 1;
       parts.push(`<span class="line-number">${i + 1}</span>`);
       for (let r = 1; r < rows; r++) {
-        parts.push('<span class="line-number line-number-continuation"></span>');
+        parts.push('<span class="line-number line-number-continuation">&nbsp;</span>');
       }
     }
     _lineNumberGutter.innerHTML = parts.join('');
