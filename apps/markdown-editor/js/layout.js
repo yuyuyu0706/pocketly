@@ -35,6 +35,8 @@
   let lineNumbersEnabled = false;
   let isDraggingEditor = false;
   let isDraggingTOC = false;
+  let _isFloating = false;
+  let _lastMouseX = 0;
 
   // === Highlight functions ===
 
@@ -492,7 +494,10 @@
 
   const syncLineNumberScroll = () => {
     if (lineNumbersEnabled && _lineNumberGutter && _editor) {
-      _lineNumberGutter.scrollTop = _editor.scrollTop;
+      const editorMax = _editor.scrollHeight - _editor.clientHeight;
+      const gutterMax = _lineNumberGutter.scrollHeight - _lineNumberGutter.clientHeight;
+      const ratio = editorMax > 0 ? _editor.scrollTop / editorMax : 0;
+      _lineNumberGutter.scrollTop = ratio * gutterMax;
     }
     syncEditorHighlightScroll();
   };
@@ -518,6 +523,8 @@
     const rawValue = _editor.value || '';
     const lineCount = Math.max(1, rawValue.split('\n').length);
     const currentCount = Number(_lineNumberGutter.dataset.count || 0);
+    const digits = String(lineCount).length;
+    const currentDigits = Number(_lineNumberGutter.dataset.digits || 0);
     if (currentCount !== lineCount) {
       const numbers = [];
       for (let i = 1; i <= lineCount; i += 1) {
@@ -525,6 +532,12 @@
       }
       _lineNumberGutter.innerHTML = numbers.join('');
       _lineNumberGutter.dataset.count = String(lineCount);
+    }
+    if (digits !== currentDigits) {
+      _lineNumberGutter.style.minWidth = `calc(${digits}ch + 0.875rem)`;
+      _lineNumberGutter.dataset.digits = String(digits);
+      const currentWidth = _editorPane ? _editorPane.offsetWidth : (_editor ? _editor.offsetWidth : 0);
+      setEditorOuterWidth(currentWidth);
     }
     syncLineNumberScroll();
   };
@@ -583,7 +596,7 @@
   };
 
   const onResize = () => {
-    if (storedEditorWidthRatio !== null && !isDraggingEditor) {
+    if (!_isFloating && storedEditorWidthRatio !== null && !isDraggingEditor) {
       applyEditorRatio(storedEditorWidthRatio);
     }
     syncEditorHighlightPadding();
@@ -593,6 +606,7 @@
   function initDragHandlers() {
     _divider.addEventListener('mousedown', e => {
       isDraggingEditor = true;
+      _lastMouseX = e.clientX;
       document.body.style.cursor = 'col-resize';
       e.preventDefault();
     });
@@ -613,10 +627,18 @@
         if (!Number.isFinite(totalAvailable) || totalAvailable <= 0) {
           return;
         }
-        const proposedWidth =
-          e.clientX - rect.left - tocWidth - dividerWidth / 2;
-        const clampedWidth = clampEditorWidth(proposedWidth, totalAvailable);
-        setEditorOuterWidth(clampedWidth);
+        if (_isFloating) {
+          const dx = e.clientX - _lastMouseX;
+          _lastMouseX = e.clientX;
+          const currentWidth = _editorPane ? _editorPane.offsetWidth : 0;
+          const clampedWidth = clampEditorWidth(currentWidth + dx, totalAvailable);
+          setEditorOuterWidth(clampedWidth);
+        } else {
+          const proposedWidth =
+            e.clientX - rect.left - tocWidth - dividerWidth / 2;
+          const clampedWidth = clampEditorWidth(proposedWidth, totalAvailable);
+          setEditorOuterWidth(clampedWidth);
+        }
       } else if (isDraggingTOC) {
         const dividerWidth = _tocDivider.offsetWidth;
         let newTocWidth = e.clientX - rect.left;
@@ -694,5 +716,7 @@
     restoreEditorWidthRatio,
     onResize,
     isLineNumbersEnabled: () => lineNumbersEnabled,
+    setFloating: (value) => { _isFloating = Boolean(value); },
+    isDraggingDivider: () => isDraggingEditor,
   };
 })(typeof window !== 'undefined' ? window : this);

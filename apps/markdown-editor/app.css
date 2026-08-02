@@ -27,6 +27,8 @@ body {
   padding: 0.75rem 1.5rem;
   background-color: #cde1ff;
   border-bottom: 1px solid #aac8ff;
+  position: relative;
+  z-index: 300;
 }
 
 #app-title {
@@ -302,9 +304,9 @@ main {
   font-family: monospace;
   font-size: 1rem;
   line-height: 1.5;
-  text-align: right;
+  text-align: center;
   user-select: none;
-  min-width: 2rem;
+  min-width: 2ch;
   box-sizing: border-box;
   border-right: 1px solid #d6e4ff;
   overflow: hidden;
@@ -408,8 +410,56 @@ main {
 
 /* Mode-based layout */
 body[data-mode="read"] #editor-pane,
-body[data-mode="read"] #divider {
+body[data-mode="read"] #divider,
+body[data-mode="edit"] #divider {
   display: none;
+}
+
+/* Floating panel (edit mode) */
+body[data-mode="edit"] #editor-pane {
+  position: fixed;
+  z-index: 200;
+  border: 1px solid #aac8ff;
+  box-shadow: 0 4px 20px rgba(0, 85, 170, 0.25);
+  border-radius: 6px;
+  overflow: hidden;
+  resize: both;
+  min-width: 200px;
+  min-height: 150px;
+  box-sizing: border-box;
+  padding-top: 28px;
+}
+
+#editor-drag-handle {
+  display: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 28px;
+  background: #cde1ff;
+  border-bottom: 1px solid #aac8ff;
+  cursor: grab;
+  user-select: none;
+  align-items: center;
+  padding: 0 0.5rem;
+  font-size: 0.8rem;
+  color: #003366;
+  font-weight: 500;
+  z-index: 1;
+}
+
+body[data-mode="edit"] #editor-drag-handle {
+  display: flex;
+}
+
+#editor-drag-handle:active {
+  cursor: grabbing;
+}
+
+body[data-mode="edit"] #editor-pane.panel-dragging {
+  opacity: 0.9;
+  box-shadow: 0 8px 32px rgba(0, 85, 170, 0.35);
 }
 
 body[data-mode="read"] [data-mode-visible="edit"] {

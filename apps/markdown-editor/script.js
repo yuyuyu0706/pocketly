@@ -553,6 +553,99 @@ function startApp() {
   });
 
   const toggleModeBtn = document.getElementById('toggle-mode');
+  const editorDragHandle = document.getElementById('editor-drag-handle');
+
+  // --- Floating panel persistence (separate from md:settings which resets on reload) ---
+  const FLOATING_PANEL_KEY = 'md:layout:floatingPanel';
+  const FLOATING_PANEL_DEFAULTS = { left: 780, top: 120, height: 450 };
+
+  function readFloatingPanelGeometry() {
+    try {
+      const raw = localStorage.getItem(FLOATING_PANEL_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') {
+          return Object.assign({}, FLOATING_PANEL_DEFAULTS, parsed);
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+    return Object.assign({}, FLOATING_PANEL_DEFAULTS);
+  }
+
+  function writeFloatingPanelGeometry(geom) {
+    try {
+      localStorage.setItem(FLOATING_PANEL_KEY, JSON.stringify(geom));
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  // --- Floating panel: drag ---
+  let _isDraggingPanel = false;
+  let _panelDragStartX = 0;
+  let _panelDragStartY = 0;
+  let _panelDragStartLeft = 0;
+  let _panelDragStartTop = 0;
+
+  function applyFloatingPanelGeometry() {
+    if (!editorPane) return;
+    const g = readFloatingPanelGeometry();
+    editorPane.style.left = g.left + 'px';
+    editorPane.style.top = g.top + 'px';
+    editorPane.style.height = g.height + 'px';
+    Layout.restoreEditorWidthRatio();
+  }
+
+  function saveFloatingPanelGeometry() {
+    if (!editorPane) return;
+    const rect = editorPane.getBoundingClientRect();
+    writeFloatingPanelGeometry({
+      left: Math.round(rect.left),
+      top: Math.round(rect.top),
+      height: Math.round(rect.height),
+    });
+  }
+
+  if (editorDragHandle && editorPane) {
+    editorDragHandle.addEventListener('mousedown', e => {
+      _isDraggingPanel = true;
+      _panelDragStartX = e.clientX;
+      _panelDragStartY = e.clientY;
+      const rect = editorPane.getBoundingClientRect();
+      _panelDragStartLeft = rect.left;
+      _panelDragStartTop = rect.top;
+      editorPane.classList.add('panel-dragging');
+      e.preventDefault();
+    });
+  }
+
+  document.addEventListener('mousemove', e => {
+    if (!_isDraggingPanel) return;
+    const dx = e.clientX - _panelDragStartX;
+    const dy = e.clientY - _panelDragStartY;
+    editorPane.style.left = (_panelDragStartLeft + dx) + 'px';
+    editorPane.style.top = (_panelDragStartTop + dy) + 'px';
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (!_isDraggingPanel) return;
+    _isDraggingPanel = false;
+    editorPane.classList.remove('panel-dragging');
+    saveFloatingPanelGeometry();
+  });
+
+  // --- Floating panel: resize (native CSS resize) ---
+  if (editorPane && typeof ResizeObserver !== 'undefined') {
+    const _panelRO = new ResizeObserver(() => {
+      if (!_isDraggingPanel && !Layout.isDraggingDivider() && document.body.dataset.mode === 'edit') {
+        saveFloatingPanelGeometry();
+        Layout.persistEditorWidthRatio();
+      }
+    });
+    _panelRO.observe(editorPane);
+  }
 
   function applyMode(mode) {
     document.body.dataset.mode = mode === 'edit' ? 'edit' : 'read';
@@ -561,11 +654,14 @@ function startApp() {
       toggleModeBtn.setAttribute('aria-pressed', String(mode === 'edit'));
     }
     if (mode === 'edit') {
-      Layout.restoreEditorWidthRatio();
+      Layout.setFloating(true);
+      applyFloatingPanelGeometry();
       Layout.syncEditorHighlightPadding();
       Layout.updateEditorHighlight(editor ? editor.value : '');
       Layout.updateLineNumbers();
       Toc.updateTOCHighlight();
+    } else {
+      Layout.setFloating(false);
     }
   }
 
