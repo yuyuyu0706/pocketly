@@ -31,12 +31,21 @@
   // === Private state: layout ===
   const LAYOUT_STORAGE_KEY = 'md:layout:editorWidthRatio';
   const MIN_EDITOR_WIDTH = 100;
+  const LINE_NUMBER_DEBOUNCE_MS = 50;
   let storedEditorWidthRatio = null;
   let lineNumbersEnabled = false;
   let isDraggingEditor = false;
   let isDraggingTOC = false;
   let _isFloating = false;
   let _lastMouseX = 0;
+
+  // === Private state: line number mirror ===
+  let _mirrorElement = null;
+  let _lineNumberUpdateTimer = null;
+  let _mirrorLastWidth = -1;
+  let _mirrorLastValue = null;
+  let _lineHeightPx = 0;
+  let _editorResizeObserver = null;
 
   // === Highlight functions ===
 
@@ -494,12 +503,87 @@
 
   const syncLineNumberScroll = () => {
     if (lineNumbersEnabled && _lineNumberGutter && _editor) {
-      const editorMax = _editor.scrollHeight - _editor.clientHeight;
-      const gutterMax = _lineNumberGutter.scrollHeight - _lineNumberGutter.clientHeight;
-      const ratio = editorMax > 0 ? _editor.scrollTop / editorMax : 0;
-      _lineNumberGutter.scrollTop = ratio * gutterMax;
+      _lineNumberGutter.scrollTop = _editor.scrollTop;
     }
     syncEditorHighlightScroll();
+  };
+
+  // === Mirror element for measuring wrapped line heights ===
+
+  const ensureMirrorElement = () => {
+    if (_mirrorElement && _mirrorElement.isConnected) {
+      return _mirrorElement;
+    }
+    const mirror = document.createElement('div');
+    mirror.setAttribute('aria-hidden', 'true');
+    mirror.style.cssText = [
+      'position:absolute',
+      'top:0',
+      'left:0',
+      'visibility:hidden',
+      'pointer-events:none',
+      'overflow:hidden',
+      'white-space:pre-wrap',
+      'word-wrap:break-word',
+      'overflow-wrap:break-word',
+      'box-sizing:border-box',
+    ].join(';');
+    document.body.appendChild(mirror);
+    _mirrorElement = mirror;
+    return mirror;
+  };
+
+  const getLineHeightPx = () => {
+    if (!_editor) {
+      return 24;
+    }
+    const styles = window.getComputedStyle(_editor);
+    const lh = parseFloat(styles.lineHeight);
+    return Number.isFinite(lh) && lh > 0 ? lh : parseFloat(styles.fontSize) * 1.5;
+  };
+
+  const syncMirrorStyles = mirror => {
+    if (!_editor) {
+      return;
+    }
+    const styles = window.getComputedStyle(_editor);
+    mirror.style.fontFamily = styles.fontFamily;
+    mirror.style.fontSize = styles.fontSize;
+    mirror.style.lineHeight = styles.lineHeight;
+    mirror.style.fontWeight = styles.fontWeight;
+    mirror.style.letterSpacing = styles.letterSpacing;
+    mirror.style.paddingLeft = styles.paddingLeft;
+    mirror.style.paddingRight = styles.paddingRight;
+    mirror.style.width = `${_editor.clientWidth}px`;
+  };
+
+  const measureLineRows = logicalLines => {
+    const mirror = ensureMirrorElement();
+    if (!mirror || !_editor) {
+      return logicalLines.map(() => 1);
+    }
+    syncMirrorStyles(mirror);
+    _lineHeightPx = getLineHeightPx();
+    const lh = _lineHeightPx;
+
+    const fragment = document.createDocumentFragment();
+    for (let i = 0; i < logicalLines.length; i++) {
+      const div = document.createElement('div');
+      const text = logicalLines[i];
+      div.textContent = text.length > 0 ? text : '​';
+      fragment.appendChild(div);
+    }
+    mirror.innerHTML = '';
+    mirror.appendChild(fragment);
+
+    const children = mirror.children;
+    const result = new Array(logicalLines.length);
+    for (let i = 0; i < children.length; i++) {
+      const h = children[i].offsetHeight;
+      result[i] = Math.max(1, Math.round(h / lh));
+    }
+    mirror.innerHTML = '';
+    return result;
   };
 
   const updateLineNumberButtonLabel = () => {
@@ -521,25 +605,49 @@
       return;
     }
     const rawValue = _editor.value || '';
-    const lineCount = Math.max(1, rawValue.split('\n').length);
-    const currentCount = Number(_lineNumberGutter.dataset.count || 0);
+    const currentWidth = _editor.clientWidth;
+    if (_mirrorLastValue === rawValue && _mirrorLastWidth === currentWidth) {
+      syncLineNumberScroll();
+      return;
+    }
+    _mirrorLastValue = rawValue;
+    _mirrorLastWidth = currentWidth;
+
+    const logicalLines = rawValue.split('\n');
+    const lineCount = Math.max(1, logicalLines.length);
+    const rowsPerLine = measureLineRows(logicalLines);
+
     const digits = String(lineCount).length;
     const currentDigits = Number(_lineNumberGutter.dataset.digits || 0);
-    if (currentCount !== lineCount) {
-      const numbers = [];
-      for (let i = 1; i <= lineCount; i += 1) {
-        numbers.push(`<span class="line-number">${i}</span>`);
+
+    const parts = [];
+    for (let i = 0; i < lineCount; i++) {
+      const rows = rowsPerLine[i] || 1;
+      parts.push(`<span class="line-number">${i + 1}</span>`);
+      for (let r = 1; r < rows; r++) {
+        parts.push('<span class="line-number line-number-continuation">&nbsp;</span>');
       }
-      _lineNumberGutter.innerHTML = numbers.join('');
-      _lineNumberGutter.dataset.count = String(lineCount);
     }
+    _lineNumberGutter.innerHTML = parts.join('');
+    _lineNumberGutter.dataset.count = String(lineCount);
+
     if (digits !== currentDigits) {
       _lineNumberGutter.style.minWidth = `calc(${digits}ch + 0.875rem)`;
       _lineNumberGutter.dataset.digits = String(digits);
-      const currentWidth = _editorPane ? _editorPane.offsetWidth : (_editor ? _editor.offsetWidth : 0);
-      setEditorOuterWidth(currentWidth);
+      const paneWidth = _editorPane ? _editorPane.offsetWidth : (_editor ? _editor.offsetWidth : 0);
+      setEditorOuterWidth(paneWidth);
     }
     syncLineNumberScroll();
+  };
+
+  const scheduleUpdateLineNumbers = () => {
+    if (_lineNumberUpdateTimer !== null) {
+      window.clearTimeout(_lineNumberUpdateTimer);
+    }
+    _lineNumberUpdateTimer = window.setTimeout(() => {
+      _lineNumberUpdateTimer = null;
+      updateLineNumbers();
+    }, LINE_NUMBER_DEBOUNCE_MS);
   };
 
   const applyLineNumbersEnabled = next => {
@@ -693,6 +801,19 @@
 
     restoreEditorWidthRatio();
     initDragHandlers();
+
+    if (_editor && typeof ResizeObserver !== 'undefined') {
+      if (_editorResizeObserver) {
+        _editorResizeObserver.disconnect();
+      }
+      _editorResizeObserver = new ResizeObserver(() => {
+        if (lineNumbersEnabled) {
+          _mirrorLastWidth = -1;
+          scheduleUpdateLineNumbers();
+        }
+      });
+      _editorResizeObserver.observe(_editor);
+    }
   }
 
   global.Layout = {
@@ -703,6 +824,7 @@
     stopEditorHeadingHighlight,
     flashEditorHeading,
     updateLineNumbers,
+    scheduleUpdateLineNumbers,
     syncLineNumberScroll,
     setEditorOuterWidth,
     clampEditorWidth,

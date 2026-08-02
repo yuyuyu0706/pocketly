@@ -466,7 +466,7 @@ function startApp() {
       }
     }
     Layout.updateEditorHighlight(text);
-    Layout.updateLineNumbers();
+    Layout.scheduleUpdateLineNumbers();
     Layout.syncLineNumberScroll();
     Preview.render(text);
     Toc.buildTOC();
@@ -477,7 +477,7 @@ function startApp() {
     Formatting.hideFormattingMenu();
     Layout.stopEditorHeadingHighlight();
     AppState.setText(editor.value, 'editor');
-    Layout.updateLineNumbers();
+    Layout.scheduleUpdateLineNumbers();
   });
   editor.addEventListener('scroll', () => {
     Formatting.hideFormattingMenu();
