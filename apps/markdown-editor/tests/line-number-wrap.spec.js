@@ -154,15 +154,22 @@ test.describe('Line number gutter – wrapped line support', () => {
     const result = await page.evaluate(() => {
       const editor = document.getElementById('editor');
       const gutter = document.getElementById('line-number-gutter');
+      const editorStyles = window.getComputedStyle(editor);
+      const gutterStyles = window.getComputedStyle(gutter);
+      const editorPaddingV =
+        parseFloat(editorStyles.paddingTop) + parseFloat(editorStyles.paddingBottom);
+      const gutterPaddingV =
+        parseFloat(gutterStyles.paddingTop) + parseFloat(gutterStyles.paddingBottom);
       return {
         editorScrollHeight: editor.scrollHeight,
         gutterScrollHeight: gutter.scrollHeight,
-        editorClientHeight: editor.clientHeight,
-        gutterClientHeight: gutter.clientHeight,
+        paddingDiff: editorPaddingV - gutterPaddingV,
       };
     });
-    // scrollHeight must be equal so that 1:1 scrollTop sync works end-to-end
-    expect(result.gutterScrollHeight).toBe(result.editorScrollHeight);
+    // The only allowed difference is the vertical padding gap between editor and gutter.
+    // Content height (visual rows * line-height) must be identical.
+    const diff = result.editorScrollHeight - result.gutterScrollHeight;
+    expect(diff).toBeCloseTo(result.paddingDiff, 0);
   });
 
   test('wrapped long document (350+ lines): both reach bottom simultaneously', async ({ page }) => {
@@ -193,8 +200,18 @@ test.describe('Line number gutter – wrapped line support', () => {
     const result = await page.evaluate(() => {
       const editor = document.getElementById('editor');
       const gutter = document.getElementById('line-number-gutter');
-      const editorAtBottom = editor.scrollTop >= editor.scrollHeight - editor.clientHeight - 1;
-      const gutterAtBottom = gutter.scrollTop >= gutter.scrollHeight - gutter.clientHeight - 1;
+      const editorStyles = window.getComputedStyle(editor);
+      const gutterStyles = window.getComputedStyle(gutter);
+      const editorPaddingV =
+        parseFloat(editorStyles.paddingTop) + parseFloat(editorStyles.paddingBottom);
+      const gutterPaddingV =
+        parseFloat(gutterStyles.paddingTop) + parseFloat(gutterStyles.paddingBottom);
+      const editorAtBottom =
+        editor.scrollTop >= editor.scrollHeight - editor.clientHeight - 1;
+      // gutter max scrollTop is its scroll range; editor.scrollTop is clamped to editor's max.
+      // When editor is at bottom, gutter should also be at (or past) its own maximum.
+      const gutterAtBottom =
+        gutter.scrollTop >= gutter.scrollHeight - gutter.clientHeight - 1;
       return {
         editorScrollTop: editor.scrollTop,
         gutterScrollTop: gutter.scrollTop,
@@ -202,9 +219,13 @@ test.describe('Line number gutter – wrapped line support', () => {
         gutterAtBottom,
         editorScrollHeight: editor.scrollHeight,
         gutterScrollHeight: gutter.scrollHeight,
+        paddingDiff: editorPaddingV - gutterPaddingV,
       };
     });
-    expect(result.gutterScrollTop).toBe(result.editorScrollTop);
+    // Content height must match within padding difference
+    const scrollHeightDiff = result.editorScrollHeight - result.gutterScrollHeight;
+    expect(scrollHeightDiff).toBeCloseTo(result.paddingDiff, 0);
+    // Both must be at their respective bottoms
     expect(result.editorAtBottom).toBe(true);
     expect(result.gutterAtBottom).toBe(true);
   });

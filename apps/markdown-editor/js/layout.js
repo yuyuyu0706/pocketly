@@ -526,6 +526,7 @@
       'white-space:pre-wrap',
       'word-wrap:break-word',
       'overflow-wrap:break-word',
+      'box-sizing:border-box',
     ].join(';');
     document.body.appendChild(mirror);
     _mirrorElement = mirror;
