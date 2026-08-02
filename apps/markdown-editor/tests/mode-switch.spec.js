@@ -82,4 +82,30 @@ test.describe('Mode switch', () => {
 
     await expect(betaItem).toHaveClass(/active/);
   });
+
+  test('Read→Edit→Read TOC jump→Edit: TOC retains the jumped heading on Edit re-entry', async ({ page }) => {
+    const md = '## Alpha\n\ntext\n\n## Beta\n\nmore text\n\n## Gamma\n\neven more';
+
+    // ① Start in Read mode — inject markdown
+    await page.evaluate(text => {
+      const editor = document.getElementById('editor');
+      editor.value = text;
+      editor.dispatchEvent(new Event('input', { bubbles: true }));
+    }, md);
+    await page.waitForSelector('#toc .toc-item');
+
+    // ② Switch to Edit so selectionStart gets set to some position
+    await page.locator('#toggle-mode').click();
+    await page.locator('#editor').click();
+
+    // ③ Switch back to Read and click a TOC heading (Gamma)
+    await page.locator('#toggle-mode').click();
+    const gammaItem = page.locator('#toc .toc-item[data-target="gamma"]');
+    await gammaItem.click();
+    await expect(gammaItem).toHaveClass(/active/);
+
+    // ④ Switch back to Edit — TOC must still show Gamma as active
+    await page.locator('#toggle-mode').click();
+    await expect(gammaItem).toHaveClass(/active/);
+  });
 });

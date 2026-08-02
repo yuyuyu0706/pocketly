@@ -468,8 +468,16 @@
       pendingHeadingHighlightId = event.id;
       const headingInfo = headingInfoById.get(event.id);
       const previewDetail = getPreviewScrollTargetForHeading(event.id);
-      if (headingInfo && _AppState.getSettings().mode !== 'read') {
-        focusEditorOnHeading(headingInfo, previewDetail);
+      if (headingInfo) {
+        if (_AppState.getSettings().mode !== 'read') {
+          focusEditorOnHeading(headingInfo, previewDetail);
+        } else if (_editor) {
+          if (typeof _editor.setSelectionRange === 'function') {
+            _editor.setSelectionRange(headingInfo.start, headingInfo.start);
+          } else {
+            _editor.selectionStart = _editor.selectionEnd = headingInfo.start;
+          }
+        }
       }
       setActiveTocItem(event.id);
       if (_Preview && typeof _Preview.scrollToHeading === 'function') {
