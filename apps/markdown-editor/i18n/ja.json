@@ -47,6 +47,9 @@
     "mermaidTitle": "Mermaid チートシート",
     "mermaidCheatsheet": "```mermaid\ngraph TD\n  A[開始] --> B{条件}\n  B -->|はい| C[処理1]\n  B -->|いいえ| D[処理2]\n```"
   },
+  "editorPanel": {
+    "close": "エディタパネルを閉じる"
+  },
   "formatting": {
     "bold": "太字",
     "inlineCode": "</> コード",

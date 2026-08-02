@@ -139,6 +139,39 @@ test.describe('Floating panel (edit mode)', () => {
     expect(rect.top).toBe(savedSettings.top);
   });
 
+  test('close button switches from edit to read mode', async ({ page }) => {
+    // Enter edit mode
+    await page.locator('#toggle-mode').click();
+    expect(await page.evaluate(() => document.body.dataset.mode)).toBe('edit');
+
+    // Click the close button on the floating panel
+    await page.locator('#editor-close-btn').click();
+
+    // Should return to read mode
+    expect(await page.evaluate(() => document.body.dataset.mode)).toBe('read');
+  });
+
+  test('close button click does not trigger drag (panel position unchanged)', async ({ page }) => {
+    await page.locator('#toggle-mode').click();
+
+    const beforeRect = await page.evaluate(() => {
+      const r = document.getElementById('editor-pane').getBoundingClientRect();
+      return { left: r.left, top: r.top };
+    });
+
+    await page.locator('#editor-close-btn').click();
+    // Re-enter edit mode to check position persisted
+    await page.locator('#toggle-mode').click();
+
+    const afterRect = await page.evaluate(() => {
+      const r = document.getElementById('editor-pane').getBoundingClientRect();
+      return { left: Math.round(r.left), top: Math.round(r.top) };
+    });
+
+    expect(Math.round(afterRect.left)).toBe(Math.round(beforeRect.left));
+    expect(Math.round(afterRect.top)).toBe(Math.round(beforeRect.top));
+  });
+
   test('existing mode-switch tests still pass: N_read=5 in read mode', async ({ page }) => {
     const visibleCount = await page.evaluate(() => {
       return Array.from(document.querySelectorAll('#toolbar-actions > *')).filter(el => {
