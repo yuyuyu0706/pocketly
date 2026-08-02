@@ -829,8 +829,13 @@
     }
   }
 
+  function isDocumentPiPSupported() {
+    return 'documentPictureInPicture' in window;
+  }
+
   global.Layout = {
     init,
+    isDocumentPiPSupported,
     updateEditorHighlight,
     syncEditorHighlightScroll,
     syncEditorHighlightPadding,

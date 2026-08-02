@@ -512,3 +512,13 @@ body[data-mode="read"] [data-mode-visible="edit"] {
 body[data-mode="edit"] [data-mode-visible="read"] {
   display: none !important;
 }
+
+/* Document Picture-in-Picture mode: hide floating panel chrome */
+body.pip-mode #editor-drag-handle,
+body.pip-mode #editor-close-btn {
+  display: none !important;
+}
+
+body.pip-mode #editor-pane::after {
+  display: none !important;
+}

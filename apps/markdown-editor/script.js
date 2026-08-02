@@ -556,6 +556,8 @@ function startApp() {
   const editorDragHandle = document.getElementById('editor-drag-handle');
   const editorCloseBtn = document.getElementById('editor-close-btn');
 
+  let _pipWindow = null;
+
   // --- Floating panel persistence (separate from md:settings which resets on reload) ---
   const FLOATING_PANEL_KEY = 'md:layout:floatingPanel';
   const FLOATING_PANEL_DEFAULTS = { left: 780, top: 120, height: 450 };
@@ -659,13 +661,68 @@ function startApp() {
     _panelRO.observe(editorPane);
   }
 
-  function applyMode(mode) {
-    document.body.dataset.mode = mode === 'edit' ? 'edit' : 'read';
+  async function applyMode(mode) {
+    const isEdit = mode === 'edit';
+    document.body.dataset.mode = isEdit ? 'edit' : 'read';
     if (toggleModeBtn) {
-      toggleModeBtn.textContent = mode === 'edit' ? '👁 Read' : '✏️ Edit';
-      toggleModeBtn.setAttribute('aria-pressed', String(mode === 'edit'));
+      toggleModeBtn.textContent = isEdit ? '👁 Read' : '✏️ Edit';
+      toggleModeBtn.setAttribute('aria-pressed', String(isEdit));
     }
-    if (mode === 'edit') {
+
+    if (isEdit) {
+      if (Layout.isDocumentPiPSupported()) {
+        try {
+          const pipWin = await documentPictureInPicture.requestWindow({ width: 800, height: 600 });
+          _pipWindow = pipWin;
+
+          const link = pipWin.document.createElement('link');
+          link.rel = 'stylesheet';
+          link.href = new URL('app.css', document.baseURI).href;
+          pipWin.document.head.appendChild(link);
+
+          const pipStyle = pipWin.document.createElement('style');
+          pipStyle.textContent = [
+            'body { margin:0; height:100vh; overflow:hidden; }',
+            '#editor-pane {',
+            '  position:static !important; width:100% !important; height:100vh !important;',
+            '  box-shadow:none !important; border:none !important; border-radius:0 !important;',
+            '  resize:none !important; min-width:0 !important; min-height:0 !important;',
+            '  padding-top:0 !important; display:flex !important; flex-direction:column !important;',
+            '}',
+          ].join('\n');
+          pipWin.document.head.appendChild(pipStyle);
+
+          pipWin.document.body.classList.add('pip-mode');
+
+          const pipPlaceholder = document.createElement('div');
+          pipPlaceholder.id = '_pip-placeholder';
+          pipPlaceholder.style.display = 'none';
+          if (editorPane.parentNode) {
+            editorPane.parentNode.insertBefore(pipPlaceholder, editorPane);
+          }
+          pipWin.document.body.appendChild(editorPane);
+
+          pipWin.addEventListener('pagehide', () => {
+            _pipWindow = null;
+            if (pipPlaceholder.parentNode) {
+              pipPlaceholder.parentNode.insertBefore(editorPane, pipPlaceholder);
+              pipPlaceholder.remove();
+            }
+            AppState.setSetting('mode', 'read');
+          });
+
+          Layout.setFloating(false);
+          Layout.syncEditorHighlightPadding();
+          Layout.updateEditorHighlight(editor ? editor.value : '');
+          Layout.updateLineNumbers();
+          Toc.updateTOCHighlight();
+          return;
+        } catch (err) {
+          console.warn('[PiP] requestWindow failed, falling back to floating panel:', err);
+          _pipWindow = null;
+        }
+      }
+      // Fallback: floating panel
       Layout.setFloating(true);
       applyFloatingPanelGeometry();
       Layout.syncEditorHighlightPadding();
@@ -673,6 +730,10 @@ function startApp() {
       Layout.updateLineNumbers();
       Toc.updateTOCHighlight();
     } else {
+      if (_pipWindow) {
+        _pipWindow.close();
+        _pipWindow = null;
+      }
       Layout.setFloating(false);
     }
   }
