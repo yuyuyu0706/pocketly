@@ -520,6 +520,8 @@
     const rawValue = _editor.value || '';
     const lineCount = Math.max(1, rawValue.split('\n').length);
     const currentCount = Number(_lineNumberGutter.dataset.count || 0);
+    const digits = String(lineCount).length;
+    const currentDigits = Number(_lineNumberGutter.dataset.digits || 0);
     if (currentCount !== lineCount) {
       const numbers = [];
       for (let i = 1; i <= lineCount; i += 1) {
@@ -527,6 +529,12 @@
       }
       _lineNumberGutter.innerHTML = numbers.join('');
       _lineNumberGutter.dataset.count = String(lineCount);
+    }
+    if (digits !== currentDigits) {
+      _lineNumberGutter.style.minWidth = (digits + 1) + 'ch';
+      _lineNumberGutter.dataset.digits = String(digits);
+      const currentWidth = _editorPane ? _editorPane.offsetWidth : (_editor ? _editor.offsetWidth : 0);
+      setEditorOuterWidth(currentWidth);
     }
     syncLineNumberScroll();
   };

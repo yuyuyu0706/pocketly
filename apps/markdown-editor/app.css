@@ -304,12 +304,12 @@ main {
   font-family: monospace;
   font-size: 1rem;
   line-height: 1.5;
-  text-align: right;
+  text-align: center;
   user-select: none;
-  min-width: 2rem;
+  min-width: 2ch;
   box-sizing: border-box;
   border-right: 1px solid #d6e4ff;
-  overflow: hidden;
+  overflow: visible;
 }
 
 #line-number-gutter.line-numbers-visible {
