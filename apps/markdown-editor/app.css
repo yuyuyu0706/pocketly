@@ -48,13 +48,13 @@ body {
 }
 
 .toolbar-button {
-  background: #0055aa;
-  color: white;
+  background: #cde1ff;
+  color: #003366;
+  border: 1px solid #0055aa;
   padding: 0.4rem 0.9rem;
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.9rem;
-  border: none;
   transition: background-color 0.2s ease, transform 0.2s ease;
 }
 
@@ -79,6 +79,18 @@ body {
 
 .toolbar-button:hover,
 .toolbar-button:focus-visible {
+  background: #b3d1ff;
+}
+
+/* Edit/Read button: keep filled style to stand out */
+#toggle-mode {
+  background: #0055aa;
+  color: #ffffff;
+  border: none;
+}
+
+#toggle-mode:hover,
+#toggle-mode:focus-visible {
   background: #004488;
 }
 
