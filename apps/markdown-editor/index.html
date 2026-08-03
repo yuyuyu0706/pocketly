@@ -14,12 +14,13 @@
     <div id="toolbar-actions">
       <button id="open-md" class="toolbar-button" type="button" data-i18n="toolbar.open">📂 Open</button>
       <button id="save-md" class="toolbar-button" type="button" data-i18n="toolbar.save">💾 Save</button>
-      <button id="export-pdf" class="toolbar-button" type="button" data-i18n="toolbar.exportPdf">📄 Export PDF</button>
+      <button id="export-pdf" class="toolbar-button" type="button" data-i18n="toolbar.exportPdf" data-mode-visible="read">📄 Export PDF</button>
       <button
         id="export-html"
         class="toolbar-button"
         type="button"
         data-i18n="toolbar.exportHtml"
+        data-mode-visible="read"
       >
         🌐 Export HTML
       </button>
@@ -55,6 +56,9 @@
       >
         🔢 Numbers On
       </button>
+      <button id="help-btn" class="toolbar-button" type="button" data-i18n="toolbar.help" data-mode-visible="edit">
+        ❔ Help
+      </button>
       <button
         id="toggle-mode"
         class="toolbar-button"
@@ -62,9 +66,6 @@
         aria-pressed="false"
       >
         ✏️ Edit
-      </button>
-      <button id="help-btn" class="toolbar-button" type="button" data-i18n="toolbar.help" data-mode-visible="edit">
-        ❔ Help
       </button>
       <div id="lang-wrapper">
         <label for="lang-switch" id="lang-label" data-i18n="toolbar.languageLabel">Language</label>
