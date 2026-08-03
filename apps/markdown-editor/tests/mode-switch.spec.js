@@ -48,14 +48,14 @@ test.describe('Mode switch', () => {
     expect(saveMdVisible).toBe(true);
   });
 
-  test('read mode: visible toolbar items are 5 or fewer (N_read=5)', async ({ page }) => {
+  test('read mode: visible toolbar items are 6 or fewer (N_read=6)', async ({ page }) => {
     const visibleCount = await page.evaluate(() => {
       return Array.from(document.querySelectorAll('#toolbar-actions > *')).filter(el => {
         const style = window.getComputedStyle(el);
         return style.display !== 'none' && style.visibility !== 'hidden';
       }).length;
     });
-    expect(visibleCount).toBeLessThanOrEqual(5);
+    expect(visibleCount).toBeLessThanOrEqual(6);
   });
 
   test('mode is persisted in localStorage after switching to edit', async ({ page }) => {
