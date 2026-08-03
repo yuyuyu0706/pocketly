@@ -234,7 +234,7 @@
       }
     }
 
-    const pattern = /(^#{1,6}[ \t][^\n]*)|(`[^`\n]+`)|(\*\*[^*\n]+?\*\*)|(\[([^\]]*?)\]\(([^)]*?)\))/gm;
+    const pattern = /(^#{1,6}[ \t][^\n]*)|(<!--[\s\S]*?-->)|(`[^`\n]+`)|(\*\*[^*\n]+?\*\*)|(\[([^\]]*?)\]\(([^)]*?)\))/gm;
     let result = '';
     let lastIndex = 0;
     let match;
@@ -248,11 +248,14 @@
         // Heading: # ... through ###### ...
         result += `<span class="editor-heading-text">${escapeHighlightHtml(match[1])}</span>`;
       } else if (match[2] !== undefined) {
-        // Inline code: `code`
-        result += `<span class="editor-inline-code-text">${escapeHighlightHtml(match[2])}</span>`;
+        // HTML comment: <!-- ... -->
+        result += `<span class="editor-comment-text">${escapeHighlightHtml(match[2])}</span>`;
       } else if (match[3] !== undefined) {
+        // Inline code: `code`
+        result += `<span class="editor-inline-code-text">${escapeHighlightHtml(match[3])}</span>`;
+      } else if (match[4] !== undefined) {
         // Bold: **text**
-        result += `<span class="editor-bold-text">${escapeHighlightHtml(match[3])}</span>`;
+        result += `<span class="editor-bold-text">${escapeHighlightHtml(match[4])}</span>`;
       } else {
         // Link: [text](url)
         let isImageSyntax = false;
@@ -270,9 +273,9 @@
           result += escapeHighlightHtml(working.slice(startIndex, endIndex));
         } else {
           result += '[';
-          result += `<span class="external-link-text">${escapeHighlightHtml(match[5])}</span>`;
+          result += `<span class="external-link-text">${escapeHighlightHtml(match[6])}</span>`;
           result += '](';
-          result += escapeHighlightHtml(match[6]);
+          result += escapeHighlightHtml(match[7]);
           result += ')';
         }
       }
