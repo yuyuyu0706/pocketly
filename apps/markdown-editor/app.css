@@ -534,13 +534,13 @@ body.pip-mode #editor-content-container {
 }
 
 body.pip-mode #editor-content-container {
-  --editor-text-color: #f0f0f0;
-  color: #f0f0f0;
+  --editor-text-color: #9fb3d1;
+  color: #9fb3d1;
 }
 
 body.pip-mode #editor-pane textarea {
   background-color: transparent;
-  color: #f0f0f0;
+  color: #9fb3d1;
 }
 
 body.pip-mode #line-number-gutter {
