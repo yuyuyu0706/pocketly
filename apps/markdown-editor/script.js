@@ -687,6 +687,10 @@ function startApp() {
           link.rel = 'stylesheet';
           link.href = new URL('app.css', document.baseURI).href;
           pipWin.document.head.appendChild(link);
+          await new Promise(resolve => {
+            link.addEventListener('load', resolve, { once: true });
+            link.addEventListener('error', resolve, { once: true });
+          });
 
           const pipStyle = pipWin.document.createElement('style');
           pipStyle.textContent = [

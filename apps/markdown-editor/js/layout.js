@@ -513,10 +513,18 @@
   // === Mirror element for measuring wrapped line heights ===
 
   const ensureMirrorElement = () => {
-    if (_mirrorElement && _mirrorElement.isConnected) {
+    const targetDocument = (_editor && _editor.ownerDocument) || document;
+    if (
+      _mirrorElement &&
+      _mirrorElement.isConnected &&
+      _mirrorElement.ownerDocument === targetDocument
+    ) {
       return _mirrorElement;
     }
-    const mirror = document.createElement('div');
+    if (_mirrorElement && _mirrorElement.parentNode) {
+      _mirrorElement.parentNode.removeChild(_mirrorElement);
+    }
+    const mirror = targetDocument.createElement('div');
     mirror.setAttribute('aria-hidden', 'true');
     mirror.style.cssText = [
       'position:absolute',
@@ -530,7 +538,7 @@
       'overflow-wrap:break-word',
       'box-sizing:border-box',
     ].join(';');
-    document.body.appendChild(mirror);
+    targetDocument.body.appendChild(mirror);
     _mirrorElement = mirror;
     return mirror;
   };
