@@ -523,6 +523,7 @@ body.pip-mode #editor-drag-handle {
   display: flex;
   cursor: default;
   background: #202124;
+  border-bottom: none;
 }
 
 body.pip-mode #editor-drag-handle #editor-drag-label {
@@ -580,7 +581,7 @@ body.pip-mode #editor-pane textarea {
 }
 
 body.pip-mode #line-number-gutter {
-  background-color: rgba(255, 255, 255, 0.06);
+  background-color: #202124;
   color: #b0b0b0;
   border-right-color: rgba(255, 255, 255, 0.15);
 }
