@@ -713,9 +713,11 @@ function startApp() {
             editorPane.parentNode.insertBefore(pipPlaceholder, editorPane);
           }
           pipWin.document.body.appendChild(editorPane);
+          Layout.setPiPMode(true);
 
           pipWin.addEventListener('pagehide', () => {
             _pipWindow = null;
+            Layout.setPiPMode(false);
             if (pipPlaceholder.parentNode) {
               pipPlaceholder.parentNode.insertBefore(editorPane, pipPlaceholder);
               pipPlaceholder.remove();

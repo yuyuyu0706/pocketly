@@ -37,6 +37,7 @@
   let isDraggingEditor = false;
   let isDraggingTOC = false;
   let _isFloating = false;
+  let _isPiP = false;
   let _lastMouseX = 0;
 
   // === Private state: line number mirror ===
@@ -705,7 +706,7 @@
   };
 
   const onResize = () => {
-    if (!_isFloating && storedEditorWidthRatio !== null && !isDraggingEditor) {
+    if (!_isFloating && !_isPiP && storedEditorWidthRatio !== null && !isDraggingEditor) {
       applyEditorRatio(storedEditorWidthRatio);
     }
     syncEditorHighlightPadding();
@@ -857,6 +858,7 @@
     onResize,
     isLineNumbersEnabled: () => lineNumbersEnabled,
     setFloating: (value) => { _isFloating = Boolean(value); },
+    setPiPMode: (value) => { _isPiP = Boolean(value); },
     isDraggingDivider: () => isDraggingEditor,
   };
 })(typeof window !== 'undefined' ? window : this);
