@@ -522,8 +522,7 @@ body.pip-mode #editor-close-btn {
 body.pip-mode #editor-drag-handle {
   display: flex;
   cursor: default;
-  background: #1e1e1e;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  background: #141414;
 }
 
 body.pip-mode #editor-drag-handle #editor-drag-label {
@@ -556,6 +555,10 @@ body.pip-mode #editor-copy-btn {
 body.pip-mode #editor-copy-btn:hover {
   background: rgba(255, 255, 255, 0.12);
   color: #ffffff;
+}
+
+body.pip-mode #editor-copy-btn.copy-success {
+  color: #6fcf6f;
 }
 
 body.pip-mode #editor-pane::after {

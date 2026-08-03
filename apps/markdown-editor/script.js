@@ -637,20 +637,32 @@ function startApp() {
   }
 
   if (editorCopyBtn) {
+    const copyIconHTML = editorCopyBtn.innerHTML;
+    const checkIconHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+    let feedbackTimer = null;
     editorCopyBtn.addEventListener('mousedown', e => e.stopPropagation());
     editorCopyBtn.addEventListener('click', async () => {
       const text = editor.value;
       const ownerWin = (editor.ownerDocument && editor.ownerDocument.defaultView) || window;
+      const showSuccess = () => {
+        editorCopyBtn.innerHTML = checkIconHTML;
+        editorCopyBtn.classList.add('copy-success');
+        if (feedbackTimer) clearTimeout(feedbackTimer);
+        feedbackTimer = setTimeout(() => {
+          editorCopyBtn.innerHTML = copyIconHTML;
+          editorCopyBtn.classList.remove('copy-success');
+          feedbackTimer = null;
+        }, 1000);
+      };
       try {
         await ownerWin.navigator.clipboard.writeText(text);
-        const prev = editorCopyBtn.textContent;
-        editorCopyBtn.textContent = '✅';
-        setTimeout(() => { editorCopyBtn.textContent = prev; }, 1000);
+        showSuccess();
       } catch (err) {
         const ownerDoc = editor.ownerDocument || document;
         editor.focus();
         editor.select();
         ownerDoc.execCommand('copy');
+        showSuccess();
       }
     });
   }
