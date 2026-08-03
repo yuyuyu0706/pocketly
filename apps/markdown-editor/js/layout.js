@@ -865,6 +865,7 @@
     stopEditorHeadingHighlight,
     flashEditorHeading,
     updateLineNumbers,
+    updateLineNumberButtonLabel,
     scheduleUpdateLineNumbers,
     syncLineNumberScroll,
     setEditorOuterWidth,

@@ -406,7 +406,7 @@ function startApp() {
       buildTemplateOptions();
     }
     adjustTOCPosition();
-    updateLineNumberButtonLabel();
+    Layout.updateLineNumberButtonLabel();
   });
 
   Preview.init();
