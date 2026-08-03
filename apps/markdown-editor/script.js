@@ -121,13 +121,15 @@ function startApp() {
   }
 
   if (insertImageBtn && imageInput) {
-    insertImageBtn.addEventListener('click', () => {
+    insertImageBtn.addEventListener('click', async () => {
+      await closePiPBeforeNativeAction();
       imageInput.click();
     });
   }
 
   if (openMdBtn && markdownInput) {
-    openMdBtn.addEventListener('click', () => {
+    openMdBtn.addEventListener('click', async () => {
+      await closePiPBeforeNativeAction();
       markdownInput.click();
     });
 
@@ -517,7 +519,7 @@ function startApp() {
     reader.readAsDataURL(file);
   });
 
-  Export.init({ preview, i18n, triggerDownloadFromBlob, AppState, exportPdfBtn, exportHtmlBtn, saveMdBtn });
+  Export.init({ preview, i18n, triggerDownloadFromBlob, AppState, exportPdfBtn, exportHtmlBtn, saveMdBtn, closePiPBeforeNativeAction });
 
   helpBtn.addEventListener('click', () => {
     helpWindow.classList.toggle('hidden');
@@ -557,6 +559,17 @@ function startApp() {
   const editorCloseBtn = document.getElementById('editor-close-btn');
 
   let _pipWindow = null;
+
+  async function closePiPBeforeNativeAction() {
+    if (!_pipWindow) {
+      return;
+    }
+    const winToClose = _pipWindow;
+    await new Promise(resolve => {
+      winToClose.addEventListener('pagehide', resolve, { once: true });
+      winToClose.close();
+    });
+  }
 
   // --- Floating panel persistence (separate from md:settings which resets on reload) ---
   const FLOATING_PANEL_KEY = 'md:layout:floatingPanel';
