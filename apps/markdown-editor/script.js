@@ -676,16 +676,27 @@ function startApp() {
 
   async function applyMode(mode) {
     const isEdit = mode === 'edit';
-    document.body.dataset.mode = isEdit ? 'edit' : 'read';
-    if (toggleModeBtn) {
-      toggleModeBtn.textContent = isEdit ? '👁 Read' : '✏️ Edit';
-      toggleModeBtn.setAttribute('aria-pressed', String(isEdit));
+    const setModeAttributes = edit => {
+      document.body.dataset.mode = edit ? 'edit' : 'read';
+      if (toggleModeBtn) {
+        toggleModeBtn.textContent = edit ? '👁 Read' : '✏️ Edit';
+        toggleModeBtn.setAttribute('aria-pressed', String(edit));
+      }
+    };
+
+    if (!isEdit) {
+      setModeAttributes(false);
+      if (_pipWindow) {
+        _pipWindow.close();
+        _pipWindow = null;
+      }
+      Layout.setFloating(false);
+      return;
     }
 
-    if (isEdit) {
-      if (Layout.isDocumentPiPSupported()) {
-        try {
-          const requestPromise = documentPictureInPicture.requestWindow({ width: 800, height: 600 });
+    if (Layout.isDocumentPiPSupported()) {
+      try {
+        const requestPromise = documentPictureInPicture.requestWindow({ width: 800, height: 600 });
         let timedOut = false;
         const pipWin = await Promise.race([
           requestPromise,
@@ -694,86 +705,81 @@ function startApp() {
           ),
         ]);
         requestPromise.then(win => { if (timedOut && win) win.close(); }).catch(() => {});
-          _pipWindow = pipWin;
+        _pipWindow = pipWin;
 
-          const link = pipWin.document.createElement('link');
-          link.rel = 'stylesheet';
-          link.href = new URL(`app.css?v=${Date.now()}`, document.baseURI).href;
-          pipWin.document.head.appendChild(link);
-          await new Promise(resolve => {
-            link.addEventListener('load', resolve, { once: true });
-            link.addEventListener('error', resolve, { once: true });
-          });
+        const link = pipWin.document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = new URL(`app.css?v=${Date.now()}`, document.baseURI).href;
+        pipWin.document.head.appendChild(link);
+        await new Promise(resolve => {
+          link.addEventListener('load', resolve, { once: true });
+          link.addEventListener('error', resolve, { once: true });
+        });
 
-          const pipStyle = pipWin.document.createElement('style');
-          pipStyle.textContent = [
-            'body { margin:0; height:100vh; overflow:hidden; }',
-            '#editor-pane {',
-            '  position:static !important; width:100% !important; height:100vh !important;',
-            '  box-shadow:none !important; border:none !important; border-radius:0 !important;',
-            '  resize:none !important; min-width:0 !important; min-height:0 !important;',
-            '  padding-top:0 !important; display:flex !important;',
-            '}',
-          ].join('\n');
-          pipWin.document.head.appendChild(pipStyle);
+        const pipStyle = pipWin.document.createElement('style');
+        pipStyle.textContent = [
+          'body { margin:0; height:100vh; overflow:hidden; }',
+          '#editor-pane {',
+          '  position:static !important; width:100% !important; height:100vh !important;',
+          '  box-shadow:none !important; border:none !important; border-radius:0 !important;',
+          '  resize:none !important; min-width:0 !important; min-height:0 !important;',
+          '  padding-top:0 !important; display:flex !important;',
+          '}',
+        ].join('\n');
+        pipWin.document.head.appendChild(pipStyle);
 
-          pipWin.document.body.classList.add('pip-mode');
+        pipWin.document.body.classList.add('pip-mode');
 
-          if (editor) {
-            editor.style.width = '';
-          }
-
-          const pipPlaceholder = document.createElement('div');
-          pipPlaceholder.id = '_pip-placeholder';
-          pipPlaceholder.style.display = 'none';
-          if (editorPane.parentNode) {
-            editorPane.parentNode.insertBefore(pipPlaceholder, editorPane);
-          }
-          const formattingMenuEl = Formatting.getFormattingMenuElement();
-          pipWin.document.body.appendChild(editorPane);
-          if (formattingMenuEl) {
-            pipWin.document.body.appendChild(formattingMenuEl);
-          }
-          Layout.setPiPMode(true);
-
-          pipWin.addEventListener('pagehide', () => {
-            _pipWindow = null;
-            Layout.setPiPMode(false);
-            if (formattingMenuEl && formattingMenuEl.ownerDocument !== document) {
-              document.body.appendChild(formattingMenuEl);
-            }
-            if (pipPlaceholder.parentNode) {
-              pipPlaceholder.parentNode.insertBefore(editorPane, pipPlaceholder);
-              pipPlaceholder.remove();
-            }
-            AppState.setSetting('mode', 'read');
-          });
-
-          Layout.setFloating(false);
-          Layout.syncEditorHighlightPadding();
-          Layout.updateEditorHighlight(editor ? editor.value : '');
-          Layout.updateLineNumbers();
-          Toc.updateTOCHighlight();
-          return;
-        } catch (err) {
-          console.warn('[PiP] requestWindow failed, falling back to floating panel:', err);
-          _pipWindow = null;
+        if (editor) {
+          editor.style.width = '';
         }
-      }
-      // Fallback: floating panel
-      Layout.setFloating(true);
-      applyFloatingPanelGeometry();
-      Layout.syncEditorHighlightPadding();
-      Layout.updateEditorHighlight(editor ? editor.value : '');
-      Layout.updateLineNumbers();
-      Toc.updateTOCHighlight();
-    } else {
-      if (_pipWindow) {
-        _pipWindow.close();
+
+        const pipPlaceholder = document.createElement('div');
+        pipPlaceholder.id = '_pip-placeholder';
+        pipPlaceholder.style.display = 'none';
+        if (editorPane.parentNode) {
+          editorPane.parentNode.insertBefore(pipPlaceholder, editorPane);
+        }
+        const formattingMenuEl = Formatting.getFormattingMenuElement();
+        pipWin.document.body.appendChild(editorPane);
+        if (formattingMenuEl) {
+          pipWin.document.body.appendChild(formattingMenuEl);
+        }
+        setModeAttributes(true);
+        Layout.setPiPMode(true);
+
+        pipWin.addEventListener('pagehide', () => {
+          _pipWindow = null;
+          Layout.setPiPMode(false);
+          if (formattingMenuEl && formattingMenuEl.ownerDocument !== document) {
+            document.body.appendChild(formattingMenuEl);
+          }
+          if (pipPlaceholder.parentNode) {
+            pipPlaceholder.parentNode.insertBefore(editorPane, pipPlaceholder);
+            pipPlaceholder.remove();
+          }
+          AppState.setSetting('mode', 'read');
+        });
+
+        Layout.setFloating(false);
+        Layout.syncEditorHighlightPadding();
+        Layout.updateEditorHighlight(editor ? editor.value : '');
+        Layout.updateLineNumbers();
+        Toc.updateTOCHighlight();
+        return;
+      } catch (err) {
+        console.warn('[PiP] requestWindow failed, falling back to floating panel:', err);
         _pipWindow = null;
       }
-      Layout.setFloating(false);
     }
+    // Fallback: floating panel
+    setModeAttributes(true);
+    Layout.setFloating(true);
+    applyFloatingPanelGeometry();
+    Layout.syncEditorHighlightPadding();
+    Layout.updateEditorHighlight(editor ? editor.value : '');
+    Layout.updateLineNumbers();
+    Toc.updateTOCHighlight();
   }
 
   if (toggleModeBtn) {
