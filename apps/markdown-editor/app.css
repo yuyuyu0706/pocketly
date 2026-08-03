@@ -522,6 +522,8 @@ body.pip-mode #editor-close-btn {
 body.pip-mode #editor-drag-handle {
   display: flex;
   cursor: default;
+  background: #1e1e1e;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 body.pip-mode #editor-drag-handle #editor-drag-label {
@@ -548,6 +550,12 @@ body.pip-mode #editor-drag-handle #editor-drag-label {
 body.pip-mode #editor-copy-btn {
   display: inline-flex;
   align-items: center;
+  color: #b0b0b0;
+}
+
+body.pip-mode #editor-copy-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
 }
 
 body.pip-mode #editor-pane::after {
