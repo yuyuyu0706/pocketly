@@ -743,7 +743,7 @@ function startApp() {
           '  position:static !important; width:100% !important; height:100vh !important;',
           '  box-shadow:none !important; border:none !important; border-radius:0 !important;',
           '  resize:none !important; min-width:0 !important; min-height:0 !important;',
-          '  padding-top:0 !important; display:flex !important;',
+          '  padding-top:28px !important; display:flex !important;',
           '}',
         ].join('\n');
         pipWin.document.head.appendChild(pipStyle);
