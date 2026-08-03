@@ -615,12 +615,8 @@ body.pip-mode .editor-inline-code-text {
 
 /* Dark scrollbar for PiP window textarea */
 body.pip-mode #editor-pane textarea {
-  scrollbar-width: thin;
+  scrollbar-width: auto;
   scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
-}
-
-body.pip-mode #editor-pane textarea::-webkit-scrollbar {
-  width: 10px;
 }
 
 body.pip-mode #editor-pane textarea::-webkit-scrollbar-track {
