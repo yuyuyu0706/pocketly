@@ -612,3 +612,28 @@ body[data-mode="edit"] .editor-inline-code-text,
 body.pip-mode .editor-inline-code-text {
   color: #ffcc80;
 }
+
+/* Dark scrollbar for PiP window textarea */
+body.pip-mode #editor-pane textarea {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+}
+
+body.pip-mode #editor-pane textarea::-webkit-scrollbar {
+  width: 10px;
+}
+
+body.pip-mode #editor-pane textarea::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+body.pip-mode #editor-pane textarea::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.25);
+  border-radius: 6px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+body.pip-mode #editor-pane textarea::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.4);
+}
