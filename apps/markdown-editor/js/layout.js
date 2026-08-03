@@ -246,16 +246,10 @@
 
       if (match[1] !== undefined) {
         // Inline code: `code`
-        const inner = match[1].slice(1, -1);
-        result += '`';
-        result += `<span class="editor-inline-code-text">${escapeHighlightHtml(inner)}</span>`;
-        result += '`';
+        result += `<span class="editor-inline-code-text">${escapeHighlightHtml(match[1])}</span>`;
       } else if (match[2] !== undefined) {
         // Bold: **text**
-        const inner = match[2].slice(2, -2);
-        result += '**';
-        result += `<span class="editor-bold-text">${escapeHighlightHtml(inner)}</span>`;
-        result += '**';
+        result += `<span class="editor-bold-text">${escapeHighlightHtml(match[2])}</span>`;
       } else {
         // Link: [text](url)
         let isImageSyntax = false;
