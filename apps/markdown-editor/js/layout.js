@@ -234,7 +234,7 @@
       }
     }
 
-    const pattern = /(`[^`\n]+`)|(\*\*[^*\n]+?\*\*)|(\[([^\]]*?)\]\(([^)]*?)\))/g;
+    const pattern = /(^#{1,6}[ \t][^\n]*)|(`[^`\n]+`)|(\*\*[^*\n]+?\*\*)|(\[([^\]]*?)\]\(([^)]*?)\))/gm;
     let result = '';
     let lastIndex = 0;
     let match;
@@ -245,11 +245,14 @@
       result += escapeHighlightHtml(working.slice(lastIndex, startIndex));
 
       if (match[1] !== undefined) {
-        // Inline code: `code`
-        result += `<span class="editor-inline-code-text">${escapeHighlightHtml(match[1])}</span>`;
+        // Heading: # ... through ###### ...
+        result += `<span class="editor-heading-text">${escapeHighlightHtml(match[1])}</span>`;
       } else if (match[2] !== undefined) {
+        // Inline code: `code`
+        result += `<span class="editor-inline-code-text">${escapeHighlightHtml(match[2])}</span>`;
+      } else if (match[3] !== undefined) {
         // Bold: **text**
-        result += `<span class="editor-bold-text">${escapeHighlightHtml(match[2])}</span>`;
+        result += `<span class="editor-bold-text">${escapeHighlightHtml(match[3])}</span>`;
       } else {
         // Link: [text](url)
         let isImageSyntax = false;
@@ -267,9 +270,9 @@
           result += escapeHighlightHtml(working.slice(startIndex, endIndex));
         } else {
           result += '[';
-          result += `<span class="external-link-text">${escapeHighlightHtml(match[4])}</span>`;
+          result += `<span class="external-link-text">${escapeHighlightHtml(match[5])}</span>`;
           result += '](';
-          result += escapeHighlightHtml(match[5]);
+          result += escapeHighlightHtml(match[6]);
           result += ')';
         }
       }

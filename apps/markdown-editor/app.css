@@ -526,7 +526,7 @@ body.pip-mode #editor-pane::after {
 
 /* Document Picture-in-Picture mode: dark theme */
 body.pip-mode {
-  background-color: rgba(20, 20, 20, 0.75);
+  background-color: #141414;
 }
 
 body.pip-mode #editor-pane,
@@ -549,6 +549,11 @@ body[data-mode="edit"] #editor-pane #editor-content-container,
 body.pip-mode #editor-content-container {
   --editor-text-color: #ffffff;
   color: #ffffff;
+}
+
+body[data-mode="edit"] .editor-heading-text,
+body.pip-mode .editor-heading-text {
+  color: #4a7fd6;
 }
 
 body[data-mode="edit"] .editor-bold-text,
