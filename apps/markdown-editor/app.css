@@ -519,12 +519,13 @@ body.pip-mode #editor-close-btn {
   display: none !important;
 }
 
-body.pip-mode #editor-drag-handle #editor-drag-label {
-  display: none;
+body.pip-mode #editor-drag-handle {
+  display: flex;
+  cursor: default;
 }
 
-body.pip-mode #editor-drag-handle {
-  cursor: default;
+body.pip-mode #editor-drag-handle #editor-drag-label {
+  display: none;
 }
 
 #editor-copy-btn {
