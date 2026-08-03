@@ -716,12 +716,19 @@ function startApp() {
           if (editorPane.parentNode) {
             editorPane.parentNode.insertBefore(pipPlaceholder, editorPane);
           }
+          const formattingMenuEl = Formatting.getFormattingMenuElement();
           pipWin.document.body.appendChild(editorPane);
+          if (formattingMenuEl) {
+            pipWin.document.body.appendChild(formattingMenuEl);
+          }
           Layout.setPiPMode(true);
 
           pipWin.addEventListener('pagehide', () => {
             _pipWindow = null;
             Layout.setPiPMode(false);
+            if (formattingMenuEl && formattingMenuEl.ownerDocument !== document) {
+              document.body.appendChild(formattingMenuEl);
+            }
             if (pipPlaceholder.parentNode) {
               pipPlaceholder.parentNode.insertBefore(editorPane, pipPlaceholder);
               pipPlaceholder.remove();
