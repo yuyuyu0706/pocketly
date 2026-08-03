@@ -583,7 +583,7 @@ body.pip-mode #editor-pane textarea {
 body.pip-mode #line-number-gutter {
   background-color: #202124;
   color: #b0b0b0;
-  border-right-color: rgba(255, 255, 255, 0.15);
+  border-right: none;
 }
 
 /* Syntax highlight colors for floating panel and PiP window */
