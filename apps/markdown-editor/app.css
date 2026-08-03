@@ -536,7 +536,6 @@ body.pip-mode #editor-content-container {
 
 body.pip-mode #editor-pane textarea {
   background-color: transparent;
-  color: #ffffff;
 }
 
 body.pip-mode #line-number-gutter {
