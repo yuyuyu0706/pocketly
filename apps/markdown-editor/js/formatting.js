@@ -16,6 +16,8 @@
   let clipboardHasText = false;
   let clipboardReadRequestId = 0;
   let formattingMenuVisible = false;
+  let _activeListenerDoc = null;
+  let _activeListenerWin = null;
 
   function getNavigatorClipboard() {
     if (typeof navigator === 'undefined' || !navigator) {
@@ -107,7 +109,8 @@
     }
     _editor.selectionStart = start;
     _editor.selectionEnd = end;
-    const ok = document.execCommand('insertText', false, text);
+    const ownerDoc = _editor.ownerDocument || document;
+    const ok = ownerDoc.execCommand('insertText', false, text);
     if (!ok) {
       _editor.value = _editor.value.slice(0, start) + text + _editor.value.slice(end);
     }
@@ -231,11 +234,15 @@
       return;
     }
 
+    const ownerDoc = (_editor && _editor.ownerDocument) || document;
+    const ownerWin = ownerDoc.defaultView || window;
+    bindDismissListeners(ownerDoc, ownerWin);
+
     refreshClipboardState();
     updateFormattingMenuState();
 
-    const scrollX = window.pageXOffset || window.scrollX || 0;
-    const scrollY = window.pageYOffset || window.scrollY || 0;
+    const scrollX = ownerWin.pageXOffset || ownerWin.scrollX || 0;
+    const scrollY = ownerWin.pageYOffset || ownerWin.scrollY || 0;
     const viewportPadding = 8;
 
     let targetLeft = scrollX + clientX;
@@ -247,8 +254,8 @@
     formattingMenuElement.style.top = `${targetTop}px`;
 
     const rect = formattingMenuElement.getBoundingClientRect();
-    const viewportRight = scrollX + window.innerWidth;
-    const viewportBottom = scrollY + window.innerHeight;
+    const viewportRight = scrollX + ownerWin.innerWidth;
+    const viewportBottom = scrollY + ownerWin.innerHeight;
 
     if (rect.right > viewportRight - viewportPadding) {
       targetLeft = Math.max(
@@ -493,14 +500,15 @@
     };
 
     const attemptExecCommandCopy = () => {
-      const activeElement = document.activeElement;
+      const ownerDoc = _editor.ownerDocument || document;
+      const activeElement = ownerDoc.activeElement;
       try {
         try {
           _editor.focus({ preventScroll: true });
         } catch (focusError) {
           _editor.focus();
         }
-        document.execCommand('copy');
+        ownerDoc.execCommand('copy');
       } catch (error) {
         // Ignore copy errors to avoid interrupting the user experience.
       } finally {
@@ -580,14 +588,15 @@
     };
 
     const attemptExecCommandCopy = () => {
-      const activeElement = document.activeElement;
+      const ownerDoc = _editor.ownerDocument || document;
+      const activeElement = ownerDoc.activeElement;
       try {
         try {
           _editor.focus({ preventScroll: true });
         } catch (focusError) {
           _editor.focus();
         }
-        document.execCommand('copy');
+        ownerDoc.execCommand('copy');
       } catch (error) {
         // Ignore copy errors to avoid interrupting the user experience.
       } finally {
@@ -659,6 +668,36 @@
       return;
     }
     hideFormattingMenu();
+  }
+
+  function unbindDismissListeners() {
+    if (_activeListenerDoc) {
+      _activeListenerDoc.removeEventListener('mousedown', handleDocumentPointerDown, true);
+      _activeListenerDoc.removeEventListener('scroll', handleDocumentScroll, true);
+      _activeListenerDoc.removeEventListener('keydown', handleDocumentKeyDown, true);
+    }
+    if (_activeListenerWin) {
+      _activeListenerWin.removeEventListener('resize', hideFormattingMenu);
+    }
+    _activeListenerDoc = null;
+    _activeListenerWin = null;
+  }
+
+  function bindDismissListeners(doc, win) {
+    if (_activeListenerDoc === doc && _activeListenerWin === win) {
+      return;
+    }
+    unbindDismissListeners();
+    if (doc) {
+      doc.addEventListener('mousedown', handleDocumentPointerDown, true);
+      doc.addEventListener('scroll', handleDocumentScroll, true);
+      doc.addEventListener('keydown', handleDocumentKeyDown, true);
+    }
+    if (win) {
+      win.addEventListener('resize', hideFormattingMenu);
+    }
+    _activeListenerDoc = doc;
+    _activeListenerWin = win;
   }
 
   function handleDocumentPointerDown(event) {
@@ -883,10 +922,7 @@
     _editor.addEventListener('select', handleEditorSelect);
     _editor.addEventListener('blur', handleEditorBlur);
 
-    document.addEventListener('mousedown', handleDocumentPointerDown, true);
-    document.addEventListener('scroll', handleDocumentScroll, true);
-    document.addEventListener('keydown', handleDocumentKeyDown, true);
-    window.addEventListener('resize', hideFormattingMenu);
+    bindDismissListeners(document, window);
   }
 
   function init(deps) {
@@ -903,6 +939,7 @@
     hideFormattingMenu,
     replaceEditorRange,
     onEditorKeydown,
+    getFormattingMenuElement: () => formattingMenuElement,
   };
 
 }(typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : this));

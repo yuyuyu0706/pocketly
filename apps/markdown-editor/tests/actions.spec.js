@@ -165,7 +165,6 @@ test('exports PDF via button', async ({ page }) => {
 
 test('exports preview HTML via button', async ({ page }) => {
   await page.goto('/');
-  await page.click('#toggle-mode');
   const [download] = await Promise.all([
     page.waitForEvent('download'),
     page.click('#export-html'),

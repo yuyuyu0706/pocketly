@@ -191,9 +191,14 @@ body {
     return parts.join('\n');
   }
 
-  function init({ preview, i18n, triggerDownloadFromBlob, AppState, exportPdfBtn, exportHtmlBtn, saveMdBtn }) {
+  function init({ preview, i18n, triggerDownloadFromBlob, AppState, exportPdfBtn, exportHtmlBtn, saveMdBtn, closePiPBeforeNativeAction }) {
+    const closePiP = typeof closePiPBeforeNativeAction === 'function'
+      ? closePiPBeforeNativeAction
+      : () => Promise.resolve();
+
     if (exportPdfBtn) {
-      exportPdfBtn.addEventListener('click', () => {
+      exportPdfBtn.addEventListener('click', async () => {
+        await closePiP();
         const win = window.open('', '', 'width=800,height=600');
         if (!win) {
           return;
@@ -236,6 +241,7 @@ body {
 
     if (exportHtmlBtn) {
       exportHtmlBtn.addEventListener('click', async () => {
+        await closePiP();
         try {
           if (!preview) {
             throw new Error('Preview element is not available.');
@@ -274,7 +280,8 @@ body {
     }
 
     if (saveMdBtn) {
-      saveMdBtn.addEventListener('click', () => {
+      saveMdBtn.addEventListener('click', async () => {
+        await closePiP();
         const defaultName = i18n.t('dialogs.defaultFileName');
         const trimmedName =
           typeof defaultName === 'string' && defaultName.trim()

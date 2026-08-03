@@ -158,7 +158,7 @@ test('clears stored language preference on reload', async ({ page }) => {
 test('initial language defaults to English', async ({ page }) => {
   await expect(page.locator('#lang-switch')).toHaveValue('en');
   await expect(page.locator('#open-md')).toHaveText('📂 Open');
-  await expect(page.locator('#help-btn')).toHaveText('❔ Help');
+  await expect(page.locator('#help-btn')).toHaveText('❔ Cheat');
 });
 
 test('open button loads selected markdown file', async ({ page }) => {
@@ -185,11 +185,11 @@ test('language switch cycles English → Japanese → English', async ({ page })
   await expect(openButton).toHaveText('📂 Open');
   await page.selectOption('#lang-switch', 'ja');
   await expect(openButton).toHaveText('📂 開く');
-  await expect(helpButton).toHaveText('❔ ヘルプ');
+  await expect(helpButton).toHaveText('❔ チート');
 
   await page.selectOption('#lang-switch', 'en');
   await expect(openButton).toHaveText('📂 Open');
-  await expect(helpButton).toHaveText('❔ Help');
+  await expect(helpButton).toHaveText('❔ Cheat');
 });
 
 test('preview checkbox interactions only update their markdown lines', async ({ page }) => {

@@ -9,7 +9,6 @@ const path = require('path');
 
 test('exported HTML contains preview.css style (#0055aa)', async ({ page }) => {
   await page.goto('/');
-  await page.click('#toggle-mode');
   const [download] = await Promise.all([
     page.waitForEvent('download'),
     page.click('#export-html'),
@@ -77,7 +76,6 @@ test('exported PDF spans multiple pages for long documents', async ({ page }) =>
 
 test('exported HTML spans multiple pages when printed for long documents', async ({ page, context }) => {
   await page.goto('/');
-  await page.click('#toggle-mode');
 
   // Lv3-B と同じ長文生成ロジックを流用（見出し60件・段落8件）
   const longMarkdown = Array.from({ length: 60 }, (_, i) =>
@@ -126,7 +124,6 @@ test('exported HTML spans multiple pages when printed for long documents', async
 
 test('exported HTML does not contain app.css styles (100vh, #e8f0ff)', async ({ page }) => {
   await page.goto('/');
-  await page.click('#toggle-mode');
   const [download] = await Promise.all([
     page.waitForEvent('download'),
     page.click('#export-html'),

@@ -13,14 +13,14 @@
     <h1 id="app-title" data-i18n="app.title">Markdown Editor Blue</h1>
     <div id="toolbar-actions">
       <button id="open-md" class="toolbar-button" type="button" data-i18n="toolbar.open">📂 Open</button>
-      <button id="save-md" class="toolbar-button" type="button" data-i18n="toolbar.save" data-mode-visible="edit">💾 Save</button>
-      <button id="export-pdf" class="toolbar-button" type="button" data-i18n="toolbar.exportPdf">📄 Export PDF</button>
+      <button id="save-md" class="toolbar-button" type="button" data-i18n="toolbar.save">💾 Save</button>
+      <button id="export-pdf" class="toolbar-button" type="button" data-i18n="toolbar.exportPdf" data-mode-visible="read">📄 Export PDF</button>
       <button
         id="export-html"
         class="toolbar-button"
         type="button"
         data-i18n="toolbar.exportHtml"
-        data-mode-visible="edit"
+        data-mode-visible="read"
       >
         🌐 Export HTML
       </button>
@@ -56,6 +56,9 @@
       >
         🔢 Numbers On
       </button>
+      <button id="help-btn" class="toolbar-button" type="button" data-i18n="toolbar.help" data-mode-visible="edit">
+        ❔ Help
+      </button>
       <button
         id="toggle-mode"
         class="toolbar-button"
@@ -63,9 +66,6 @@
         aria-pressed="false"
       >
         ✏️ Edit
-      </button>
-      <button id="help-btn" class="toolbar-button" type="button" data-i18n="toolbar.help">
-        ❔ Help
       </button>
       <div id="lang-wrapper">
         <label for="lang-switch" id="lang-label" data-i18n="toolbar.languageLabel">Language</label>
@@ -90,6 +90,12 @@
     <div id="editor-pane">
       <div id="editor-drag-handle" aria-hidden="true">
         <span id="editor-drag-label">⠿ Editor</span>
+        <button id="editor-copy-btn" type="button" aria-label="Copy all text" title="Copy all text">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+          </svg>
+        </button>
         <button
           id="editor-close-btn"
           type="button"

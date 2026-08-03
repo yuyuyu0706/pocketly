@@ -187,13 +187,13 @@ test.describe('Floating panel (edit mode)', () => {
     expect(gap).toBeLessThan(20);
   });
 
-  test('existing mode-switch tests still pass: N_read=5 in read mode', async ({ page }) => {
+  test('existing mode-switch tests still pass: N_read=6 in read mode', async ({ page }) => {
     const visibleCount = await page.evaluate(() => {
       return Array.from(document.querySelectorAll('#toolbar-actions > *')).filter(el => {
         const style = window.getComputedStyle(el);
         return style.display !== 'none' && style.visibility !== 'hidden';
       }).length;
     });
-    expect(visibleCount).toBeLessThanOrEqual(5);
+    expect(visibleCount).toBeLessThanOrEqual(6);
   });
 });

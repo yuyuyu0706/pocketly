@@ -9,10 +9,10 @@
     "exportHtml": "🌐 HTML出力",
     "insertImage": "🖼 画像を挿入",
     "template": "📋 テンプレート",
-    "help": "❔ ヘルプ",
+    "help": "❔ チート",
     "languageLabel": "言語",
-    "showLineNumbers": "🔢 行番号ON",
-    "hideLineNumbers": "🔢 行番号OFF"
+    "showLineNumbers": "🔢 行番号 On",
+    "hideLineNumbers": "🔢 行番号 Off"
   },
   "language": {
     "english": "English",

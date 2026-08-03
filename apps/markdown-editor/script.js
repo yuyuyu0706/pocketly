@@ -121,13 +121,15 @@ function startApp() {
   }
 
   if (insertImageBtn && imageInput) {
-    insertImageBtn.addEventListener('click', () => {
+    insertImageBtn.addEventListener('click', async () => {
+      await closePiPBeforeNativeAction();
       imageInput.click();
     });
   }
 
   if (openMdBtn && markdownInput) {
-    openMdBtn.addEventListener('click', () => {
+    openMdBtn.addEventListener('click', async () => {
+      await closePiPBeforeNativeAction();
       markdownInput.click();
     });
 
@@ -404,7 +406,7 @@ function startApp() {
       buildTemplateOptions();
     }
     adjustTOCPosition();
-    updateLineNumberButtonLabel();
+    Layout.updateLineNumberButtonLabel();
   });
 
   Preview.init();
@@ -517,7 +519,7 @@ function startApp() {
     reader.readAsDataURL(file);
   });
 
-  Export.init({ preview, i18n, triggerDownloadFromBlob, AppState, exportPdfBtn, exportHtmlBtn, saveMdBtn });
+  Export.init({ preview, i18n, triggerDownloadFromBlob, AppState, exportPdfBtn, exportHtmlBtn, saveMdBtn, closePiPBeforeNativeAction });
 
   helpBtn.addEventListener('click', () => {
     helpWindow.classList.toggle('hidden');
@@ -555,6 +557,20 @@ function startApp() {
   const toggleModeBtn = document.getElementById('toggle-mode');
   const editorDragHandle = document.getElementById('editor-drag-handle');
   const editorCloseBtn = document.getElementById('editor-close-btn');
+  const editorCopyBtn = document.getElementById('editor-copy-btn');
+
+  let _pipWindow = null;
+
+  async function closePiPBeforeNativeAction() {
+    if (!_pipWindow) {
+      return;
+    }
+    const winToClose = _pipWindow;
+    await new Promise(resolve => {
+      winToClose.addEventListener('pagehide', resolve, { once: true });
+      winToClose.close();
+    });
+  }
 
   // --- Floating panel persistence (separate from md:settings which resets on reload) ---
   const FLOATING_PANEL_KEY = 'md:layout:floatingPanel';
@@ -620,6 +636,37 @@ function startApp() {
     });
   }
 
+  if (editorCopyBtn) {
+    const copyIconHTML = editorCopyBtn.innerHTML;
+    const checkIconHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+    let feedbackTimer = null;
+    editorCopyBtn.addEventListener('mousedown', e => e.stopPropagation());
+    editorCopyBtn.addEventListener('click', async () => {
+      const text = editor.value;
+      const ownerWin = (editor.ownerDocument && editor.ownerDocument.defaultView) || window;
+      const showSuccess = () => {
+        editorCopyBtn.innerHTML = checkIconHTML;
+        editorCopyBtn.classList.add('copy-success');
+        if (feedbackTimer) clearTimeout(feedbackTimer);
+        feedbackTimer = setTimeout(() => {
+          editorCopyBtn.innerHTML = copyIconHTML;
+          editorCopyBtn.classList.remove('copy-success');
+          feedbackTimer = null;
+        }, 1000);
+      };
+      try {
+        await ownerWin.navigator.clipboard.writeText(text);
+        showSuccess();
+      } catch (err) {
+        const ownerDoc = editor.ownerDocument || document;
+        editor.focus();
+        editor.select();
+        ownerDoc.execCommand('copy');
+        showSuccess();
+      }
+    });
+  }
+
   if (editorDragHandle && editorPane) {
     editorDragHandle.addEventListener('mousedown', e => {
       _isDraggingPanel = true;
@@ -659,22 +706,112 @@ function startApp() {
     _panelRO.observe(editorPane);
   }
 
-  function applyMode(mode) {
-    document.body.dataset.mode = mode === 'edit' ? 'edit' : 'read';
-    if (toggleModeBtn) {
-      toggleModeBtn.textContent = mode === 'edit' ? '👁 Read' : '✏️ Edit';
-      toggleModeBtn.setAttribute('aria-pressed', String(mode === 'edit'));
-    }
-    if (mode === 'edit') {
-      Layout.setFloating(true);
-      applyFloatingPanelGeometry();
-      Layout.syncEditorHighlightPadding();
-      Layout.updateEditorHighlight(editor ? editor.value : '');
-      Layout.updateLineNumbers();
-      Toc.updateTOCHighlight();
-    } else {
+  async function applyMode(mode) {
+    const isEdit = mode === 'edit';
+    const setModeAttributes = edit => {
+      document.body.dataset.mode = edit ? 'edit' : 'read';
+      if (toggleModeBtn) {
+        toggleModeBtn.textContent = edit ? '👁 Read' : '✏️ Edit';
+        toggleModeBtn.setAttribute('aria-pressed', String(edit));
+      }
+    };
+
+    if (!isEdit) {
+      setModeAttributes(false);
+      if (_pipWindow) {
+        _pipWindow.close();
+        _pipWindow = null;
+      }
       Layout.setFloating(false);
+      return;
     }
+
+    if (Layout.isDocumentPiPSupported()) {
+      try {
+        const requestPromise = documentPictureInPicture.requestWindow({ width: 800, height: 600, disallowReturnToOpener: true });
+        let timedOut = false;
+        const pipWin = await Promise.race([
+          requestPromise,
+          new Promise((_, reject) =>
+            setTimeout(() => { timedOut = true; reject(new Error('requestWindow timed out')); }, 3000)
+          ),
+        ]);
+        requestPromise.then(win => { if (timedOut && win) win.close(); }).catch(() => {});
+        _pipWindow = pipWin;
+
+        const link = pipWin.document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = new URL(`app.css?v=${Date.now()}`, document.baseURI).href;
+        pipWin.document.head.appendChild(link);
+        await new Promise(resolve => {
+          link.addEventListener('load', resolve, { once: true });
+          link.addEventListener('error', resolve, { once: true });
+        });
+
+        const pipStyle = pipWin.document.createElement('style');
+        pipStyle.textContent = [
+          'body { margin:0; height:100vh; overflow:hidden; }',
+          '#editor-pane {',
+          '  position:static !important; width:100% !important; height:100vh !important;',
+          '  box-shadow:none !important; border:none !important; border-radius:0 !important;',
+          '  resize:none !important; min-width:0 !important; min-height:0 !important;',
+          '  padding-top:28px !important; display:flex !important;',
+          '}',
+        ].join('\n');
+        pipWin.document.head.appendChild(pipStyle);
+
+        pipWin.document.body.classList.add('pip-mode');
+
+        if (editor) {
+          editor.style.width = '';
+        }
+
+        const pipPlaceholder = document.createElement('div');
+        pipPlaceholder.id = '_pip-placeholder';
+        pipPlaceholder.style.display = 'none';
+        if (editorPane.parentNode) {
+          editorPane.parentNode.insertBefore(pipPlaceholder, editorPane);
+        }
+        const formattingMenuEl = Formatting.getFormattingMenuElement();
+        pipWin.document.body.appendChild(editorPane);
+        if (formattingMenuEl) {
+          pipWin.document.body.appendChild(formattingMenuEl);
+        }
+        setModeAttributes(true);
+        Layout.setPiPMode(true);
+
+        pipWin.addEventListener('pagehide', () => {
+          _pipWindow = null;
+          Layout.setPiPMode(false);
+          if (formattingMenuEl && formattingMenuEl.ownerDocument !== document) {
+            document.body.appendChild(formattingMenuEl);
+          }
+          if (pipPlaceholder.parentNode) {
+            pipPlaceholder.parentNode.insertBefore(editorPane, pipPlaceholder);
+            pipPlaceholder.remove();
+          }
+          AppState.setSetting('mode', 'read');
+        });
+
+        Layout.setFloating(false);
+        Layout.syncEditorHighlightPadding();
+        Layout.updateEditorHighlight(editor ? editor.value : '');
+        Layout.updateLineNumbers();
+        Toc.updateTOCHighlight();
+        return;
+      } catch (err) {
+        console.warn('[PiP] requestWindow failed, falling back to floating panel:', err);
+        _pipWindow = null;
+      }
+    }
+    // Fallback: floating panel
+    setModeAttributes(true);
+    Layout.setFloating(true);
+    applyFloatingPanelGeometry();
+    Layout.syncEditorHighlightPadding();
+    Layout.updateEditorHighlight(editor ? editor.value : '');
+    Layout.updateLineNumbers();
+    Toc.updateTOCHighlight();
   }
 
   if (toggleModeBtn) {

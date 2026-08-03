@@ -37,6 +37,7 @@
   let isDraggingEditor = false;
   let isDraggingTOC = false;
   let _isFloating = false;
+  let _isPiP = false;
   let _lastMouseX = 0;
 
   // === Private state: line number mirror ===
@@ -233,7 +234,7 @@
       }
     }
 
-    const pattern = /\[([^\]]*?)\]\(([^)]*?)\)/g;
+    const pattern = /(^#{1,6}[ \t][^\n]*)|(<!--[\s\S]*?-->)|(`[^`\n]+`)|(\*\*[^*\n]+?\*\*)|(\[([^\]]*?)\]\(([^)]*?)\))/gm;
     let result = '';
     let lastIndex = 0;
     let match;
@@ -243,26 +244,40 @@
       const endIndex = pattern.lastIndex;
       result += escapeHighlightHtml(working.slice(lastIndex, startIndex));
 
-      let isImageSyntax = false;
-      let lookbehindIndex = startIndex - 1;
-      while (lookbehindIndex >= 0) {
-        const char = working.charAt(lookbehindIndex);
-        if (char === HIGHLIGHT_START_TOKEN || char === HIGHLIGHT_END_TOKEN) {
-          lookbehindIndex -= 1;
-          continue;
-        }
-        isImageSyntax = char === '!';
-        break;
-      }
-      if (isImageSyntax) {
-        result += escapeHighlightHtml(working.slice(startIndex, endIndex));
+      if (match[1] !== undefined) {
+        // Heading: # ... through ###### ...
+        result += `<span class="editor-heading-text">${escapeHighlightHtml(match[1])}</span>`;
+      } else if (match[2] !== undefined) {
+        // HTML comment: <!-- ... -->
+        result += `<span class="editor-comment-text">${escapeHighlightHtml(match[2])}</span>`;
+      } else if (match[3] !== undefined) {
+        // Inline code: `code`
+        result += `<span class="editor-inline-code-text">${escapeHighlightHtml(match[3])}</span>`;
+      } else if (match[4] !== undefined) {
+        // Bold: **text**
+        result += `<span class="editor-bold-text">${escapeHighlightHtml(match[4])}</span>`;
       } else {
-        result += '[';
-        const linkText = match[1];
-        result += `<span class="external-link-text">${escapeHighlightHtml(linkText)}</span>`;
-        result += '](';
-        result += escapeHighlightHtml(match[2]);
-        result += ')';
+        // Link: [text](url)
+        let isImageSyntax = false;
+        let lookbehindIndex = startIndex - 1;
+        while (lookbehindIndex >= 0) {
+          const char = working.charAt(lookbehindIndex);
+          if (char === HIGHLIGHT_START_TOKEN || char === HIGHLIGHT_END_TOKEN) {
+            lookbehindIndex -= 1;
+            continue;
+          }
+          isImageSyntax = char === '!';
+          break;
+        }
+        if (isImageSyntax) {
+          result += escapeHighlightHtml(working.slice(startIndex, endIndex));
+        } else {
+          result += '[';
+          result += `<span class="external-link-text">${escapeHighlightHtml(match[6])}</span>`;
+          result += '](';
+          result += escapeHighlightHtml(match[7]);
+          result += ')';
+        }
       }
 
       lastIndex = endIndex;
@@ -439,10 +454,10 @@
       normalizedWidth - gutterWidth,
       minContentWidth + padding
     );
-    if (_editorPane) {
+    if (_editorPane && !_isPiP) {
       _editorPane.style.width = `${normalizedWidth}px`;
     }
-    if (_editor) {
+    if (_editor && !_isPiP) {
       _editor.style.width = `${borderBoxWidth}px`;
     }
     syncEditorHighlightScroll();
@@ -512,10 +527,18 @@
   // === Mirror element for measuring wrapped line heights ===
 
   const ensureMirrorElement = () => {
-    if (_mirrorElement && _mirrorElement.isConnected) {
+    const targetDocument = (_editor && _editor.ownerDocument) || document;
+    if (
+      _mirrorElement &&
+      _mirrorElement.isConnected &&
+      _mirrorElement.ownerDocument === targetDocument
+    ) {
       return _mirrorElement;
     }
-    const mirror = document.createElement('div');
+    if (_mirrorElement && _mirrorElement.parentNode) {
+      _mirrorElement.parentNode.removeChild(_mirrorElement);
+    }
+    const mirror = targetDocument.createElement('div');
     mirror.setAttribute('aria-hidden', 'true');
     mirror.style.cssText = [
       'position:absolute',
@@ -529,7 +552,7 @@
       'overflow-wrap:break-word',
       'box-sizing:border-box',
     ].join(';');
-    document.body.appendChild(mirror);
+    targetDocument.body.appendChild(mirror);
     _mirrorElement = mirror;
     return mirror;
   };
@@ -705,7 +728,7 @@
   };
 
   const onResize = () => {
-    if (!_isFloating && storedEditorWidthRatio !== null && !isDraggingEditor) {
+    if (!_isFloating && !_isPiP && storedEditorWidthRatio !== null && !isDraggingEditor) {
       applyEditorRatio(storedEditorWidthRatio);
     }
     syncEditorHighlightPadding();
@@ -829,14 +852,20 @@
     }
   }
 
+  function isDocumentPiPSupported() {
+    return 'documentPictureInPicture' in window && !navigator.webdriver;
+  }
+
   global.Layout = {
     init,
+    isDocumentPiPSupported,
     updateEditorHighlight,
     syncEditorHighlightScroll,
     syncEditorHighlightPadding,
     stopEditorHeadingHighlight,
     flashEditorHeading,
     updateLineNumbers,
+    updateLineNumberButtonLabel,
     scheduleUpdateLineNumbers,
     syncLineNumberScroll,
     setEditorOuterWidth,
@@ -852,6 +881,7 @@
     onResize,
     isLineNumbersEnabled: () => lineNumbersEnabled,
     setFloating: (value) => { _isFloating = Boolean(value); },
+    setPiPMode: (value) => { _isPiP = Boolean(value); },
     isDraggingDivider: () => isDraggingEditor,
   };
 })(typeof window !== 'undefined' ? window : this);
