@@ -522,7 +522,7 @@ body.pip-mode #editor-close-btn {
 body.pip-mode #editor-drag-handle {
   display: flex;
   cursor: default;
-  background: #141414;
+  background: #202124;
 }
 
 body.pip-mode #editor-drag-handle #editor-drag-label {
@@ -567,7 +567,7 @@ body.pip-mode #editor-pane::after {
 
 /* Document Picture-in-Picture mode: dark theme */
 body.pip-mode {
-  background-color: #141414;
+  background-color: #202124;
 }
 
 body.pip-mode #editor-pane,
