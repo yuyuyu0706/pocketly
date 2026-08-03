@@ -522,3 +522,29 @@ body.pip-mode #editor-close-btn {
 body.pip-mode #editor-pane::after {
   display: none !important;
 }
+
+/* Document Picture-in-Picture mode: dark theme */
+body.pip-mode {
+  background-color: rgba(20, 20, 20, 0.92);
+}
+
+body.pip-mode #editor-pane,
+body.pip-mode #editor-content-container {
+  background-color: transparent;
+}
+
+body.pip-mode #editor-content-container {
+  --editor-text-color: #f0f0f0;
+  color: #f0f0f0;
+}
+
+body.pip-mode #editor-pane textarea {
+  background-color: transparent;
+  color: #f0f0f0;
+}
+
+body.pip-mode #line-number-gutter {
+  background-color: rgba(255, 255, 255, 0.06);
+  color: #9fb3d1;
+  border-right-color: rgba(255, 255, 255, 0.15);
+}
