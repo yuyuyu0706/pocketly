@@ -303,6 +303,7 @@ main {
   color: #4d6faa;
   font-family: monospace;
   font-size: 1rem;
+  font-weight: 300;
   line-height: 1.5;
   text-align: center;
   user-select: none;
@@ -547,4 +548,20 @@ body.pip-mode #line-number-gutter {
   background-color: rgba(255, 255, 255, 0.06);
   color: #9fb3d1;
   border-right-color: rgba(255, 255, 255, 0.15);
+}
+
+/* Syntax highlight colors for floating panel and PiP window */
+body[data-mode="edit"] #editor-pane #editor-content-container,
+body.pip-mode #editor-content-container {
+  --editor-text-color: #ffffff;
+}
+
+body[data-mode="edit"] .editor-bold-text,
+body.pip-mode .editor-bold-text {
+  color: #5b9dff;
+}
+
+body[data-mode="edit"] .editor-inline-code-text,
+body.pip-mode .editor-inline-code-text {
+  color: #ffcc80;
 }

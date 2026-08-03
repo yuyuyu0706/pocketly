@@ -234,7 +234,7 @@
       }
     }
 
-    const pattern = /\[([^\]]*?)\]\(([^)]*?)\)/g;
+    const pattern = /(`[^`\n]+`)|(\*\*[^*\n]+?\*\*)|(\[([^\]]*?)\]\(([^)]*?)\))/g;
     let result = '';
     let lastIndex = 0;
     let match;
@@ -244,26 +244,40 @@
       const endIndex = pattern.lastIndex;
       result += escapeHighlightHtml(working.slice(lastIndex, startIndex));
 
-      let isImageSyntax = false;
-      let lookbehindIndex = startIndex - 1;
-      while (lookbehindIndex >= 0) {
-        const char = working.charAt(lookbehindIndex);
-        if (char === HIGHLIGHT_START_TOKEN || char === HIGHLIGHT_END_TOKEN) {
-          lookbehindIndex -= 1;
-          continue;
-        }
-        isImageSyntax = char === '!';
-        break;
-      }
-      if (isImageSyntax) {
-        result += escapeHighlightHtml(working.slice(startIndex, endIndex));
+      if (match[1] !== undefined) {
+        // Inline code: `code`
+        const inner = match[1].slice(1, -1);
+        result += '`';
+        result += `<span class="editor-inline-code-text">${escapeHighlightHtml(inner)}</span>`;
+        result += '`';
+      } else if (match[2] !== undefined) {
+        // Bold: **text**
+        const inner = match[2].slice(2, -2);
+        result += '**';
+        result += `<span class="editor-bold-text">${escapeHighlightHtml(inner)}</span>`;
+        result += '**';
       } else {
-        result += '[';
-        const linkText = match[1];
-        result += `<span class="external-link-text">${escapeHighlightHtml(linkText)}</span>`;
-        result += '](';
-        result += escapeHighlightHtml(match[2]);
-        result += ')';
+        // Link: [text](url)
+        let isImageSyntax = false;
+        let lookbehindIndex = startIndex - 1;
+        while (lookbehindIndex >= 0) {
+          const char = working.charAt(lookbehindIndex);
+          if (char === HIGHLIGHT_START_TOKEN || char === HIGHLIGHT_END_TOKEN) {
+            lookbehindIndex -= 1;
+            continue;
+          }
+          isImageSyntax = char === '!';
+          break;
+        }
+        if (isImageSyntax) {
+          result += escapeHighlightHtml(working.slice(startIndex, endIndex));
+        } else {
+          result += '[';
+          result += `<span class="external-link-text">${escapeHighlightHtml(match[4])}</span>`;
+          result += '](';
+          result += escapeHighlightHtml(match[5]);
+          result += ')';
+        }
       }
 
       lastIndex = endIndex;
