@@ -698,7 +698,7 @@ function startApp() {
 
           const link = pipWin.document.createElement('link');
           link.rel = 'stylesheet';
-          link.href = new URL('app.css', document.baseURI).href;
+          link.href = new URL(`app.css?v=${Date.now()}`, document.baseURI).href;
           pipWin.document.head.appendChild(link);
           await new Promise(resolve => {
             link.addEventListener('load', resolve, { once: true });
