@@ -38,8 +38,8 @@ test.describe('Mode switch', () => {
   });
 
   test('read mode: edit-only buttons are hidden', async ({ page }) => {
-    const saveMdVisible = await page.locator('#save-md').isVisible();
-    expect(saveMdVisible).toBe(false);
+    const helpBtnVisible = await page.locator('#help-btn').isVisible();
+    expect(helpBtnVisible).toBe(false);
   });
 
   test('edit mode: edit-only buttons become visible', async ({ page }) => {
