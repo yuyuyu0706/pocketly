@@ -440,10 +440,10 @@
       normalizedWidth - gutterWidth,
       minContentWidth + padding
     );
-    if (_editorPane) {
+    if (_editorPane && !_isPiP) {
       _editorPane.style.width = `${normalizedWidth}px`;
     }
-    if (_editor) {
+    if (_editor && !_isPiP) {
       _editor.style.width = `${borderBoxWidth}px`;
     }
     syncEditorHighlightScroll();
