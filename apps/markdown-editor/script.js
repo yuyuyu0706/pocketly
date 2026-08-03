@@ -672,12 +672,15 @@ function startApp() {
     if (isEdit) {
       if (Layout.isDocumentPiPSupported()) {
         try {
-          const pipWin = await Promise.race([
-          documentPictureInPicture.requestWindow({ width: 800, height: 600 }),
+          const requestPromise = documentPictureInPicture.requestWindow({ width: 800, height: 600 });
+        let timedOut = false;
+        const pipWin = await Promise.race([
+          requestPromise,
           new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('requestWindow timed out')), 3000)
+            setTimeout(() => { timedOut = true; reject(new Error('requestWindow timed out')); }, 3000)
           ),
         ]);
+        requestPromise.then(win => { if (timedOut && win) win.close(); }).catch(() => {});
           _pipWindow = pipWin;
 
           const link = pipWin.document.createElement('link');
