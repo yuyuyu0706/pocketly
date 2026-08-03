@@ -540,7 +540,7 @@ body.pip-mode #editor-pane textarea {
 
 body.pip-mode #line-number-gutter {
   background-color: rgba(255, 255, 255, 0.06);
-  color: #9fb3d1;
+  color: #b0b0b0;
   border-right-color: rgba(255, 255, 255, 0.15);
 }
 
@@ -553,7 +553,7 @@ body.pip-mode #editor-content-container {
 
 body[data-mode="edit"] .editor-heading-text,
 body.pip-mode .editor-heading-text {
-  color: #4a7fd6;
+  color: #5b9dff;
 }
 
 body[data-mode="edit"] .editor-bold-text,
