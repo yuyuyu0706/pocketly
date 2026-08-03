@@ -557,6 +557,7 @@ function startApp() {
   const toggleModeBtn = document.getElementById('toggle-mode');
   const editorDragHandle = document.getElementById('editor-drag-handle');
   const editorCloseBtn = document.getElementById('editor-close-btn');
+  const editorCopyBtn = document.getElementById('editor-copy-btn');
 
   let _pipWindow = null;
 
@@ -635,6 +636,25 @@ function startApp() {
     });
   }
 
+  if (editorCopyBtn) {
+    editorCopyBtn.addEventListener('mousedown', e => e.stopPropagation());
+    editorCopyBtn.addEventListener('click', async () => {
+      const text = editor.value;
+      const ownerWin = (editor.ownerDocument && editor.ownerDocument.defaultView) || window;
+      try {
+        await ownerWin.navigator.clipboard.writeText(text);
+        const prev = editorCopyBtn.textContent;
+        editorCopyBtn.textContent = '✅';
+        setTimeout(() => { editorCopyBtn.textContent = prev; }, 1000);
+      } catch (err) {
+        const ownerDoc = editor.ownerDocument || document;
+        editor.focus();
+        editor.select();
+        ownerDoc.execCommand('copy');
+      }
+    });
+  }
+
   if (editorDragHandle && editorPane) {
     editorDragHandle.addEventListener('mousedown', e => {
       _isDraggingPanel = true;
@@ -696,7 +716,7 @@ function startApp() {
 
     if (Layout.isDocumentPiPSupported()) {
       try {
-        const requestPromise = documentPictureInPicture.requestWindow({ width: 800, height: 600 });
+        const requestPromise = documentPictureInPicture.requestWindow({ width: 800, height: 600, disallowReturnToOpener: true });
         let timedOut = false;
         const pipWin = await Promise.race([
           requestPromise,
