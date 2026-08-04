@@ -584,18 +584,52 @@ body.pip-mode {
 }
 
 body.pip-mode #editor-pane,
-body.pip-mode #editor-content-container {
+body.pip-mode #editor-content-container,
+body[data-mode="edit"] #editor-pane,
+body[data-mode="edit"] #editor-content-container {
   background-color: transparent;
 }
 
-body.pip-mode #editor-pane textarea {
+body.pip-mode #editor-pane textarea,
+body[data-mode="edit"] #editor-pane textarea {
   background-color: transparent;
 }
 
-body.pip-mode #line-number-gutter {
+body.pip-mode #line-number-gutter,
+body[data-mode="edit"] #line-number-gutter {
   background-color: #202124;
   color: #b0b0b0;
   border-right: none;
+}
+
+body[data-mode="edit"] #editor-pane {
+  background-color: #202124;
+}
+
+body[data-mode="edit"] #editor-drag-handle {
+  background: #202124;
+  border-bottom: none;
+}
+
+/* Dark scrollbar for floating panel textarea */
+body[data-mode="edit"] #editor-pane textarea {
+  scrollbar-width: auto;
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+}
+
+body[data-mode="edit"] #editor-pane textarea::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+body[data-mode="edit"] #editor-pane textarea::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.25);
+  border-radius: 6px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+body[data-mode="edit"] #editor-pane textarea::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.4);
 }
 
 /* Syntax highlight colors for floating panel and PiP window */
