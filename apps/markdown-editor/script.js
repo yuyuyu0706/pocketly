@@ -572,6 +572,41 @@ function startApp() {
     });
   }
 
+  // --- PiP window persistence ---
+  const PIP_WINDOW_KEY = 'md:layout:pipWindow';
+  const PIP_WINDOW_DEFAULTS = { width: 800, height: 600 };
+
+  function readPipWindowGeometry() {
+    try {
+      const raw = localStorage.getItem(PIP_WINDOW_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') {
+          return Object.assign({}, PIP_WINDOW_DEFAULTS, parsed);
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+    return Object.assign({}, PIP_WINDOW_DEFAULTS);
+  }
+
+  function writePipWindowGeometry(geom) {
+    try {
+      localStorage.setItem(PIP_WINDOW_KEY, JSON.stringify(geom));
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  function getPipRequestOptions() {
+    const geom = readPipWindowGeometry();
+    return { width: geom.width, height: geom.height, disallowReturnToOpener: true };
+  }
+
+  // Expose for testing
+  window.__pipWindowGeometry = { read: readPipWindowGeometry, write: writePipWindowGeometry, getRequestOptions: getPipRequestOptions };
+
   // --- Floating panel persistence (separate from md:settings which resets on reload) ---
   const FLOATING_PANEL_KEY = 'md:layout:floatingPanel';
   const FLOATING_PANEL_DEFAULTS = { left: 780, top: 120, height: 450 };
@@ -699,8 +734,15 @@ function startApp() {
   if (editorPane && typeof ResizeObserver !== 'undefined') {
     const _panelRO = new ResizeObserver(() => {
       if (!_isDraggingPanel && !Layout.isDraggingDivider() && document.body.dataset.mode === 'edit') {
-        saveFloatingPanelGeometry();
-        Layout.persistEditorWidthRatio();
+        if (_pipWindow) {
+          writePipWindowGeometry({
+            width: _pipWindow.innerWidth,
+            height: _pipWindow.innerHeight,
+          });
+        } else {
+          saveFloatingPanelGeometry();
+          Layout.persistEditorWidthRatio();
+        }
       }
     });
     _panelRO.observe(editorPane);
@@ -728,7 +770,7 @@ function startApp() {
 
     if (Layout.isDocumentPiPSupported()) {
       try {
-        const requestPromise = documentPictureInPicture.requestWindow({ width: 800, height: 600, disallowReturnToOpener: true });
+        const requestPromise = documentPictureInPicture.requestWindow(getPipRequestOptions());
         let timedOut = false;
         const pipWin = await Promise.race([
           requestPromise,
