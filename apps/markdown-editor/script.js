@@ -599,6 +599,14 @@ function startApp() {
     }
   }
 
+  function getPipRequestOptions() {
+    const geom = readPipWindowGeometry();
+    return { width: geom.width, height: geom.height, disallowReturnToOpener: true };
+  }
+
+  // Expose for testing
+  window.__pipWindowGeometry = { read: readPipWindowGeometry, write: writePipWindowGeometry, getRequestOptions: getPipRequestOptions };
+
   // --- Floating panel persistence (separate from md:settings which resets on reload) ---
   const FLOATING_PANEL_KEY = 'md:layout:floatingPanel';
   const FLOATING_PANEL_DEFAULTS = { left: 780, top: 120, height: 450 };
@@ -762,8 +770,7 @@ function startApp() {
 
     if (Layout.isDocumentPiPSupported()) {
       try {
-        const savedGeom = readPipWindowGeometry();
-        const requestPromise = documentPictureInPicture.requestWindow({ width: savedGeom.width, height: savedGeom.height, disallowReturnToOpener: true });
+        const requestPromise = documentPictureInPicture.requestWindow(getPipRequestOptions());
         let timedOut = false;
         const pipWin = await Promise.race([
           requestPromise,
