@@ -531,11 +531,15 @@ body.pip-mode #editor-close-btn {
   display: none !important;
 }
 
+body[data-mode="edit"] #editor-drag-handle,
+body.pip-mode #editor-drag-handle {
+  background: #202124;
+  border-bottom: none;
+}
+
 body.pip-mode #editor-drag-handle {
   display: flex;
   cursor: default;
-  background: #202124;
-  border-bottom: none;
 }
 
 body.pip-mode #editor-drag-handle #editor-drag-label {
@@ -579,19 +583,23 @@ body.pip-mode #editor-pane::after {
 }
 
 /* Document Picture-in-Picture mode: dark theme */
+body[data-mode="edit"] #editor-pane,
 body.pip-mode {
   background-color: #202124;
 }
 
+body[data-mode="edit"] #editor-pane #editor-content-container,
 body.pip-mode #editor-pane,
 body.pip-mode #editor-content-container {
   background-color: transparent;
 }
 
+body[data-mode="edit"] #editor-pane textarea,
 body.pip-mode #editor-pane textarea {
   background-color: transparent;
 }
 
+body[data-mode="edit"] #line-number-gutter,
 body.pip-mode #line-number-gutter {
   background-color: #202124;
   color: #b0b0b0;
@@ -625,16 +633,19 @@ body.pip-mode .editor-inline-code-text {
   color: #ffcc80;
 }
 
-/* Dark scrollbar for PiP window textarea */
+/* Dark scrollbar for edit mode (floating panel and PiP) */
+body[data-mode="edit"] #editor-pane textarea,
 body.pip-mode #editor-pane textarea {
   scrollbar-width: auto;
   scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
 }
 
+body[data-mode="edit"] #editor-pane textarea::-webkit-scrollbar-track,
 body.pip-mode #editor-pane textarea::-webkit-scrollbar-track {
   background: transparent;
 }
 
+body[data-mode="edit"] #editor-pane textarea::-webkit-scrollbar-thumb,
 body.pip-mode #editor-pane textarea::-webkit-scrollbar-thumb {
   background-color: rgba(255, 255, 255, 0.25);
   border-radius: 6px;
@@ -642,6 +653,7 @@ body.pip-mode #editor-pane textarea::-webkit-scrollbar-thumb {
   background-clip: content-box;
 }
 
+body[data-mode="edit"] #editor-pane textarea::-webkit-scrollbar-thumb:hover,
 body.pip-mode #editor-pane textarea::-webkit-scrollbar-thumb:hover {
   background-color: rgba(255, 255, 255, 0.4);
 }
