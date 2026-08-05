@@ -38,33 +38,60 @@ test.describe('Lv4-4: window.__xxx logic tests', () => {
     expect(result.same).toBe(true);
   });
 
-  // Item 2: replaceEditorRange calls execCommand via _editor.ownerDocument
-  test('replaceEditorRange calls execCommand on _editor.ownerDocument', async ({ page }) => {
-    const called = await page.evaluate(() => {
-      const editor = document.querySelector('textarea');
-      editor.value = 'hello world';
-      editor.selectionStart = 0;
-      editor.selectionEnd = 5;
+  // Item 2: replaceEditorRange calls execCommand on _editor.ownerDocument (not the main document)
+  // Verified by swapping _editor to an iframe's textarea and confirming execCommand fires on
+  // the iframe's document, not window.document.
+  test('replaceEditorRange calls execCommand on _editor.ownerDocument (iframe)', async ({ page }) => {
+    const result = await page.evaluate(async () => {
+      // Create a sandboxed iframe so its document differs from the main document
+      const iframe = document.createElement('iframe');
+      document.body.appendChild(iframe);
+      await new Promise(resolve => {
+        iframe.onload = resolve;
+        iframe.src = 'about:blank';
+      });
 
-      let execCommandDoc = null;
-      const orig = document.execCommand.bind(document);
+      const iframeDoc = iframe.contentDocument;
+      const textarea = iframeDoc.createElement('textarea');
+      iframeDoc.body.appendChild(textarea);
+      textarea.value = 'hello world';
+      textarea.focus();
+      textarea.selectionStart = 0;
+      textarea.selectionEnd = 5;
+
+      // Track which document's execCommand is called
+      let mainDocCalled = false;
+      let iframeDocCalled = false;
+      const origMain = document.execCommand.bind(document);
+      const origIframe = iframeDoc.execCommand.bind(iframeDoc);
       document.execCommand = function (cmd, ...args) {
-        if (cmd === 'insertText') execCommandDoc = this;
-        return orig(cmd, ...args);
+        if (cmd === 'insertText') mainDocCalled = true;
+        return origMain(cmd, ...args);
+      };
+      iframeDoc.execCommand = function (cmd, ...args) {
+        if (cmd === 'insertText') iframeDocCalled = true;
+        return origIframe(cmd, ...args);
       };
 
+      const origEditor = document.querySelector('textarea');
+      window.__formattingTest.setEditorForTest(textarea);
       window.__formattingTest.replaceEditorRange(0, 5, 'hi');
-      document.execCommand = orig;
+      window.__formattingTest.restoreEditor(origEditor);
 
-      return execCommandDoc === document;
+      document.execCommand = origMain;
+      iframeDoc.execCommand = origIframe;
+
+      document.body.removeChild(iframe);
+      return { mainDocCalled, iframeDocCalled };
     });
 
-    expect(called).toBe(true);
+    // execCommand must fire on the iframe doc (ownerDocument), NOT on the main document
+    expect(result.iframeDocCalled).toBe(true);
+    expect(result.mainDocCalled).toBe(false);
   });
 
   // Item 3: showFormattingMenu calculates position using ownerDoc.defaultView scroll offsets
   test('showFormattingMenu includes scroll offset in menu position', async ({ page }) => {
-    // Make page tall enough to scroll
     await page.evaluate(() => {
       document.body.style.minHeight = '3000px';
     });
@@ -79,21 +106,20 @@ test.describe('Lv4-4: window.__xxx logic tests', () => {
       return menu ? parseFloat(menu.style.top) : -1;
     });
 
-    // With scrollY=200 and clientY=100, targetTop starts at 200+100=300
+    // With scrollY=200 and clientY=100, targetTop starts at 300
     expect(menuTop).toBeGreaterThanOrEqual(200);
   });
 
   // Item 4: onResize PiP guard — applyEditorRatio must not be called when _isPiP is true
   test('onResize does not call applyEditorRatio when _isPiP is true', async ({ page }) => {
     const callCount = await page.evaluate(() => {
-      // Ensure storedEditorWidthRatio is non-null
       Layout.persistEditorWidthRatio();
 
       let count = 0;
-      window.__layoutTest.onApplyEditorRatio = () => { count++; };
+      window.__layoutTest.setApplyEditorRatioRef(() => { count++; });
       Layout.setPiPMode(true);
       Layout.onResize();
-      window.__layoutTest.onApplyEditorRatio = null;
+      window.__layoutTest.resetApplyEditorRatioRef();
       Layout.setPiPMode(false);
       return count;
     });
@@ -104,20 +130,18 @@ test.describe('Lv4-4: window.__xxx logic tests', () => {
   test('onResize calls applyEditorRatio when _isPiP is false', async ({ page }) => {
     const callCount = await page.evaluate(() => {
       Layout.persistEditorWidthRatio();
-      // Ensure ratio is non-null
       if (window.__layoutTest.getStoredEditorWidthRatio() === null) {
         return -1;
       }
 
       let count = 0;
-      window.__layoutTest.onApplyEditorRatio = () => { count++; };
+      window.__layoutTest.setApplyEditorRatioRef(() => { count++; });
       Layout.setPiPMode(false);
       Layout.onResize();
-      window.__layoutTest.onApplyEditorRatio = null;
+      window.__layoutTest.resetApplyEditorRatioRef();
       return count;
     });
 
-    // -1 means ratio was null (no available width to measure), skip
     if (callCount !== -1) {
       expect(callCount).toBeGreaterThanOrEqual(1);
     }
@@ -139,43 +163,27 @@ test.describe('Lv4-4: window.__xxx logic tests', () => {
     expect(result.savedHTML).toBeTruthy();
     expect(result.savedHTML).toBe(result.currentHTML);
     expect(result.checkHTML).toContain('polyline');
-    // Saved icon and check icon must be distinct
     expect(result.savedHTML).not.toBe(result.checkHTML);
   });
 
-  // Item 6: pip-mode CSS — #editor-pane maintains flex-direction: row and expected padding-top
-  test('body.pip-mode: #editor-pane maintains flex-direction row', async ({ page }) => {
-    await page.evaluate(() => {
-      document.body.classList.add('pip-mode');
-    });
+  // Item 6: PiP inline style string verification via window.__pipStyleTest.build()
+  test('buildPipStyleText does not contain flex-direction:column', async ({ page }) => {
+    const styleText = await page.evaluate(() => window.__pipStyleTest.build());
 
-    const flexDirection = await page.evaluate(() => {
-      return getComputedStyle(document.getElementById('editor-pane')).flexDirection;
-    });
-
-    expect(flexDirection).toBe('row');
-
-    await page.evaluate(() => {
-      document.body.classList.remove('pip-mode');
-    });
+    expect(styleText).not.toContain('flex-direction:column');
+    expect(styleText).not.toContain('flex-direction: column');
   });
 
-  test('body.pip-mode with PiP inline style: #editor-pane has padding-top 28px', async ({ page }) => {
-    await page.evaluate(() => {
-      document.body.classList.add('pip-mode');
-      const pane = document.getElementById('editor-pane');
-      pane.style.setProperty('padding-top', '28px', 'important');
-    });
+  test('buildPipStyleText contains padding-top:28px for #editor-pane', async ({ page }) => {
+    const styleText = await page.evaluate(() => window.__pipStyleTest.build());
 
-    const paddingTop = await page.evaluate(() => {
-      return getComputedStyle(document.getElementById('editor-pane')).paddingTop;
-    });
+    expect(styleText).toContain('padding-top:28px');
+    expect(styleText).toContain('#editor-pane');
+  });
 
-    expect(paddingTop).toBe('28px');
+  test('buildPipStyleText contains display:flex for #editor-pane', async ({ page }) => {
+    const styleText = await page.evaluate(() => window.__pipStyleTest.build());
 
-    await page.evaluate(() => {
-      document.body.classList.remove('pip-mode');
-      document.getElementById('editor-pane').style.removeProperty('padding-top');
-    });
+    expect(styleText).toContain('display:flex');
   });
 });

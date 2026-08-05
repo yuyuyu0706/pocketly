@@ -730,9 +730,12 @@
     }
   };
 
+  // Swappable reference to applyEditorRatio — replaced with a spy during tests.
+  let _applyEditorRatioRef = applyEditorRatio;
+
   const onResize = () => {
     if (!_isFloating && !_isPiP && storedEditorWidthRatio !== null && !isDraggingEditor) {
-      applyEditorRatio(storedEditorWidthRatio);
+      _applyEditorRatioRef(storedEditorWidthRatio);
     }
     syncEditorHighlightPadding();
     syncEditorHighlightScroll();
@@ -866,24 +869,10 @@
     getMirrorElement: () => _mirrorElement,
     getIsPiP: () => _isPiP,
     getStoredEditorWidthRatio: () => storedEditorWidthRatio,
-    // Spy hook: assign a function to be called whenever applyEditorRatio is invoked
-    onApplyEditorRatio: null,
-  };
-
-  const _applyEditorRatioOrig = applyEditorRatio;
-  const applyEditorRatioWithSpy = ratio => {
-    if (typeof global.__layoutTest.onApplyEditorRatio === 'function') {
-      global.__layoutTest.onApplyEditorRatio(ratio);
-    }
-    return _applyEditorRatioOrig(ratio);
-  };
-  // Patch onResize to use the spy-wrapped version
-  const onResizeWithSpy = () => {
-    if (!_isFloating && !_isPiP && storedEditorWidthRatio !== null && !isDraggingEditor) {
-      applyEditorRatioWithSpy(storedEditorWidthRatio);
-    }
-    syncEditorHighlightPadding();
-    syncEditorHighlightScroll();
+    // Replace with a spy function to intercept applyEditorRatio calls from onResize.
+    // Restore to applyEditorRatio when done.
+    setApplyEditorRatioRef: fn => { _applyEditorRatioRef = fn; },
+    resetApplyEditorRatioRef: () => { _applyEditorRatioRef = applyEditorRatio; },
   };
 
   global.Layout = {
@@ -908,7 +897,7 @@
     setLineNumbersEnabled,
     persistEditorWidthRatio,
     restoreEditorWidthRatio,
-    onResize: onResizeWithSpy,
+    onResize,
     isLineNumbersEnabled: () => lineNumbersEnabled,
     setFloating: (value) => { _isFloating = Boolean(value); },
     setPiPMode: (value) => { _isPiP = Boolean(value); },

@@ -949,6 +949,9 @@
     showFormattingMenu,
     getFormattingMenuVisible: () => formattingMenuVisible,
     getOwnerDoc: () => _editor && _editor.ownerDocument,
+    // Swap _editor to a test element (e.g. an iframe's textarea) and restore when done.
+    setEditorForTest: el => { _editor = el; },
+    restoreEditor: origEl => { _editor = origEl; },
   };
 
 }(typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : this));
