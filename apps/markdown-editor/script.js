@@ -127,8 +127,56 @@ function startApp() {
     });
   }
 
+  function applyLoadedContent(result) {
+    // Group B: intentional direct assignment — full-document sync on file load.
+    // execCommand would pollute the undo stack with the entire loaded content as a single entry.
+    editor.value = result;
+    editor.selectionStart = editor.selectionEnd = 0;
+
+    Layout.updateEditorHighlight(result);
+    if (typeof editor.focus === 'function') {
+      try {
+        editor.focus({ preventScroll: true });
+      } catch (err) {
+        editor.focus();
+      }
+    }
+
+    AppState.setText(result, 'editor');
+    adjustTOCPosition();
+    Toc.updateTOCHighlight();
+
+    const resetScrollPositions = () => {
+      editor.scrollTop = 0;
+      Layout.syncEditorHighlightScroll();
+      preview.scrollTop = 0;
+      if (toc) {
+        toc.scrollTop = 0;
+      }
+    };
+
+    resetScrollPositions();
+    requestAnimationFrame(resetScrollPositions);
+    Bus.emit('preview:manual-reset');
+  }
+
   if (openMdBtn && markdownInput) {
     openMdBtn.addEventListener('click', async () => {
+      if (typeof window.showOpenFilePicker === 'function') {
+        try {
+          await closePiPBeforeNativeAction();
+          const [fileHandle] = await window.showOpenFilePicker({
+            types: [{ description: 'Markdown', accept: { 'text/markdown': ['.md'], 'text/plain': ['.md', '.txt'] } }],
+          });
+          Export.setFileHandle(fileHandle);
+          const file = await fileHandle.getFile();
+          const result = await file.text();
+          applyLoadedContent(result);
+          return;
+        } catch (err) {
+          console.warn('[Open] showOpenFilePicker failed, falling back to input.', err);
+        }
+      }
       await closePiPBeforeNativeAction();
       markdownInput.click();
     });
@@ -148,37 +196,7 @@ function startApp() {
           return;
         }
 
-        // Group B: intentional direct assignment — full-document sync on file load.
-        // execCommand would pollute the undo stack with the entire loaded content as a single entry.
-        editor.value = result;
-        editor.selectionStart = editor.selectionEnd = 0;
-
-        Layout.updateEditorHighlight(result);
-        if (typeof editor.focus === 'function') {
-          try {
-            editor.focus({ preventScroll: true });
-          } catch (err) {
-            editor.focus();
-          }
-        }
-
-        AppState.setText(result, 'editor');
-        adjustTOCPosition();
-        Toc.updateTOCHighlight();
-
-        const resetScrollPositions = () => {
-          editor.scrollTop = 0;
-          Layout.syncEditorHighlightScroll();
-          preview.scrollTop = 0;
-          if (toc) {
-            toc.scrollTop = 0;
-          }
-        };
-
-        resetScrollPositions();
-        requestAnimationFrame(resetScrollPositions);
-        Bus.emit('preview:manual-reset');
-
+        applyLoadedContent(result);
         markdownInput.value = '';
       };
 
@@ -521,6 +539,15 @@ function startApp() {
 
   Export.init({ preview, i18n, triggerDownloadFromBlob, AppState, exportPdfBtn, exportHtmlBtn, saveMdBtn, closePiPBeforeNativeAction });
 
+  function onCtrlS(event) {
+    if ((event.ctrlKey || event.metaKey) && event.key === 's') {
+      event.preventDefault();
+      Export.performSave();
+    }
+  }
+
+  document.addEventListener('keydown', onCtrlS);
+
   helpBtn.addEventListener('click', () => {
     helpWindow.classList.toggle('hidden');
   });
@@ -828,6 +855,8 @@ function startApp() {
         }
         setModeAttributes(true);
         Layout.setPiPMode(true);
+
+        pipWin.document.addEventListener('keydown', onCtrlS);
 
         pipWin.addEventListener('pagehide', () => {
           _pipWindow = null;

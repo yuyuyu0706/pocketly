@@ -191,10 +191,59 @@ body {
     return parts.join('\n');
   }
 
+  let _fileHandle = null;
+
+  function setFileHandle(handle) {
+    _fileHandle = handle;
+  }
+
   function init({ preview, i18n, triggerDownloadFromBlob, AppState, exportPdfBtn, exportHtmlBtn, saveMdBtn, closePiPBeforeNativeAction }) {
     const closePiP = typeof closePiPBeforeNativeAction === 'function'
       ? closePiPBeforeNativeAction
       : () => Promise.resolve();
+
+    async function performSave() {
+      const content = AppState.getText();
+      const defaultName = i18n.t('dialogs.defaultFileName');
+      const trimmedName = typeof defaultName === 'string' && defaultName.trim()
+        ? defaultName.trim() : 'document.md';
+      const filename = trimmedName.endsWith('.md') ? trimmedName : `${trimmedName}.md`;
+
+      const fsApi = typeof window !== 'undefined' && typeof window.showSaveFilePicker === 'function';
+      if (fsApi) {
+        try {
+          if (!_fileHandle) {
+            _fileHandle = await window.showSaveFilePicker({
+              suggestedName: filename,
+              types: [{ description: 'Markdown', accept: { 'text/markdown': ['.md'] } }],
+            });
+          }
+          const writable = await _fileHandle.createWritable();
+          await writable.write(content);
+          await writable.close();
+          return;
+        } catch (err) {
+          if (err && err.name === 'AbortError' && _fileHandle) {
+            // User cancelled after handle was stored — discard stored handle and abort
+            _fileHandle = null;
+            return;
+          }
+          console.warn('[Export] File System Access API write failed, falling back.', err);
+          _fileHandle = null;
+        }
+      }
+
+      try {
+        triggerDownloadFromBlob(
+          new Blob([content], { type: 'text/markdown;charset=utf-8' }),
+          filename
+        );
+      } catch (error) {
+        console.error('[Export] Failed to download Markdown file.', error);
+      }
+    }
+
+    global.Export.performSave = performSave;
 
     if (exportPdfBtn) {
       exportPdfBtn.addEventListener('click', async () => {
@@ -282,24 +331,10 @@ body {
     if (saveMdBtn) {
       saveMdBtn.addEventListener('click', async () => {
         await closePiP();
-        const defaultName = i18n.t('dialogs.defaultFileName');
-        const trimmedName =
-          typeof defaultName === 'string' && defaultName.trim()
-            ? defaultName.trim()
-            : 'document.md';
-        const filename = trimmedName.endsWith('.md') ? trimmedName : `${trimmedName}.md`;
-
-        try {
-          triggerDownloadFromBlob(
-            new Blob([AppState.getText()], { type: 'text/markdown;charset=utf-8' }),
-            filename
-          );
-        } catch (error) {
-          console.error('[Export] Failed to download Markdown file.', error);
-        }
+        await performSave();
       });
     }
   }
 
-  global.Export = { init };
+  global.Export = { init, setFileHandle };
 })(typeof window !== 'undefined' ? window : this);
