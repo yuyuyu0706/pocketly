@@ -23,7 +23,7 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test('startup shows Welcome and clears md:text (including empty/invisible values)', async ({
+test('startup shows Welcome when sessionStorage has no meaningful text (including empty/invisible values)', async ({
   page,
 }) => {
   const preview = page.locator('#preview');
@@ -32,27 +32,23 @@ test('startup shows Welcome and clears md:text (including empty/invisible values
   const expectWelcomeState = async () => {
     await expect(preview).toContainText('Welcome to Markdown Editor Blue');
     await expect(editor).toHaveValue(/Welcome to Markdown Editor Blue/);
-    await page.waitForFunction(() => window.localStorage.getItem('md:text') === null);
+    await page.waitForFunction(() => window.sessionStorage.getItem('md:text') === null);
   };
 
-  await test.step('baseline startup renders Welcome and clears md:text', async () => {
+  await test.step('baseline startup renders Welcome with empty sessionStorage', async () => {
     await expect(editor).toBeVisible();
     await expectWelcomeState();
   });
 
-  const presetScenarios = [
-    { description: 'empty string in storage', value: '' },
-    { description: 'only invisible characters in storage', value: '\u200B\u200B\n\u200B' },
-    {
-      description: 'previously saved markdown in storage',
-      value: '# Draft from last time\n\n- line 1\n- line 2',
-    },
+  const emptyScenarios = [
+    { description: 'empty string in sessionStorage', value: '' },
+    { description: 'only invisible characters in sessionStorage', value: '\u200B\u200B\n\u200B' },
   ];
 
-  for (const scenario of presetScenarios) {
+  for (const scenario of emptyScenarios) {
     await test.step(`startup resets when ${scenario.description}`, async () => {
       await page.evaluate(value => {
-        window.localStorage.setItem('md:text', value);
+        window.sessionStorage.setItem('md:text', value);
       }, scenario.value);
 
       await page.reload({ waitUntil: 'load' });
@@ -64,50 +60,58 @@ test('startup shows Welcome and clears md:text (including empty/invisible values
         await page.click('#toggle-mode');
         await expectWelcomeState();
       });
-
-      const typedText = `Temporary editor input after ${scenario.description}`;
-      await test.step('editing and reloading returns to Welcome and clears storage', async () => {
-        await page.fill('#editor', typedText);
-        await page.waitForFunction(
-          expected => window.localStorage.getItem('md:text') === expected,
-          typedText
-        );
-
-        await page.reload({ waitUntil: 'load' });
-        await expectWelcomeState();
-      });
     });
   }
+
+  await test.step('editing text saves to sessionStorage and is restored on reload', async () => {
+    const typedText = 'Temporary editor input for session restore test';
+    await page.fill('#editor', typedText);
+    await page.waitForFunction(
+      expected => window.sessionStorage.getItem('md:text') === expected,
+      typedText
+    );
+
+    await page.reload({ waitUntil: 'load' });
+    await page.click('#toggle-mode');
+    await expect(editor).toHaveValue(typedText);
+    await page.waitForFunction(
+      expected => window.sessionStorage.getItem('md:text') === expected,
+      typedText
+    );
+  });
 });
 
-test('reload resets to welcome note even after saving custom text', async ({ page }) => {
+test('reload restores edited text from sessionStorage within the same session', async ({ page }) => {
   const customText = 'Stored note across reload';
   await page.fill('#editor', customText);
   await page.waitForFunction(text => window.AppState.getText() === text, customText);
   await page.waitForTimeout(400);
   await page.waitForFunction(
-    text => window.localStorage.getItem('md:text') === text,
+    text => window.sessionStorage.getItem('md:text') === text,
     customText
   );
 
   await page.reload();
 
-  await expect(page.locator('#preview')).toContainText('Welcome to Markdown Editor Blue');
-  await expect(page.locator('#editor')).toHaveValue(/Welcome to Markdown Editor Blue/);
-  await page.waitForFunction(() => window.localStorage.getItem('md:text') === null);
+  await expect(page.locator('#preview')).not.toContainText('Welcome to Markdown Editor Blue');
+  await expect(page.locator('#editor')).toHaveValue(customText);
+  await page.waitForFunction(
+    text => window.sessionStorage.getItem('md:text') === text,
+    customText
+  );
   await page.waitForFunction(() => window.localStorage.getItem('md:settings') === null);
 });
 
 test('ignores stored text that only contains invisible characters', async ({ page }) => {
   await page.evaluate(() => {
-    window.localStorage.setItem('md:text', '\u200B\n\u200B');
+    window.sessionStorage.setItem('md:text', '\u200B\n\u200B');
   });
 
   await page.reload();
 
   await expect(page.locator('#preview')).toContainText('Welcome to Markdown Editor Blue');
   await expect(page.locator('#editor')).toHaveValue(/Welcome to Markdown Editor Blue/);
-  await page.waitForFunction(() => window.localStorage.getItem('md:text') === null);
+  await page.waitForFunction(() => window.sessionStorage.getItem('md:text') === null);
   await page.waitForFunction(() => window.localStorage.getItem('md:settings') === null);
 });
 
@@ -123,8 +127,33 @@ test('clears stored text when reloading immediately after emptying editor', asyn
 
   await expect(page.locator('#preview')).toContainText('Welcome to Markdown Editor Blue');
   await expect(page.locator('#editor')).toHaveValue(/Welcome to Markdown Editor Blue/);
-  await page.waitForFunction(() => window.localStorage.getItem('md:text') === null);
+  await page.waitForFunction(() => window.sessionStorage.getItem('md:text') === null);
   await page.waitForFunction(() => window.localStorage.getItem('md:settings') === null);
+});
+
+test('new browser context does not inherit text from a previous session', async ({ browser }) => {
+  const firstContext = await browser.newContext();
+  const firstPage = await firstContext.newPage();
+  await firstPage.goto('/');
+  await firstPage.click('#toggle-mode');
+  const editedText = 'Text from a previous session that should not leak';
+  await firstPage.fill('#editor', editedText);
+  await firstPage.waitForFunction(
+    expected => window.sessionStorage.getItem('md:text') === expected,
+    editedText
+  );
+  await firstContext.close();
+
+  const secondContext = await browser.newContext();
+  try {
+    const secondPage = await secondContext.newPage();
+    await secondPage.goto('/');
+    await secondPage.click('#toggle-mode');
+    await expect(secondPage.locator('#editor')).toHaveValue(/Welcome to Markdown Editor Blue/);
+    await expect(secondPage.locator('#editor')).not.toHaveValue(editedText);
+  } finally {
+    await secondContext.close();
+  }
 });
 
 test('clears stored settings on reload', async ({ page }) => {

@@ -53,6 +53,31 @@
     }
   }
 
+  function safeGetSessionItem(key) {
+    try {
+      return global.sessionStorage.getItem(key);
+    } catch (error) {
+      console.warn('[AppState] Unable to read from sessionStorage.', error);
+      return null;
+    }
+  }
+
+  function safeSetSessionItem(key, value) {
+    try {
+      global.sessionStorage.setItem(key, value);
+    } catch (error) {
+      console.warn('[AppState] Unable to write to sessionStorage.', error);
+    }
+  }
+
+  function safeRemoveSessionItem(key) {
+    try {
+      global.sessionStorage.removeItem(key);
+    } catch (error) {
+      console.warn('[AppState] Unable to remove from sessionStorage.', error);
+    }
+  }
+
   function analyzeText(rawText) {
     const normalized = normalizeText(rawText);
     const stripped = normalized.replace(INERT_TEXT_PATTERN, '');
@@ -63,10 +88,10 @@
   function persistTextValue(text) {
     const { normalized, hasMeaningful } = analyzeText(text);
     if (!hasMeaningful || (fallbackDocText && normalized === fallbackDocText)) {
-      safeRemoveItem(STORAGE_KEYS.text);
+      safeRemoveSessionItem(STORAGE_KEYS.text);
       return;
     }
-    safeSetItem(STORAGE_KEYS.text, normalized);
+    safeSetSessionItem(STORAGE_KEYS.text, normalized);
   }
 
   function scheduleTextPersist(text) {
@@ -147,10 +172,13 @@
       const nextText = normalizeText(initialText);
       fallbackDocText = nextText;
 
-      safeRemoveItem(STORAGE_KEYS.text);
       safeRemoveItem(STORAGE_KEYS.settings);
 
-      state.docText = nextText;
+      const storedRaw = safeGetSessionItem(STORAGE_KEYS.text);
+      const { normalized: restoredText, hasMeaningful } =
+        storedRaw !== null ? analyzeText(storedRaw) : { normalized: '', hasMeaningful: false };
+
+      state.docText = hasMeaningful ? restoredText : nextText;
       state.settings = mergeSettings(initial && initial.settings);
 
       scheduleTextPersist(state.docText);
