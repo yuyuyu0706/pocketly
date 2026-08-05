@@ -674,6 +674,7 @@ function startApp() {
   if (editorCopyBtn) {
     const copyIconHTML = editorCopyBtn.innerHTML;
     const checkIconHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+    window.__copyBtnTest = { getCopyIconHTML: () => copyIconHTML, getCheckIconHTML: () => checkIconHTML, getBtn: () => editorCopyBtn };
     let feedbackTimer = null;
     editorCopyBtn.addEventListener('mousedown', e => e.stopPropagation());
     editorCopyBtn.addEventListener('click', async () => {
@@ -748,6 +749,20 @@ function startApp() {
     _panelRO.observe(editorPane);
   }
 
+  function buildPipStyleText() {
+    return [
+      'body { margin:0; height:100vh; overflow:hidden; }',
+      '#editor-pane {',
+      '  position:static !important; width:100% !important; height:100vh !important;',
+      '  box-shadow:none !important; border:none !important; border-radius:0 !important;',
+      '  resize:none !important; min-width:0 !important; min-height:0 !important;',
+      '  padding-top:28px !important; display:flex !important;',
+      '}',
+    ].join('\n');
+  }
+  // Expose for testing
+  window.__pipStyleTest = { build: buildPipStyleText };
+
   async function applyMode(mode) {
     const isEdit = mode === 'edit';
     const setModeAttributes = edit => {
@@ -791,15 +806,7 @@ function startApp() {
         });
 
         const pipStyle = pipWin.document.createElement('style');
-        pipStyle.textContent = [
-          'body { margin:0; height:100vh; overflow:hidden; }',
-          '#editor-pane {',
-          '  position:static !important; width:100% !important; height:100vh !important;',
-          '  box-shadow:none !important; border:none !important; border-radius:0 !important;',
-          '  resize:none !important; min-width:0 !important; min-height:0 !important;',
-          '  padding-top:28px !important; display:flex !important;',
-          '}',
-        ].join('\n');
+        pipStyle.textContent = buildPipStyleText();
         pipWin.document.head.appendChild(pipStyle);
 
         pipWin.document.body.classList.add('pip-mode');

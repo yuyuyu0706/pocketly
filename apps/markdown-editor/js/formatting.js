@@ -821,12 +821,13 @@
       return;
     }
 
-    const menu = document.createElement('div');
+    const ownerDoc = _editor.ownerDocument || document;
+    const menu = ownerDoc.createElement('div');
     menu.id = 'formatting-menu';
     menu.setAttribute('role', 'menu');
     menu.setAttribute('aria-hidden', 'true');
 
-    const boldButton = document.createElement('button');
+    const boldButton = ownerDoc.createElement('button');
     boldButton.type = 'button';
     boldButton.className = 'formatting-menu-button';
     boldButton.dataset.action = 'bold';
@@ -838,7 +839,7 @@
       hideFormattingMenu();
     });
 
-    const inlineCodeButton = document.createElement('button');
+    const inlineCodeButton = ownerDoc.createElement('button');
     inlineCodeButton.type = 'button';
     inlineCodeButton.className = 'formatting-menu-button';
     inlineCodeButton.dataset.action = 'inline-code';
@@ -850,7 +851,7 @@
       hideFormattingMenu();
     });
 
-    const externalLinkButton = document.createElement('button');
+    const externalLinkButton = ownerDoc.createElement('button');
     externalLinkButton.type = 'button';
     externalLinkButton.className = 'formatting-menu-button';
     externalLinkButton.dataset.action = 'external-link';
@@ -862,7 +863,7 @@
       hideFormattingMenu();
     });
 
-    const copyButton = document.createElement('button');
+    const copyButton = ownerDoc.createElement('button');
     copyButton.type = 'button';
     copyButton.className = 'formatting-menu-button';
     copyButton.dataset.action = 'copy';
@@ -874,7 +875,7 @@
       hideFormattingMenu();
     });
 
-    const cutButton = document.createElement('button');
+    const cutButton = ownerDoc.createElement('button');
     cutButton.type = 'button';
     cutButton.className = 'formatting-menu-button';
     cutButton.dataset.action = 'cut';
@@ -886,7 +887,7 @@
       hideFormattingMenu();
     });
 
-    const pasteButton = document.createElement('button');
+    const pasteButton = ownerDoc.createElement('button');
     pasteButton.type = 'button';
     pasteButton.className = 'formatting-menu-button';
     pasteButton.dataset.action = 'paste';
@@ -905,7 +906,7 @@
     menu.appendChild(copyButton);
     menu.appendChild(cutButton);
     menu.appendChild(pasteButton);
-    document.body.appendChild(menu);
+    ownerDoc.body.appendChild(menu);
     _i18n.applyToDOM(menu);
 
     formattingMenuElement = menu;
@@ -922,7 +923,7 @@
     _editor.addEventListener('select', handleEditorSelect);
     _editor.addEventListener('blur', handleEditorBlur);
 
-    bindDismissListeners(document, window);
+    bindDismissListeners(ownerDoc, ownerDoc.defaultView || window);
   }
 
   function init(deps) {
@@ -940,6 +941,17 @@
     replaceEditorRange,
     onEditorKeydown,
     getFormattingMenuElement: () => formattingMenuElement,
+  };
+
+  // Expose private helpers for unit testing via window.__formattingTest
+  global.__formattingTest = {
+    replaceEditorRange,
+    showFormattingMenu,
+    getFormattingMenuVisible: () => formattingMenuVisible,
+    getOwnerDoc: () => _editor && _editor.ownerDocument,
+    // Swap _editor to a test element (e.g. an iframe's textarea) and restore when done.
+    setEditorForTest: el => { _editor = el; },
+    restoreEditor: origEl => { _editor = origEl; },
   };
 
 }(typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : this));
