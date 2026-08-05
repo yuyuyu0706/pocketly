@@ -131,21 +131,27 @@ test('clears stored text when reloading immediately after emptying editor', asyn
   await page.waitForFunction(() => window.localStorage.getItem('md:settings') === null);
 });
 
-test('new browser context starts with Welcome note regardless of previous session edits', async ({
-  browser,
-}) => {
-  const freshContext = await browser.newContext();
+test('new browser context does not inherit text from a previous session', async ({ browser }) => {
+  const firstContext = await browser.newContext();
+  const firstPage = await firstContext.newPage();
+  await firstPage.goto('/');
+  const editedText = 'Text from a previous session that should not leak';
+  await firstPage.fill('#editor', editedText);
+  await firstPage.waitForFunction(
+    expected => window.sessionStorage.getItem('md:text') === expected,
+    editedText
+  );
+  await firstContext.close();
+
+  const secondContext = await browser.newContext();
   try {
-    const freshPage = await freshContext.newPage();
-    await freshPage.emulateMedia({ reducedMotion: 'reduce' });
-    await freshPage.setViewportSize({ width: 1280, height: 1024 });
-    await freshPage.goto('/');
-    await freshPage.click('#toggle-mode');
-    await expect(freshPage.locator('#preview')).toContainText('Welcome to Markdown Editor Blue');
-    await expect(freshPage.locator('#editor')).toHaveValue(/Welcome to Markdown Editor Blue/);
-    await freshPage.waitForFunction(() => window.sessionStorage.getItem('md:text') === null);
+    const secondPage = await secondContext.newPage();
+    await secondPage.goto('/');
+    await secondPage.click('#toggle-mode');
+    await expect(secondPage.locator('#editor')).toHaveValue(/Welcome to Markdown Editor Blue/);
+    await expect(secondPage.locator('#editor')).not.toHaveValue(editedText);
   } finally {
-    await freshContext.close();
+    await secondContext.close();
   }
 });
 
