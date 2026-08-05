@@ -56,12 +56,14 @@
       return false;
     }
 
+    const ownerDoc = _editor.ownerDocument || document;
+
     if (!editorContentContainer || !editorContentContainer.isConnected) {
-      const existingContainer = document.getElementById('editor-content-container');
+      const existingContainer = ownerDoc.getElementById('editor-content-container');
       if (existingContainer) {
         editorContentContainer = existingContainer;
       } else {
-        const container = document.createElement('div');
+        const container = ownerDoc.createElement('div');
         container.id = 'editor-content-container';
         container.className = 'editor-content-container';
         editorContentContainer = container;
@@ -77,11 +79,11 @@
     }
 
     if (!editorHighlightElement || !editorHighlightElement.isConnected) {
-      const existingHighlight = document.getElementById('editor-highlight');
+      const existingHighlight = ownerDoc.getElementById('editor-highlight');
       if (existingHighlight) {
         editorHighlightElement = existingHighlight;
       } else {
-        const highlight = document.createElement('div');
+        const highlight = ownerDoc.createElement('div');
         highlight.id = 'editor-highlight';
         highlight.setAttribute('aria-hidden', 'true');
         editorHighlightElement = highlight;
@@ -92,7 +94,7 @@
       let highlightContent =
         editorHighlightElement.querySelector('.editor-highlight-content');
       if (!highlightContent) {
-        highlightContent = document.createElement('div');
+        highlightContent = ownerDoc.createElement('div');
         highlightContent.className = 'editor-highlight-content';
         editorHighlightElement.innerHTML = '';
         editorHighlightElement.appendChild(highlightContent);
@@ -590,9 +592,10 @@
     _lineHeightPx = getLineHeightPx();
     const lh = _lineHeightPx;
 
-    const fragment = document.createDocumentFragment();
+    const mirrorDoc = mirror.ownerDocument;
+    const fragment = mirrorDoc.createDocumentFragment();
     for (let i = 0; i < logicalLines.length; i++) {
-      const div = document.createElement('div');
+      const div = mirrorDoc.createElement('div');
       const text = logicalLines[i];
       div.textContent = text.length > 0 ? text : '​';
       fragment.appendChild(div);
@@ -739,16 +742,17 @@
     _divider.addEventListener('mousedown', e => {
       isDraggingEditor = true;
       _lastMouseX = e.clientX;
-      document.body.style.cursor = 'col-resize';
+      document.body.style.cursor = 'col-resize'; // global: drag cursor spans the whole page
       e.preventDefault();
     });
 
     _tocDivider.addEventListener('mousedown', e => {
       isDraggingTOC = true;
-      document.body.style.cursor = 'col-resize';
+      document.body.style.cursor = 'col-resize'; // global: drag cursor spans the whole page
       e.preventDefault();
     });
 
+    // global: mousemove/mouseup must track pointer across the entire page during drag
     document.addEventListener('mousemove', e => {
       const rect = _mainContainer.getBoundingClientRect();
       if (isDraggingEditor) {
@@ -791,12 +795,12 @@
       }
     });
 
-    document.addEventListener('mouseup', () => {
+    document.addEventListener('mouseup', () => { // global: release must fire even if pointer leaves the element
       const wasDraggingEditor = isDraggingEditor;
       if (isDraggingEditor || isDraggingTOC) {
         isDraggingEditor = false;
         isDraggingTOC = false;
-        document.body.style.cursor = '';
+        document.body.style.cursor = ''; // global: restore cursor for the whole page
       }
       if (wasDraggingEditor) {
         persistEditorWidthRatio();
@@ -856,6 +860,32 @@
     return 'documentPictureInPicture' in window && !navigator.webdriver;
   }
 
+  // Expose private helpers for unit testing via window.__layoutTest
+  global.__layoutTest = {
+    ensureMirrorElement,
+    getMirrorElement: () => _mirrorElement,
+    getIsPiP: () => _isPiP,
+    getStoredEditorWidthRatio: () => storedEditorWidthRatio,
+    // Spy hook: assign a function to be called whenever applyEditorRatio is invoked
+    onApplyEditorRatio: null,
+  };
+
+  const _applyEditorRatioOrig = applyEditorRatio;
+  const applyEditorRatioWithSpy = ratio => {
+    if (typeof global.__layoutTest.onApplyEditorRatio === 'function') {
+      global.__layoutTest.onApplyEditorRatio(ratio);
+    }
+    return _applyEditorRatioOrig(ratio);
+  };
+  // Patch onResize to use the spy-wrapped version
+  const onResizeWithSpy = () => {
+    if (!_isFloating && !_isPiP && storedEditorWidthRatio !== null && !isDraggingEditor) {
+      applyEditorRatioWithSpy(storedEditorWidthRatio);
+    }
+    syncEditorHighlightPadding();
+    syncEditorHighlightScroll();
+  };
+
   global.Layout = {
     init,
     isDocumentPiPSupported,
@@ -878,7 +908,7 @@
     setLineNumbersEnabled,
     persistEditorWidthRatio,
     restoreEditorWidthRatio,
-    onResize,
+    onResize: onResizeWithSpy,
     isLineNumbersEnabled: () => lineNumbersEnabled,
     setFloating: (value) => { _isFloating = Boolean(value); },
     setPiPMode: (value) => { _isPiP = Boolean(value); },
