@@ -135,6 +135,7 @@ test('new browser context does not inherit text from a previous session', async 
   const firstContext = await browser.newContext();
   const firstPage = await firstContext.newPage();
   await firstPage.goto('/');
+  await firstPage.click('#toggle-mode');
   const editedText = 'Text from a previous session that should not leak';
   await firstPage.fill('#editor', editedText);
   await firstPage.waitForFunction(
