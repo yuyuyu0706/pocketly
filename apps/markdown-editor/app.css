@@ -644,6 +644,11 @@ body.pip-mode .editor-heading-text {
   color: #5b9dff;
 }
 
+body[data-mode="edit"] .editor-heading-flash,
+body.pip-mode .editor-heading-flash {
+  color: #5b9dff;
+}
+
 body[data-mode="edit"] .editor-comment-text,
 body.pip-mode .editor-comment-text {
   color: #6fcf6f;
