@@ -1,8 +1,6 @@
 (function (global) {
   'use strict';
 
-  console.log('[Export] module loaded', Date.now());
-
   const TARGET_CSS_FILES = ['preview.css', 'document.css'];
 
   const EXPORT_STYLESHEET_FALLBACK_PREVIEW = String.raw`
@@ -193,17 +191,10 @@ body {
     return parts.join('\n');
   }
 
-  let _fileHandleRaw = null;
-  const _fileHandleWatcher = {
-    get value() { return _fileHandleRaw; },
-    set value(v) {
-      console.log('[Export] _fileHandle SET to:', v, new Error().stack);
-      _fileHandleRaw = v;
-    },
-  };
+  let _fileHandle = null;
 
   function setFileHandle(handle) {
-    _fileHandleWatcher.value = handle;
+    _fileHandle = handle;
   }
 
   function init({ preview, i18n, triggerDownloadFromBlob, AppState, exportPdfBtn, exportHtmlBtn, saveMdBtn, closePiPBeforeNativeAction }) {
@@ -212,7 +203,6 @@ body {
       : () => Promise.resolve();
 
     async function performSave() {
-      console.log('[Export] performSave called. current _fileHandle:', _fileHandleWatcher.value);
       const content = AppState.getText();
       const defaultName = i18n.t('dialogs.defaultFileName');
       const trimmedName = typeof defaultName === 'string' && defaultName.trim()
@@ -222,23 +212,23 @@ body {
       const fsApi = typeof window !== 'undefined' && typeof window.showSaveFilePicker === 'function';
       if (fsApi) {
         try {
-          if (!_fileHandleWatcher.value) {
-            _fileHandleWatcher.value = await window.showSaveFilePicker({
+          if (!_fileHandle) {
+            _fileHandle = await window.showSaveFilePicker({
               suggestedName: filename,
               types: [{ description: 'Markdown', accept: { 'text/markdown': ['.md'] } }],
             });
           }
-          const writable = await _fileHandleWatcher.value.createWritable();
+          const writable = await _fileHandle.createWritable();
           await writable.write(content);
           await writable.close();
           return;
         } catch (err) {
-          if (err && err.name === 'AbortError' && _fileHandleWatcher.value) {
+          if (err && err.name === 'AbortError' && _fileHandle) {
             console.warn('[Export] Write aborted on existing file handle, will retry via file picker.', err);
-            _fileHandleWatcher.value = null;
+            _fileHandle = null;
           } else {
             console.warn('[Export] File System Access API write failed, falling back.', err);
-            _fileHandleWatcher.value = null;
+            _fileHandle = null;
           }
         }
       }
