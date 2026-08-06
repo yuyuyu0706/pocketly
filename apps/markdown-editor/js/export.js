@@ -1,6 +1,8 @@
 (function (global) {
   'use strict';
 
+  console.log('[Export] module loaded', Date.now());
+
   const TARGET_CSS_FILES = ['preview.css', 'document.css'];
 
   const EXPORT_STYLESHEET_FALLBACK_PREVIEW = String.raw`
@@ -203,6 +205,7 @@ body {
       : () => Promise.resolve();
 
     async function performSave() {
+      console.log('[Export] performSave called. current _fileHandle:', _fileHandle);
       const content = AppState.getText();
       const defaultName = i18n.t('dialogs.defaultFileName');
       const trimmedName = typeof defaultName === 'string' && defaultName.trim()
