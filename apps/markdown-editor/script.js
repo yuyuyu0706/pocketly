@@ -127,6 +127,14 @@ function startApp() {
     });
   }
 
+  let _isDirty = false;
+
+  function updateSaveBtnLabel() {
+    if (!saveMdBtn) return;
+    const base = i18n.t('toolbar.save');
+    saveMdBtn.textContent = _isDirty ? base + i18n.t('toolbar.saveUnsaved') : base;
+  }
+
   function applyLoadedContent(result) {
     // Group B: intentional direct assignment — full-document sync on file load.
     // execCommand would pollute the undo stack with the entire loaded content as a single entry.
@@ -158,6 +166,8 @@ function startApp() {
     resetScrollPositions();
     requestAnimationFrame(resetScrollPositions);
     Bus.emit('preview:manual-reset');
+    _isDirty = false;
+    updateSaveBtnLabel();
   }
 
   if (openMdBtn && markdownInput) {
@@ -425,6 +435,7 @@ function startApp() {
     }
     adjustTOCPosition();
     Layout.updateLineNumberButtonLabel();
+    updateSaveBtnLabel();
   });
 
   Preview.init();
@@ -491,14 +502,6 @@ function startApp() {
     Preview.render(text);
     Toc.buildTOC();
     Toc.updateTOCHighlight();
-  }
-
-  let _isDirty = false;
-
-  function updateSaveBtnLabel() {
-    if (!saveMdBtn) return;
-    const base = i18n.t('toolbar.save');
-    saveMdBtn.textContent = _isDirty ? base + i18n.t('toolbar.saveUnsaved') : base;
   }
 
   editor.addEventListener('input', () => {
