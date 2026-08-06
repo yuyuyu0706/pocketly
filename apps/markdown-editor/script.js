@@ -127,8 +127,66 @@ function startApp() {
     });
   }
 
+  let _isDirty = false;
+
+  function updateSaveBtnLabel() {
+    if (!saveMdBtn) return;
+    const base = i18n.t('toolbar.save');
+    saveMdBtn.textContent = _isDirty ? base + i18n.t('toolbar.saveUnsaved') : base;
+  }
+
+  function applyLoadedContent(result) {
+    // Group B: intentional direct assignment — full-document sync on file load.
+    // execCommand would pollute the undo stack with the entire loaded content as a single entry.
+    editor.value = result;
+    editor.selectionStart = editor.selectionEnd = 0;
+
+    Layout.updateEditorHighlight(result);
+    if (typeof editor.focus === 'function') {
+      try {
+        editor.focus({ preventScroll: true });
+      } catch (err) {
+        editor.focus();
+      }
+    }
+
+    AppState.setText(result, 'editor');
+    adjustTOCPosition();
+    Toc.updateTOCHighlight();
+
+    const resetScrollPositions = () => {
+      editor.scrollTop = 0;
+      Layout.syncEditorHighlightScroll();
+      preview.scrollTop = 0;
+      if (toc) {
+        toc.scrollTop = 0;
+      }
+    };
+
+    resetScrollPositions();
+    requestAnimationFrame(resetScrollPositions);
+    Bus.emit('preview:manual-reset');
+    _isDirty = false;
+    updateSaveBtnLabel();
+  }
+
   if (openMdBtn && markdownInput) {
     openMdBtn.addEventListener('click', async () => {
+      if (typeof window.showOpenFilePicker === 'function') {
+        try {
+          await closePiPBeforeNativeAction();
+          const [fileHandle] = await window.showOpenFilePicker({
+            types: [{ description: 'Markdown', accept: { 'text/markdown': ['.md'], 'text/plain': ['.md', '.txt'] } }],
+          });
+          Export.setFileHandle(fileHandle);
+          const file = await fileHandle.getFile();
+          const result = await file.text();
+          applyLoadedContent(result);
+          return;
+        } catch (err) {
+          console.warn('[Open] showOpenFilePicker failed, falling back to input.', err);
+        }
+      }
       await closePiPBeforeNativeAction();
       markdownInput.click();
     });
@@ -148,37 +206,7 @@ function startApp() {
           return;
         }
 
-        // Group B: intentional direct assignment — full-document sync on file load.
-        // execCommand would pollute the undo stack with the entire loaded content as a single entry.
-        editor.value = result;
-        editor.selectionStart = editor.selectionEnd = 0;
-
-        Layout.updateEditorHighlight(result);
-        if (typeof editor.focus === 'function') {
-          try {
-            editor.focus({ preventScroll: true });
-          } catch (err) {
-            editor.focus();
-          }
-        }
-
-        AppState.setText(result, 'editor');
-        adjustTOCPosition();
-        Toc.updateTOCHighlight();
-
-        const resetScrollPositions = () => {
-          editor.scrollTop = 0;
-          Layout.syncEditorHighlightScroll();
-          preview.scrollTop = 0;
-          if (toc) {
-            toc.scrollTop = 0;
-          }
-        };
-
-        resetScrollPositions();
-        requestAnimationFrame(resetScrollPositions);
-        Bus.emit('preview:manual-reset');
-
+        applyLoadedContent(result);
         markdownInput.value = '';
       };
 
@@ -407,6 +435,7 @@ function startApp() {
     }
     adjustTOCPosition();
     Layout.updateLineNumberButtonLabel();
+    updateSaveBtnLabel();
   });
 
   Preview.init();
@@ -480,6 +509,8 @@ function startApp() {
     Layout.stopEditorHeadingHighlight();
     AppState.setText(editor.value, 'editor');
     Layout.scheduleUpdateLineNumbers();
+    _isDirty = true;
+    updateSaveBtnLabel();
   });
   editor.addEventListener('scroll', () => {
     Formatting.hideFormattingMenu();
@@ -519,7 +550,16 @@ function startApp() {
     reader.readAsDataURL(file);
   });
 
-  Export.init({ preview, i18n, triggerDownloadFromBlob, AppState, exportPdfBtn, exportHtmlBtn, saveMdBtn, closePiPBeforeNativeAction });
+  Export.init({ preview, i18n, triggerDownloadFromBlob, AppState, exportPdfBtn, exportHtmlBtn, saveMdBtn, closePiPBeforeNativeAction, onSaveSuccess: () => { _isDirty = false; updateSaveBtnLabel(); } });
+
+  function onCtrlS(event) {
+    if ((event.ctrlKey || event.metaKey) && event.key === 's') {
+      event.preventDefault();
+      Export.performSave();
+    }
+  }
+
+  document.addEventListener('keydown', onCtrlS);
 
   helpBtn.addEventListener('click', () => {
     helpWindow.classList.toggle('hidden');
@@ -828,6 +868,8 @@ function startApp() {
         }
         setModeAttributes(true);
         Layout.setPiPMode(true);
+
+        pipWin.document.addEventListener('keydown', onCtrlS);
 
         pipWin.addEventListener('pagehide', () => {
           _pipWindow = null;

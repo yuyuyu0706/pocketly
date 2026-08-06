@@ -5,6 +5,7 @@
   "toolbar": {
     "open": "📂 開く",
     "save": "💾 保存",
+    "saveUnsaved": "（未保存）",
     "exportPdf": "📄 PDF出力",
     "exportHtml": "🌐 HTML出力",
     "insertImage": "🖼 画像を挿入",

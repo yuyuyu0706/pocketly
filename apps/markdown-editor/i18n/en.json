@@ -5,6 +5,7 @@
   "toolbar": {
     "open": "📂 Open",
     "save": "💾 Save",
+    "saveUnsaved": " (unsaved)",
     "exportPdf": "📄 Export PDF",
     "exportHtml": "🌐 Export HTML",
     "insertImage": "🖼 Insert Image",
