@@ -224,12 +224,12 @@ body {
           return;
         } catch (err) {
           if (err && err.name === 'AbortError' && _fileHandle) {
-            // User cancelled after handle was stored — discard stored handle and abort
+            console.warn('[Export] Write aborted on existing file handle, will retry via file picker.', err);
             _fileHandle = null;
-            return;
+          } else {
+            console.warn('[Export] File System Access API write failed, falling back.', err);
+            _fileHandle = null;
           }
-          console.warn('[Export] File System Access API write failed, falling back.', err);
-          _fileHandle = null;
         }
       }
 
