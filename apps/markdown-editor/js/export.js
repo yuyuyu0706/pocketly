@@ -197,7 +197,7 @@ body {
   const _fileHandleWatcher = {
     get value() { return _fileHandleRaw; },
     set value(v) {
-      console.trace('[Export] _fileHandle SET to:', v);
+      console.log('[Export] _fileHandle SET to:', v, new Error().stack);
       _fileHandleRaw = v;
     },
   };
