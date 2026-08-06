@@ -193,10 +193,17 @@ body {
     return parts.join('\n');
   }
 
-  let _fileHandle = null;
+  let _fileHandleRaw = null;
+  const _fileHandleWatcher = {
+    get value() { return _fileHandleRaw; },
+    set value(v) {
+      console.trace('[Export] _fileHandle SET to:', v);
+      _fileHandleRaw = v;
+    },
+  };
 
   function setFileHandle(handle) {
-    _fileHandle = handle;
+    _fileHandleWatcher.value = handle;
   }
 
   function init({ preview, i18n, triggerDownloadFromBlob, AppState, exportPdfBtn, exportHtmlBtn, saveMdBtn, closePiPBeforeNativeAction }) {
@@ -205,7 +212,7 @@ body {
       : () => Promise.resolve();
 
     async function performSave() {
-      console.log('[Export] performSave called. current _fileHandle:', _fileHandle);
+      console.log('[Export] performSave called. current _fileHandle:', _fileHandleWatcher.value);
       const content = AppState.getText();
       const defaultName = i18n.t('dialogs.defaultFileName');
       const trimmedName = typeof defaultName === 'string' && defaultName.trim()
@@ -215,23 +222,23 @@ body {
       const fsApi = typeof window !== 'undefined' && typeof window.showSaveFilePicker === 'function';
       if (fsApi) {
         try {
-          if (!_fileHandle) {
-            _fileHandle = await window.showSaveFilePicker({
+          if (!_fileHandleWatcher.value) {
+            _fileHandleWatcher.value = await window.showSaveFilePicker({
               suggestedName: filename,
               types: [{ description: 'Markdown', accept: { 'text/markdown': ['.md'] } }],
             });
           }
-          const writable = await _fileHandle.createWritable();
+          const writable = await _fileHandleWatcher.value.createWritable();
           await writable.write(content);
           await writable.close();
           return;
         } catch (err) {
-          if (err && err.name === 'AbortError' && _fileHandle) {
+          if (err && err.name === 'AbortError' && _fileHandleWatcher.value) {
             console.warn('[Export] Write aborted on existing file handle, will retry via file picker.', err);
-            _fileHandle = null;
+            _fileHandleWatcher.value = null;
           } else {
             console.warn('[Export] File System Access API write failed, falling back.', err);
-            _fileHandle = null;
+            _fileHandleWatcher.value = null;
           }
         }
       }
