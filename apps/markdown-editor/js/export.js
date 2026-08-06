@@ -197,7 +197,7 @@ body {
     _fileHandle = handle;
   }
 
-  function init({ preview, i18n, triggerDownloadFromBlob, AppState, exportPdfBtn, exportHtmlBtn, saveMdBtn, closePiPBeforeNativeAction }) {
+  function init({ preview, i18n, triggerDownloadFromBlob, AppState, exportPdfBtn, exportHtmlBtn, saveMdBtn, closePiPBeforeNativeAction, onSaveSuccess }) {
     const closePiP = typeof closePiPBeforeNativeAction === 'function'
       ? closePiPBeforeNativeAction
       : () => Promise.resolve();
@@ -221,8 +221,12 @@ body {
           const writable = await _fileHandle.createWritable();
           await writable.write(content);
           await writable.close();
+          if (typeof onSaveSuccess === 'function') onSaveSuccess();
           return;
         } catch (err) {
+          if (err && err.name === 'AbortError' && !_fileHandle) {
+            return;
+          }
           if (err && err.name === 'AbortError' && _fileHandle) {
             console.warn('[Export] Write aborted on existing file handle, will retry via file picker.', err);
             _fileHandle = null;
@@ -238,6 +242,7 @@ body {
           new Blob([content], { type: 'text/markdown;charset=utf-8' }),
           filename
         );
+        if (typeof onSaveSuccess === 'function') onSaveSuccess();
       } catch (error) {
         console.error('[Export] Failed to download Markdown file.', error);
       }

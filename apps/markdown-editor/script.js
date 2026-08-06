@@ -493,11 +493,21 @@ function startApp() {
     Toc.updateTOCHighlight();
   }
 
+  let _isDirty = false;
+
+  function updateSaveBtnLabel() {
+    if (!saveMdBtn) return;
+    const base = i18n.t('toolbar.save');
+    saveMdBtn.textContent = _isDirty ? base + i18n.t('toolbar.saveUnsaved') : base;
+  }
+
   editor.addEventListener('input', () => {
     Formatting.hideFormattingMenu();
     Layout.stopEditorHeadingHighlight();
     AppState.setText(editor.value, 'editor');
     Layout.scheduleUpdateLineNumbers();
+    _isDirty = true;
+    updateSaveBtnLabel();
   });
   editor.addEventListener('scroll', () => {
     Formatting.hideFormattingMenu();
@@ -537,7 +547,7 @@ function startApp() {
     reader.readAsDataURL(file);
   });
 
-  Export.init({ preview, i18n, triggerDownloadFromBlob, AppState, exportPdfBtn, exportHtmlBtn, saveMdBtn, closePiPBeforeNativeAction });
+  Export.init({ preview, i18n, triggerDownloadFromBlob, AppState, exportPdfBtn, exportHtmlBtn, saveMdBtn, closePiPBeforeNativeAction, onSaveSuccess: () => { _isDirty = false; updateSaveBtnLabel(); } });
 
   function onCtrlS(event) {
     if ((event.ctrlKey || event.metaKey) && event.key === 's') {

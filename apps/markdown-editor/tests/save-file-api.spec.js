@@ -193,4 +193,125 @@ test.describe('File System Access API: save', () => {
     const written = await page.evaluate(() => window.__mockWritable.written);
     expect(written).toBe('from open file');
   });
+
+  test('cancelling the picker does not trigger blob download fallback', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.__downloadTriggered = false;
+      window.showSaveFilePicker = async () => {
+        const err = new DOMException('The user aborted a request.', 'AbortError');
+        throw err;
+      };
+      const origCreate = document.createElement.bind(document);
+      document.createElement = function(tag) {
+        const el = origCreate(tag);
+        if (tag === 'a') {
+          const origClick = el.click.bind(el);
+          el.click = function() {
+            if (el.download) window.__downloadTriggered = true;
+            origClick();
+          };
+        }
+        return el;
+      };
+    });
+
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+
+    await page.evaluate(() => Export.performSave());
+    await page.waitForTimeout(200);
+
+    const triggered = await page.evaluate(() => window.__downloadTriggered);
+    expect(triggered).toBe(false);
+  });
+
+  test('save button shows unsaved indicator after editor input', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.__mockWritable = {
+        write() { return Promise.resolve(); },
+        close() { return Promise.resolve(); },
+      };
+      window.__mockFileHandle = {
+        createWritable() { return Promise.resolve(window.__mockWritable); },
+      };
+      window.showSaveFilePicker = async () => window.__mockFileHandle;
+    });
+
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+
+    const btnBefore = await page.locator('#save-md').textContent();
+    expect(btnBefore).not.toContain('unsaved');
+    expect(btnBefore).not.toContain('未保存');
+
+    await page.evaluate(() => {
+      const ed = document.getElementById('editor');
+      ed.value += 'x';
+      ed.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await page.waitForTimeout(100);
+
+    const btnAfter = await page.locator('#save-md').textContent();
+    expect(btnAfter).toMatch(/unsaved|未保存/);
+  });
+
+  test('save button clears unsaved indicator after successful save', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.__mockWritable = {
+        write() { return Promise.resolve(); },
+        close() { return Promise.resolve(); },
+      };
+      window.__mockFileHandle = {
+        createWritable() { return Promise.resolve(window.__mockWritable); },
+      };
+      window.showSaveFilePicker = async () => window.__mockFileHandle;
+    });
+
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+
+    await page.evaluate(() => {
+      const ed = document.getElementById('editor');
+      ed.value += 'x';
+      ed.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await page.waitForTimeout(100);
+
+    const btnDirty = await page.locator('#save-md').textContent();
+    expect(btnDirty).toMatch(/unsaved|未保存/);
+
+    await page.evaluate(() => Export.performSave());
+    await page.waitForTimeout(200);
+
+    const btnClean = await page.locator('#save-md').textContent();
+    expect(btnClean).not.toContain('unsaved');
+    expect(btnClean).not.toContain('未保存');
+  });
+
+  test('cancelling picker does not change unsaved indicator', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.showSaveFilePicker = async () => {
+        throw new DOMException('The user aborted a request.', 'AbortError');
+      };
+    });
+
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+
+    await page.evaluate(() => {
+      const ed = document.getElementById('editor');
+      ed.value += 'x';
+      ed.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await page.waitForTimeout(100);
+
+    const btnDirty = await page.locator('#save-md').textContent();
+    expect(btnDirty).toMatch(/unsaved|未保存/);
+
+    await page.evaluate(() => Export.performSave());
+    await page.waitForTimeout(200);
+
+    const btnStillDirty = await page.locator('#save-md').textContent();
+    expect(btnStillDirty).toMatch(/unsaved|未保存/);
+  });
 });

@@ -319,6 +319,7 @@ test('divider persists width ratio after reload', async ({ page }) => {
 });
 
 test('saves markdown to file', async ({ page }) => {
+  await page.addInitScript(() => { delete window.showSaveFilePicker; });
   await page.goto('/');
   await page.click('#toggle-mode');
   const [download] = await Promise.all([
