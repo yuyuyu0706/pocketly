@@ -394,13 +394,13 @@ main {
 }
 
 #toc {
-  width: 230px;
+  width: 260px;
   padding: 1rem;
   overflow-y: auto;
   background-color: #f6faff;
   border-right: 1px solid #aac8ff;
   color: #88b4ff;
-  font-size: 0.95rem;
+  font-size: 1.05rem;
   position: sticky;
   top: var(--header-offset, 0);
   height: calc(100vh - var(--header-offset, 0));
