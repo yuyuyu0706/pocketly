@@ -459,6 +459,19 @@ main {
   font-weight: bold;
 }
 
+#toc .toc-item[data-level="3"] > ul {
+  display: none;
+}
+
+#toc .toc-item[data-level="3"].expanded > ul {
+  display: block;
+}
+
+#toc .toc-item.active-ancestor > .toc-label {
+  color: #3d7bd6;
+  font-weight: 500;
+}
+
 #help-window {
   position: fixed;
   bottom: 1rem;
