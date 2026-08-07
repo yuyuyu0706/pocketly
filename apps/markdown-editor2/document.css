@@ -1,0 +1,35 @@
+/* Print and export only */
+@media print {
+  @page {
+    margin: 1cm;
+  }
+
+  html,
+  body {
+    height: auto;
+    overflow: visible;
+  }
+
+  #preview {
+    height: auto;
+    overflow: visible;
+  }
+
+  pre {
+    white-space: pre-wrap;
+    overflow-x: visible;
+    break-inside: avoid;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    break-after: avoid;
+  }
+
+  p, blockquote, li {
+    break-inside: avoid;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+}
