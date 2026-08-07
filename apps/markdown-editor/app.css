@@ -26,7 +26,6 @@ body {
   gap: 1rem;
   padding: 0.75rem 1.5rem;
   background-color: #cde1ff;
-  border-bottom: 1px solid #aac8ff;
   position: relative;
   z-index: 300;
 }
@@ -406,6 +405,7 @@ main {
   height: calc(100vh - var(--header-offset, 0));
   flex-shrink: 0;
   align-self: flex-start;
+  box-sizing: border-box;
 }
 
 /* Firefox */

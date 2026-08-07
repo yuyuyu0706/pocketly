@@ -780,7 +780,7 @@
         }
       } else if (isDraggingTOC) {
         const dividerWidth = _tocDivider.offsetWidth;
-        let newTocWidth = e.clientX - rect.left;
+        let newTocWidth = e.clientX - rect.left - dividerWidth / 2;
         const editorOuterWidth = _editorPane ? _editorPane.offsetWidth : _editor.offsetWidth;
         const padding = getEditorHorizontalPadding();
         const gutterWidth = getLineNumberGutterWidth();
