@@ -411,7 +411,7 @@ main {
 /* Firefox */
 #toc {
   scrollbar-width: thin;
-  scrollbar-color: rgba(140, 170, 220, 0.35) transparent;
+  scrollbar-color: rgba(140, 170, 220, 0.22) transparent;
 }
 
 /* Chrome / Edge */
@@ -424,12 +424,12 @@ main {
 }
 
 #toc::-webkit-scrollbar-thumb {
-  background-color: rgba(140, 170, 220, 0.35);
+  background-color: rgba(140, 170, 220, 0.22);
   border-radius: 6px;
 }
 
 #toc::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(140, 170, 220, 0.45);
+  background-color: rgba(140, 170, 220, 0.3);
 }
 
 #toc ul {
