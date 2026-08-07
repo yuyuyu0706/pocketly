@@ -454,7 +454,7 @@ main {
   text-overflow: ellipsis;
 }
 
-#toc .toc-item.active .toc-label {
+#toc .toc-item.active > .toc-label {
   color: #0055aa;
   font-weight: bold;
 }
