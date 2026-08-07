@@ -408,7 +408,7 @@ main {
 }
 
 #toc::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(140, 170, 220, 0.55);
+  background-color: rgba(140, 170, 220, 0.45);
 }
 
 #toc ul {
