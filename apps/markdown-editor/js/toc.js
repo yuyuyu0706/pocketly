@@ -298,7 +298,18 @@
   function setActiveTocItem(id) {
     tocItems.forEach(item => {
       item.classList.toggle('active', item.dataset.target === id);
+      item.classList.remove('active-ancestor');
     });
+    const activeItem = Array.from(tocItems).find(item => item.dataset.target === id);
+    if (activeItem) {
+      const level = activeItem.dataset.level;
+      if (level && level !== '1' && level !== '2' && level !== '3') {
+        const ancestor = activeItem.closest('.toc-item[data-level="3"]');
+        if (ancestor) {
+          ancestor.classList.add('active-ancestor');
+        }
+      }
+    }
   }
 
   function updateTOCHighlight() {
@@ -314,7 +325,18 @@
     }
     tocItems.forEach(item => {
       item.classList.toggle('active', item.dataset.target === currentId);
+      item.classList.remove('active-ancestor');
     });
+    const activeItem = Array.from(tocItems).find(item => item.dataset.target === currentId);
+    if (activeItem) {
+      const level = activeItem.dataset.level;
+      if (level && level !== '1' && level !== '2' && level !== '3') {
+        const ancestor = activeItem.closest('.toc-item[data-level="3"]');
+        if (ancestor) {
+          ancestor.classList.add('active-ancestor');
+        }
+      }
+    }
     updateCursorHeadingHighlight();
   }
 
@@ -392,11 +414,12 @@
       }
     });
 
+    const tocHeadingPositions = headingPositions.filter(hp => hp.level <= 4);
     const root = document.createElement('ul');
     const stack = [root];
     let currentLevel = 1;
 
-    headingPositions.forEach(({ level, text, id }) => {
+    tocHeadingPositions.forEach(({ level, text, id }) => {
       if (level > currentLevel) {
         for (let i = currentLevel; i < level; i++) {
           const ul = document.createElement('ul');
@@ -417,6 +440,7 @@
       const li = document.createElement('li');
       li.className = 'toc-item';
       li.dataset.target = id;
+      li.dataset.level = String(level);
       const label = document.createElement('span');
       label.className = 'toc-label';
       label.textContent = text;
@@ -438,6 +462,18 @@
         const targetId = item.dataset.target;
         if (!targetId) {
           return;
+        }
+
+        if (item.dataset.level === '3') {
+          const wasExpanded = item.classList.contains('expanded');
+          tocItems.forEach(other => {
+            if (other.dataset.level === '3') {
+              other.classList.remove('expanded');
+            }
+          });
+          if (!wasExpanded) {
+            item.classList.add('expanded');
+          }
         }
 
         _Bus.emit('toc:jump', { id: targetId });
