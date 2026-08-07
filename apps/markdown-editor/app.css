@@ -340,9 +340,29 @@ main {
 #divider,
 #toc-divider {
   width: 5px;
-  background-color: #c2dbff;
+  background-color: transparent;
   cursor: col-resize;
   flex-shrink: 0;
+  position: relative;
+}
+
+#divider::after,
+#toc-divider::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background-color: #d6e4ff;
+  transform: translateX(-50%);
+  transition: background-color 0.15s ease, width 0.15s ease;
+}
+
+#divider:hover::after,
+#toc-divider:hover::after {
+  width: 3px;
+  background-color: #8fb8ff;
 }
 
 /* Shell constraints for #preview (layout/overflow); document appearance is in preview.css */
