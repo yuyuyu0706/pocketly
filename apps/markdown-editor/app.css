@@ -387,6 +387,30 @@ main {
   align-self: flex-start;
 }
 
+/* Firefox */
+#toc {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(140, 170, 220, 0.35) transparent;
+}
+
+/* Chrome / Edge */
+#toc::-webkit-scrollbar {
+  width: 6px;
+}
+
+#toc::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#toc::-webkit-scrollbar-thumb {
+  background-color: rgba(140, 170, 220, 0.35);
+  border-radius: 6px;
+}
+
+#toc::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(140, 170, 220, 0.55);
+}
+
 #toc ul {
   list-style: none;
   padding-left: 1rem;
