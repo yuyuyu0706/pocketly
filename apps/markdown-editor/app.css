@@ -370,6 +370,27 @@ main {
   flex: 1;
   height: 100%;
   overflow: auto;
+  /* Firefox */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(140, 170, 220, 0.35) transparent;
+}
+
+/* Chrome / Edge */
+#preview::-webkit-scrollbar {
+  width: 6px;
+}
+
+#preview::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#preview::-webkit-scrollbar-thumb {
+  background-color: rgba(140, 170, 220, 0.35);
+  border-radius: 6px;
+}
+
+#preview::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(140, 170, 220, 0.42);
 }
 
 #toc {
@@ -385,6 +406,30 @@ main {
   height: calc(100vh - var(--header-offset, 0));
   flex-shrink: 0;
   align-self: flex-start;
+}
+
+/* Firefox */
+#toc {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(140, 170, 220, 0.22) transparent;
+}
+
+/* Chrome / Edge */
+#toc::-webkit-scrollbar {
+  width: 6px;
+}
+
+#toc::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#toc::-webkit-scrollbar-thumb {
+  background-color: rgba(140, 170, 220, 0.22);
+  border-radius: 6px;
+}
+
+#toc::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(140, 170, 220, 0.3);
 }
 
 #toc ul {
