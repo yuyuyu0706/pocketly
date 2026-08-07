@@ -414,11 +414,12 @@
       }
     });
 
+    const tocHeadingPositions = headingPositions.filter(hp => hp.level <= 4);
     const root = document.createElement('ul');
     const stack = [root];
     let currentLevel = 1;
 
-    headingPositions.forEach(({ level, text, id }) => {
+    tocHeadingPositions.forEach(({ level, text, id }) => {
       if (level > currentLevel) {
         for (let i = currentLevel; i < level; i++) {
           const ul = document.createElement('ul');
