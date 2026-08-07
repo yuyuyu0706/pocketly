@@ -405,6 +405,7 @@ main {
   height: calc(100vh - var(--header-offset, 0));
   flex-shrink: 0;
   align-self: flex-start;
+  box-sizing: border-box;
 }
 
 /* Firefox */
