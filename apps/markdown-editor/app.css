@@ -452,6 +452,12 @@ main {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  border-radius: 4px;
+  transition: background-color 0.15s ease;
+}
+
+#toc .toc-label:hover {
+  background-color: rgba(140, 170, 220, 0.12);
 }
 
 #toc .toc-item.active > .toc-label {
@@ -470,6 +476,25 @@ main {
 #toc .toc-item.active-ancestor > .toc-label {
   color: #3d7bd6;
   font-weight: 500;
+}
+
+#toc .toc-item[data-level="3"]:has(> ul) > .toc-label {
+  position: relative;
+  padding-right: 1.2em;
+}
+
+#toc .toc-item[data-level="3"]:has(> ul) > .toc-label::after {
+  content: '›';
+  position: absolute;
+  right: 0.2em;
+  top: 50%;
+  transform: translateY(-50%);
+  transition: transform 0.15s ease;
+  color: #88b4ff;
+}
+
+#toc .toc-item[data-level="3"].expanded > .toc-label::after {
+  transform: translateY(-50%) rotate(90deg);
 }
 
 #help-window {
