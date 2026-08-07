@@ -68,7 +68,7 @@ test('clicking level 3 expands its children (level 4+)', async ({ page }) => {
   const item4A1 = page.locator('#toc .toc-item[data-level="4"]').first();
 
   await expect(item4A1).not.toBeVisible();
-  await item3A.locator('.toc-label').click();
+  await item3A.locator('> .toc-label').click();
   await expect(item4A1).toBeVisible();
 });
 
@@ -80,10 +80,10 @@ test('accordion: clicking another level 3 closes the first and opens the new one
   const item4A1 = page.locator('#toc .toc-item[data-level="4"]').first();
   const item4B1 = page.locator('#toc .toc-item[data-level="4"]').nth(2);
 
-  await item3A.locator('.toc-label').click();
+  await item3A.locator('> .toc-label').click();
   await expect(item4A1).toBeVisible();
 
-  await item3B.locator('.toc-label').click();
+  await item3B.locator('> .toc-label').click();
   await expect(item4A1).not.toBeVisible();
   await expect(item4B1).toBeVisible();
 });
@@ -94,10 +94,10 @@ test('toggle: re-clicking expanded level 3 closes it', async ({ page }) => {
   const item3A = page.locator('#toc .toc-item[data-level="3"]').first();
   const item4A1 = page.locator('#toc .toc-item[data-level="4"]').first();
 
-  await item3A.locator('.toc-label').click();
+  await item3A.locator('> .toc-label').click();
   await expect(item4A1).toBeVisible();
 
-  await item3A.locator('.toc-label').click();
+  await item3A.locator('> .toc-label').click();
   await expect(item4A1).not.toBeVisible();
 });
 
@@ -114,7 +114,7 @@ test('toc:jump navigation still works when clicking level 3 item', async ({ page
 
   const item3A = page.locator('#toc .toc-item[data-level="3"]').first();
   const targetId = await item3A.getAttribute('data-target');
-  await item3A.locator('.toc-label').click();
+  await item3A.locator('> .toc-label').click();
 
   await page.waitForTimeout(100);
   expect(jumpEvents).toContain(targetId);
@@ -127,7 +127,7 @@ test('active-ancestor class applied to level 3 when level 4+ is active', async (
   const item4A1 = page.locator('#toc .toc-item[data-level="4"]').first();
   const targetId = await item4A1.getAttribute('data-target');
 
-  await item3A.locator('.toc-label').click();
+  await item3A.locator('> .toc-label').click();
   await page.waitForTimeout(100);
 
   await page.evaluate(id => {
