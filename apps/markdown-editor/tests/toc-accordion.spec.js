@@ -152,6 +152,13 @@ test('active-ancestor not applied when level 1-3 is active', async ({ page }) =>
   await expect(item3A).not.toHaveClass(/active-ancestor/);
 });
 
+test('level 5 headings are excluded from the TOC tree', async ({ page }) => {
+  await setEditorContent(page, ACCORDION_MD);
+
+  const level5Items = page.locator('#toc .toc-item[data-level="5"]');
+  await expect(level5Items).toHaveCount(0);
+});
+
 test('fold state does not change when scrolling (active highlight changes without auto-open)', async ({ page }) => {
   await setEditorContent(page, ACCORDION_MD);
 
