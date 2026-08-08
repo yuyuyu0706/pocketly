@@ -36,6 +36,11 @@
 
   let markedConfigured = false;
 
+  const SANITIZE_CONFIG = {
+    ADD_TAGS: ['input'],
+    ADD_ATTR: ['type', 'class']
+  };
+
   const lastScrollInfo = { top: 0, height: 0 };
 
   let previewHeadingFlashTimeout = null;
@@ -87,7 +92,7 @@
     try {
       global.mermaid.initialize({
         startOnLoad: false,
-        securityLevel: 'loose',
+        securityLevel: 'strict',
         flowchart: { htmlLabels: true }
       });
     } catch (error) {
@@ -723,9 +728,12 @@
     const scrollGeneration = previewScrollGeneration;
 
     const expanded = expandImagePlaceholders(raw);
-    previewEl.innerHTML = global.marked
+    const parsed = global.marked
       ? global.marked.parse(expanded, { breaks: true, mangle: false })
       : expanded;
+    previewEl.innerHTML = global.DOMPurify
+      ? global.DOMPurify.sanitize(parsed, SANITIZE_CONFIG)
+      : parsed;
     preparePreviewLinks();
     updatePreviewTaskCheckboxes(raw);
     convertMermaidBlocks();
