@@ -416,7 +416,7 @@
       }
     });
 
-    const tocOwnerDoc = _toc.ownerDocument;
+    const tocOwnerDoc = (_toc && _toc.ownerDocument) || document;
     const tocHeadingPositions = headingPositions.filter(hp => hp.level <= 4);
     const root = tocOwnerDoc.createElement('ul');
     const stack = [root];
