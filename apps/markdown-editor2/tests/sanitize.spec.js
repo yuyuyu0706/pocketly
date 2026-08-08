@@ -82,3 +82,18 @@ test('mermaid click directive injection does not run script and mermaid renders 
   expect(fired).toBe(false);
   expect(dialogFired).toBe(false);
 });
+
+test('preview shows a safety error instead of unsanitized HTML when DOMPurify fails to load', async ({ page }) => {
+  await page.route('**/vendor/purify.min.js', route => route.fulfill({ status: 404, body: '' }));
+  await page.goto('/');
+  await page.click('#toggle-mode');
+
+  await page.fill('#editor', '<script>window.__xssFired = true;<\/script>\n\nHello');
+  await page.waitForTimeout(400);
+
+  const preview = page.locator('#preview');
+  await expect(preview.locator('.preview-sanitizer-error')).toBeVisible();
+  await expect(preview).not.toContainText('Hello');
+  const fired = await page.evaluate(() => window.__xssFired === true);
+  expect(fired).toBe(false);
+});

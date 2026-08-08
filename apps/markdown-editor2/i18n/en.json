@@ -62,5 +62,8 @@
   "image": {
     "fallback": "[Image: {filename}]",
     "markdownTemplate": "\n<!-- image:{filename} -->\n[Image: {filename}]\n<!-- /image -->\n"
+  },
+  "preview": {
+    "sanitizerUnavailable": "The preview cannot be shown safely because the security sanitizer (DOMPurify) failed to load. Please reload the page or check that the vendor files are deployed correctly."
   }
 }

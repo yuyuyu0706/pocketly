@@ -31,6 +31,14 @@ body {
   color: #0055aa;
 }
 
+#preview .preview-sanitizer-error {
+  color: #b00020;
+  border: 1px solid #b00020;
+  border-radius: 4px;
+  padding: 0.75rem 1rem;
+  background-color: #fdeaea;
+}
+
 #preview .preview-heading-flash {
   background-color: var(--heading-flash-bg, #fff8b3);
   box-shadow: 0 0 0 2px var(--heading-flash-ring, rgba(255, 248, 179, 0.6));

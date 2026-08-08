@@ -714,6 +714,23 @@
   }
 
   /**
+   * Show an error in the preview pane when DOMPurify is unavailable, instead
+   * of rendering unsanitized HTML.
+   * @returns {void}
+   */
+  function renderSanitizerUnavailableError() {
+    const message =
+      global.i18n && typeof global.i18n.t === 'function'
+        ? global.i18n.t('preview.sanitizerUnavailable')
+        : 'The preview cannot be shown safely because the security sanitizer (DOMPurify) failed to load.';
+    previewEl.textContent = '';
+    const notice = global.document.createElement('p');
+    notice.className = 'preview-sanitizer-error';
+    notice.textContent = message;
+    previewEl.appendChild(notice);
+  }
+
+  /**
    * Render markdown content into the preview pane.
    * @param {string} markdown
    * @returns {void}
@@ -727,13 +744,18 @@
     const previousScrollTop = previewEl.scrollTop;
     const scrollGeneration = previewScrollGeneration;
 
+    if (!global.DOMPurify) {
+      // Security-first fallback (Issue #147): without the sanitizer, unsanitized
+      // HTML must never reach innerHTML, so the preview shows an error instead.
+      renderSanitizerUnavailableError();
+      return;
+    }
+
     const expanded = expandImagePlaceholders(raw);
     const parsed = global.marked
       ? global.marked.parse(expanded, { breaks: true, mangle: false })
       : expanded;
-    previewEl.innerHTML = global.DOMPurify
-      ? global.DOMPurify.sanitize(parsed, SANITIZE_CONFIG)
-      : parsed;
+    previewEl.innerHTML = global.DOMPurify.sanitize(parsed, SANITIZE_CONFIG);
     preparePreviewLinks();
     updatePreviewTaskCheckboxes(raw);
     convertMermaidBlocks();
