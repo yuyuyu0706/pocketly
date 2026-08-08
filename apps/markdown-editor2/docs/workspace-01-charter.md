@@ -4,7 +4,7 @@
 > 配置先: `apps/markdown-editor2/docs/workspace-01-charter.md`
 > 状態: **確定**（2026-08-08 の対話で確定済み）
 > 親 Issue: [#134](https://github.com/yuyuyu0706/pocketly/issues/134) / 対応 Lv2: **Lv2-1（コンセプト確定）**
-> 意思決定の経緯は `mew-concept-decision-record.md`（2026-08-08）を正本とする。
+> 意思決定の経緯は 2026-08-08 の利用者との対話チャット（リポジトリ外）を正本とする。
 
 ---
 
@@ -18,7 +18,7 @@
 | 旧PJ | Markdown Editor Refine（MER）＝`apps/markdown-editor/`。凍結済み・本番稼働継続・変更禁止（Issue #85） |
 | 期間 | 2026-08 〜 |
 | 管理単位 | Lv1 Issue = GitHub Milestone = Phase |
-| 課題ID体系 | `MEW-nnn`（連番、Phase をまたいで一意）。MERから引き継ぐ保留テーマは新IDを採番し、備考に旧ID（`MDE-nnn`）を記録する |
+| 課題ID体系 | ⚠作業用デフォルト（要利用者確認）: `MEW-nnn`（連番、Phase をまたいで一意）。MERから引き継ぐ保留テーマは新IDを採番し、備考に旧ID（`MDE-nnn`）を記録する。台帳作成（Lv2-3）前に確定する |
 | 文書配置 | `apps/markdown-editor2/docs/workspace-*.md` |
 
 ### 背景
