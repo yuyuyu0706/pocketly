@@ -80,11 +80,11 @@
 
 | ID | 分類 | 事象（要約） | 原因/実装起点 | 影響 | 規模 | 土台性 | 優先度 | 配属 | 備考 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| MEW-001 | 品質・保守（セキュリティ） | プレビュー描画にサニタイズがない（Mermaid XSS含む） | `js/preview.js:717-718`（innerHTML直接代入）/ `preview.js:88-93`（mermaid securityLevel:loose） | 出所不明ファイル一括読込時のXSS。フォルダ丸ごと開くMEWの根幹前提 | S | 中 | **高（ゲートc）** | 2 | 旧MDE-007。MEWでゲートc昇格確定済み。Mermaidは`securityLevel:'strict'`への変更を含む。依存: 独立（最優先） |
+| MEW-001 | 品質・保守（セキュリティ） | プレビュー描画にサニタイズがない（Mermaid XSS含む） | `js/preview.js:726`（innerHTML直接代入）/ `preview.js:88-93`（mermaid securityLevel:loose） | 出所不明ファイル一括読込時のXSS。フォルダ丸ごと開くMEWの根幹前提 | S | 中 | **高（ゲートc）** | 2 | 旧MDE-007。MEWでゲートc昇格確定済み。Mermaidは`securityLevel:'strict'`への変更を含む。依存: 独立（最優先） |
 | MEW-002 | 基盤 | 状態モデルが単一文書シングルトン（複数文書不可） | `js/state.js:16`（docText単一変数）/ STORAGE_KEYS `md:text` 1キーのみ | 複数文書並行保持・タブ・ワークスペース復元すべての前提。state.js再設計なしには着手不可 | L | **高** | **高（基盤）** | 2 | ws-02②。文書コレクションモデルへの完全再設計。依存: MEW-001完了後に設計（XSS対策とアーキテクチャを整合させる） |
 | MEW-003 | 基盤 | DirectoryHandle基盤・フォルダ対応・相対パス解決が存在しない | `script.js:178`（showOpenFilePicker単体のみ）/ FileSystemDirectoryHandle実装ゼロ | フォルダ丸ごと開く・文書間相対リンク解決・複数文書のimageMap管理すべての土台 | L | **高** | **高（基盤）** | 2 | ws-02③ = W-07統合。imageMapエビクション不在（ws-02 B）も本課題の備考として管理。依存: MEW-002（文書コレクションモデル）|
 | MEW-004 | 基盤 | 描画パイプラインがフル再描画・キャッシュ・遅延化なし | `js/preview.js`全体（render()都度フル描画）/ `preview.js:393-397`（mermaid.run一括） | タブN枚時の性能劣化。「0秒で読める」体験の毀損リスク | M | **高** | **高（基盤）** | 2 | ws-02①⑨。MEW-001（サニタイズ）と同時設計すること（mermaid securityLevelの統合設計）。依存: MEW-001/002 |
-| MEW-005 | 基盤 | 保存戦略が単一文書・セッション内限定 | `js/state.js:170`（init時にsessionStorage削除）/ `script.js:558`（showSaveFilePicker） | 複数文書ワークスペースの永続化・リロード復元が設計外 | L | **高** | **高（基盤）** | 2 | (d)横断的前提条件。設定永続化の問題（`state.js:175`のlocalStorage削除）も含む。⑮（アノテーション）の保存先判断と同時設計。依存: MEW-002/003 |
+| MEW-005 | 基盤 | 保存戦略が単一文書・セッション内限定 | `js/state.js:170`（init時にsessionStorage削除）/ `export.js:216`（showSaveFilePicker） | 複数文書ワークスペースの永続化・リロード復元が設計外 | L | **高** | **高（基盤）** | 2 | (d)横断的前提条件。設定永続化の問題（`state.js:175`のlocalStorage削除）も含む。⑮（アノテーション）の保存先判断と同時設計。依存: MEW-002/003 |
 | MEW-006 | 基盤 | 複数ウィンドウ前提の設計規約がない | 全モジュール（document/window固定参照が散在）/ `preview.js:88`（mermaid.init時） | PiP・分割ビュー・タブ実装時に「不具合19件中9件と同一パターン」の再現リスク | M | **高** | **高（基盤）** | 2 | (d)横断的前提条件。Charter §9-2 コーディング原則1の実施。装飾UI二層構造（MER保留）の問題意識もここに統合。依存: 独立（Phase 2冒頭に規約化） |
 | MEW-007 | 体験改善 | Markdown表が未装飾で見づらい | `preview.css`にtable/th/td記述ゼロ | 表を含む全文書の閲覧品質。俯瞰UIで文書一覧を表示した際の第一印象 | S | 低 | **高（クイックウィン）** | 3 | 旧MDE-006。border-collapse・ゼブラ・ヘッダ強調・overflow-x: auto。依存: 独立 |
 | MEW-008 | 体験改善 | YAMLフロントマターが本文冒頭に露出する | marked v18がfrontmatterを未処理（§0で確認）/ `---`→`<hr>`、YAML内容→`<p>` | AI出力・Obsidian文書等のフロントマター付きファイルの第一印象を損なう。規模Sのクイックウィン | S | 低 | **高（クイックウィン）** | 3 | ⑲。最低限「隠す」実装（`---` fenceをfrontmatterとして除去）、発展形はメタ情報として整形表示。依存: 独立 |
@@ -115,7 +115,7 @@
 | MEW-033 | 将来構想 | 静的サイト一式エクスポート（フォルダ→配布物） | エクスポートが単一文書innerHTML前提（ws-02⑦） | MkDocs Material相当の「検索付き・ナビ付きHTMLサイト」の生成 | L | 低 | **対象外** | — | ⑳⊃ws-02⑦統合。ビルドツール化するとコンセプト（開いてすぐ使える・ツール化しない）と正面衝突。vision候補として`workspace-04-vision.md`に記録する（Lv2-4の領分）。本PJ対象外。依存: — |
 | MEW-034 | 将来構想 | ノートDB化（タグ・メタデータ・グラフビュー等） | 対応機構実装ゼロ | 「俯瞰する」の延長線上にある高度な知識管理 | L | 低 | **対象外** | — | Charter §3-5 将来構想として確定済み。本PJ対象外。`workspace-04-vision.md`に記録。依存: — |
 
-**確定後の配属集計**: Phase 2 = 8件 / Phase 3 = 8件 / Phase 4 = 9件 / Phase 5 = 5件 / 対象外 = 2件（計32件）
+**確定後の配属集計**: Phase 2 = 9件 / Phase 3 = 8件 / Phase 4 = 9件 / Phase 5 = 6件 / 対象外 = 2件（計34件）
 
 > **境界事例（【境界】マーク付き行）**: §4 個別詳細を参照。マージ前に利用者レビューで確定すること。
 
@@ -133,7 +133,7 @@
 | --- | --- |
 | 分類 | 品質・保守（セキュリティ） |
 | 事象 | プレビュー描画にサニタイズがない。Markdown内に埋め込まれたHTMLがそのまま実行される。Mermaidの`securityLevel:'loose'`も対象 |
-| 原因 | `js/preview.js:717-718`（previewEl.innerHTML = marked.parse(...)、サニタイザ未適用）/ `preview.js:88-93`（mermaid初期化時の`securityLevel:'loose'`） |
+| 原因 | `js/preview.js:726`（previewEl.innerHTML = marked.parse(...)、サニタイザ未適用）/ `preview.js:88-93`（mermaid初期化時の`securityLevel:'loose'`） |
 | 影響 | フォルダ丸ごと＝出所を精査していないファイルを一括で開くMEWでは致命的。XSSで`localStorage`の内容を外部送信可能 |
 | 規模 | S |
 | 土台性 | 中（描画パイプライン再設計と同時期に設計すべき。MEW-004との設計統合） |
@@ -197,7 +197,7 @@
 | --- | --- |
 | 分類 | 基盤 |
 | 事象 | sessionStorage/localStorage永続化が単一文書前提。設定がリロードでリセットされる（`state.js:175`）。複数文書ワークスペースの永続化設計が存在しない |
-| 原因 | `js/state.js:170-175`（init時にlocalStorage削除、設定リセット）/ `script.js:558`（showSaveFilePicker単体） |
+| 原因 | `js/state.js:170-175`（init時にlocalStorage削除、設定リセット）/ `export.js:216`（showSaveFilePicker） |
 | 影響 | リロード後のワークスペース復元・開いていたタブ・アクティブ文書の永続化すべての前提。⑮（アノテーション）の保存先設計とも交差 |
 | 規模 | L |
 | 土台性 | **高**（MEW-019セッション復元・MEW-027アノテーションの前提） |
