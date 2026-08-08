@@ -122,10 +122,10 @@ vendor/marked.min.js → vendor/mermaid.min.js → config.js → i18n.js
 | `Formatting.init()` | `script.js:444` | 装飾モジュール初期化 |
 | `Layout.init()` | `script.js:447` | レイアウトモジュール初期化 |
 | `Export.init()` | `script.js:553` | エクスポートモジュール初期化 |
-| `AppState.init()` | `js/state.js:153` | 状態初期化（sessionStorage 復元含む） |
+| `AppState.init()` | `js/state.js:170` | 状態初期化（sessionStorage 復元含む） |
 | `AppState.STORAGE_KEYS` | `js/state.js:4` | `md:text`（sessionStorage）/ `md:settings`（localStorage）|
 | `ensureImageMap()` | `js/preview.js:49` | `window.__previewImageMap` の初期化 |
-| `setupMermaid()` | `js/preview.js:84` | mermaid 初期設定（`securityLevel:'loose'`）|
+| `setupMermaid()` | `js/preview.js:83` | mermaid 初期設定（`securityLevel:'loose'`）|
 | `isDocumentPiPSupported()` | `js/layout.js:862` | Document PiP 対応判定 |
 
 ---
@@ -167,8 +167,8 @@ CDN 参照を廃止し `vendor/` ディレクトリへ同梱済み。バージ�
 
 | 状態 | 保持先 | キー | 詳細 |
 | --- | --- | --- | --- |
-| 編集テキスト | `sessionStorage` | `md:text` | `state.js:5`。デバウンス 300ms で保存（`state.js:16`）。リロード時に復元 |
-| 設定（言語・行番号・モード） | `localStorage` | `md:settings` | `state.js:6`。`AppState.setSetting()` 呼び出し時に即時保存 |
+| 編集テキスト | `sessionStorage` | `md:text` | `state.js:5`。デバウンス 300ms で保存（`state.js:22`）。リロード時に復元 |
+| 設定（言語・行番号・モード） | `localStorage` | `md:settings` | `state.js:6`。`AppState.setSetting()` 呼び出し時に即時保存。ただし起動時に `AppState.init()` が無条件削除するため（`state.js:175`）、**設定はセッション内のみ有効でリロードで既定値に戻る**（`script.js:650` コメント参照） |
 | ペイン幅比率 | `localStorage` | `md:layout:editorWidthRatio` | `layout.js:36` |
 | PiP ウィンドウ位置 | `localStorage` | `md:layout:pipWindow` | `script.js:616` |
 
@@ -203,13 +203,13 @@ CI 環境（`navigator.webdriver === true`）では PiP 系テストが自動ス
 | --- | --- |
 | `Bus.on/off/emit` | `js/bus.js:16/32/46` |
 | `STORAGE_KEYS` | `js/state.js:4` |
-| `AppState.init()` | `js/state.js:153` |
-| `AppState.getText/setText` | `js/state.js:169/179` |
+| `AppState.init()` | `js/state.js:170` |
+| `AppState.getText/setText` | `js/state.js:191/200` |
 | `Slug.slugify` | `js/slug.js:24` |
 | `Slug.createGenerator` | `js/slug.js:36` |
 | `imageMap` 宣言 | `js/preview.js:21` |
 | `ensureImageMap()` | `js/preview.js:49` |
-| `setupMermaid()` | `js/preview.js:84` |
+| `setupMermaid()` | `js/preview.js:83` |
 | `mermaid.initialize({securityLevel:'loose'})` | `js/preview.js:88-90` |
 | `imageMap[trimmedFilename]`（参照） | `js/preview.js:365` |
 | `imageMap[trimmed] = payload.data`（書き込み） | `js/preview.js:690` |
@@ -232,7 +232,7 @@ CI 環境（`navigator.webdriver === true`）では PiP 系テストが自動ス
 
 ### ① 「0秒で読める」資産の現状と毀損リスク
 
-**事実**: ビルドステップなし・インデックス構築なし。`index.html` を開いた瞬間、`bootstrap()` → `startApp()` → `AppState.init()` が走り、`sessionStorage` から前回テキストを復元してプレビューを表示する（`script.js:1-3` / `state.js:153`）。
+**事実**: ビルドステップなし・インデックス構築なし。`index.html` を開いた瞬間、`bootstrap()` → `startApp()` → `AppState.init()` が走り、`sessionStorage` から前回テキストを復元してプレビューを表示する（`script.js:1-3` / `state.js:170`）。
 
 **確認**: 外部ネットワーク参照は廃止済み（`vendor/` 同梱）。単一ファイルを開く限り、オフライン・ネットワーク断でも即時表示が保証される。
 
@@ -244,9 +244,9 @@ CI 環境（`navigator.webdriver === true`）では PiP 系テストが自動ス
 
 ### ② 状態モデルが単一文書シングルトン
 
-**事実**: `state.js:18` で `docText: ''` を単一変数で保持。保存キーも `md:text`（`state.js:5`）の 1 キーのみ。複数文書を並行保持する API は存在しない。
+**事実**: `state.js:16` で `docText: ''` を単一変数で保持。保存キーも `md:text`（`state.js:5`）の 1 キーのみ。複数文書を並行保持する API は存在しない。
 
-**確認**: `AppState.getText/setText` は文字列を 1 本のみ扱う（`state.js:169/179`）。タブ・複数文書ウィンドウは現 state.js の増築では実現不可で、**文書コレクションモデルへの再設計**が必要。
+**確認**: `AppState.getText/setText` は文字列を 1 本のみ扱う（`state.js:191/200`）。タブ・複数文書ウィンドウは現 state.js の増築では実現不可で、**文書コレクションモデルへの再設計**が必要。また、設定はリロードで既定値にリセットされる（`state.js:175`）ため、ワークスペース復元設計時に同時再設計が必要。
 
 `→台帳候補`（複数文書対応の前提として state.js 再設計が必須であることを台帳に記録）
 
