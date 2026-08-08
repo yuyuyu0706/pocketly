@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Markdown Editor Blue</title>
+  <link rel="stylesheet" href="app.css">
+  <link rel="stylesheet" href="preview.css">
+  <link rel="stylesheet" href="document.css">
+  <link rel="icon" href="./images/icons.png">
+</head>
+<body data-mode="read">
+  <header id="toolbar">
+    <h1 id="app-title" data-i18n="app.title">Markdown Editor Blue</h1>
+    <div id="toolbar-actions">
+      <button id="open-md" class="toolbar-button" type="button" data-i18n="toolbar.open">📂 Open</button>
+      <button id="save-md" class="toolbar-button" type="button" data-i18n="toolbar.save">💾 Save</button>
+      <button id="export-pdf" class="toolbar-button" type="button" data-i18n="toolbar.exportPdf" data-mode-visible="read">📄 Export PDF</button>
+      <button
+        id="export-html"
+        class="toolbar-button"
+        type="button"
+        data-i18n="toolbar.exportHtml"
+        data-mode-visible="read"
+      >
+        🌐 Export HTML
+      </button>
+      <button
+        id="insert-image"
+        class="toolbar-button"
+        type="button"
+        data-i18n="toolbar.insertImage"
+        data-mode-visible="edit"
+      >
+        🖼 Insert Image
+      </button>
+      <div id="template-menu" data-mode-visible="edit">
+        <button
+          id="template-btn"
+          class="toolbar-button"
+          type="button"
+          aria-haspopup="true"
+          aria-expanded="false"
+          aria-controls="template-options"
+          data-i18n="toolbar.template"
+        >
+          📋 Templates
+        </button>
+        <div id="template-options" role="menu" aria-labelledby="template-btn" hidden></div>
+      </div>
+      <button
+        id="toggle-line-numbers"
+        class="toolbar-button"
+        type="button"
+        aria-pressed="false"
+        data-mode-visible="edit"
+      >
+        🔢 Numbers On
+      </button>
+      <button id="help-btn" class="toolbar-button" type="button" data-i18n="toolbar.help" data-mode-visible="edit">
+        ❔ Help
+      </button>
+      <button
+        id="toggle-mode"
+        class="toolbar-button"
+        type="button"
+        aria-pressed="false"
+      >
+        ✏️ Edit
+      </button>
+      <div id="lang-wrapper">
+        <label for="lang-switch" id="lang-label" data-i18n="toolbar.languageLabel">Language</label>
+        <select id="lang-switch">
+          <option value="en" data-i18n="language.english">English</option>
+          <option value="ja" data-i18n="language.japanese">日本語</option>
+        </select>
+      </div>
+    </div>
+    <input type="file" id="imageInput" accept="image/*" hidden>
+    <input
+      type="file"
+      id="markdownInput"
+      accept=".md,.markdown,.txt,text/markdown"
+      hidden
+    >
+  </header>
+
+  <main>
+    <div id="toc"></div>
+    <div id="toc-divider"></div>
+    <div id="editor-pane">
+      <div id="editor-drag-handle" aria-hidden="true">
+        <span id="editor-drag-label">⠿ Editor</span>
+        <button id="editor-copy-btn" type="button" aria-label="Copy all text" title="Copy all text">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+          </svg>
+        </button>
+        <button
+          id="editor-close-btn"
+          type="button"
+          data-i18n-aria-label="editorPanel.close"
+          aria-label="Close editor panel"
+        >×</button>
+      </div>
+      <div id="line-number-gutter" aria-hidden="true"></div>
+      <textarea
+        id="editor"
+        placeholder="Type Markdown here..."
+        data-i18n-placeholder="editor.placeholder"
+      ># Welcome to Markdown Editor Blue
+
+Capture ideas, polish documentation, and share updates with instant preview support.
+
+Happy writing
+      </textarea>
+    </div>
+    <div id="divider"></div>
+    <div id="preview"></div>
+  </main>
+
+  <div id="help-window" class="hidden">
+    <button id="help-close" data-i18n-aria-label="help.close">✖</button>
+    <h3 data-i18n="help.markdownTitle">Markdown Cheat Sheet</h3>
+    <pre data-i18n="help.markdownCheatsheet">
+# Heading 1
+## Heading 2
+
+- List
+1. Numbered list
+
+**Bold** *Italic*
+> Quote
+`Code`
+
+```
+Code block
+```
+
+[Link](URL)
+    </pre>
+    <h3 data-i18n="help.mermaidTitle">Mermaid Cheat Sheet</h3>
+    <pre data-i18n="help.mermaidCheatsheet">
+```mermaid
+graph TD
+  A[Start] --> B{Condition}
+  B -->|Yes| C[Process 1]
+  B -->|No| D[Process 2]
+```
+    </pre>
+  </div>
+
+  <script src="vendor/marked.min.js"></script>
+  <script src="vendor/mermaid.min.js"></script>
+  <script src="config.js"></script>
+  <script src="i18n.js"></script>
+  <script src="js/bus.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/slug.js"></script>
+  <script src="js/preview.js"></script>
+  <script src="js/export.js"></script>
+  <script src="js/layout.js"></script>
+  <script src="js/formatting.js"></script>
+  <script src="js/toc.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
+
