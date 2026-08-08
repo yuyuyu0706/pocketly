@@ -1,7 +1,9 @@
 # pocketly 開発ルール（Claude Code 向け）
 
 このファイルは、Claude Code がこのリポジトリで作業する際に毎セッション読み込む項目です。
-本ファイルが肥大化して200行を超えたら、分割を検討します。
+本ファイルには、常時参照すべき原則のみを置きます。アプリ固有の詳細な規約・手順は
+`apps/<app>/docs/conventions/`等へ切り出し、本ファイルからは参照のみを記載します。
+行数ではなく「アプリ固有の詳細が紛れ込んでいないか」を分割要否の判断基準とします。
 
 ## ブランチ作成前に必ず最新 main を取り込む
 
@@ -20,6 +22,14 @@ git checkout -b <ブランチ名>
 作成してしまう場合があります。マージ自体は3-way mergeで通常安全に解決されますが、
 セッション内で行う `npm run validate:feature-docs` などのローカル検証が、
 最新化されていない古い内容に対して行われることになり、確認の精度が下がります。
+
+## 複数ウィンドウ・PiP対応時の規約
+
+DOM要素が別ウィンドウ（PiP・ポップアウト等）に移動しうる処理を書く場合、
+`document`/`window`を静的固定参照せず、`element.ownerDocument`／
+`element.ownerDocument.defaultView`経由で動的解決すること。詳細・正例・
+例外基準は `apps/markdown-editor2/docs/conventions/window-and-multi-window.md`
+を参照。
 
 ## issue 作成時のルール
 

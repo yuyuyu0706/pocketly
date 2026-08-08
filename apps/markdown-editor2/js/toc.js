@@ -54,16 +54,18 @@
       return;
     }
     hasUserActivatedHeadingHighlight = true;
-    document.removeEventListener('pointerdown', markHeadingHighlightActivation, true);
-    document.removeEventListener('keydown', markHeadingHighlightActivation, true);
-    document.removeEventListener('touchstart', markHeadingHighlightActivation, true);
+    const ownerDoc = (_editor && _editor.ownerDocument) || document;
+    ownerDoc.removeEventListener('pointerdown', markHeadingHighlightActivation, true);
+    ownerDoc.removeEventListener('keydown', markHeadingHighlightActivation, true);
+    ownerDoc.removeEventListener('touchstart', markHeadingHighlightActivation, true);
   };
 
   function ensureEditorMeasurementElement() {
     if (editorMeasurementElement && editorMeasurementElement.isConnected) {
       return editorMeasurementElement;
     }
-    const measure = document.createElement('div');
+    const ownerDoc = (_editor && _editor.ownerDocument) || document;
+    const measure = ownerDoc.createElement('div');
     measure.setAttribute('aria-hidden', 'true');
     measure.style.position = 'absolute';
     measure.style.visibility = 'hidden';
@@ -76,7 +78,7 @@
     measure.style.minHeight = '0';
     measure.style.maxHeight = 'none';
     editorMeasurementElement = measure;
-    document.body.appendChild(editorMeasurementElement);
+    ownerDoc.body.appendChild(editorMeasurementElement);
     return editorMeasurementElement;
   }
 
@@ -125,7 +127,7 @@
     const clampedPosition = Math.min(position, value.length);
     const beforeText = value.slice(0, clampedPosition);
     measurement.textContent = beforeText;
-    const marker = document.createElement('span');
+    const marker = measurement.ownerDocument.createElement('span');
     marker.textContent = '​';
     measurement.appendChild(marker);
     const markerTop = marker.offsetTop;
@@ -414,15 +416,16 @@
       }
     });
 
+    const tocOwnerDoc = (_toc && _toc.ownerDocument) || document;
     const tocHeadingPositions = headingPositions.filter(hp => hp.level <= 4);
-    const root = document.createElement('ul');
+    const root = tocOwnerDoc.createElement('ul');
     const stack = [root];
     let currentLevel = 1;
 
     tocHeadingPositions.forEach(({ level, text, id }) => {
       if (level > currentLevel) {
         for (let i = currentLevel; i < level; i++) {
-          const ul = document.createElement('ul');
+          const ul = tocOwnerDoc.createElement('ul');
           const lastLi = stack[stack.length - 1].lastElementChild;
           if (lastLi) {
             lastLi.appendChild(ul);
@@ -437,11 +440,11 @@
         }
       }
 
-      const li = document.createElement('li');
+      const li = tocOwnerDoc.createElement('li');
       li.className = 'toc-item';
       li.dataset.target = id;
       li.dataset.level = String(level);
-      const label = document.createElement('span');
+      const label = tocOwnerDoc.createElement('span');
       label.className = 'toc-label';
       label.textContent = text;
       li.appendChild(label);
@@ -492,9 +495,10 @@
     _Preview = deps.Preview;
     _Layout = deps.Layout;
 
-    document.addEventListener('pointerdown', markHeadingHighlightActivation, true);
-    document.addEventListener('keydown', markHeadingHighlightActivation, true);
-    document.addEventListener('touchstart', markHeadingHighlightActivation, true);
+    const ownerDoc = (_editor && _editor.ownerDocument) || document;
+    ownerDoc.addEventListener('pointerdown', markHeadingHighlightActivation, true);
+    ownerDoc.addEventListener('keydown', markHeadingHighlightActivation, true);
+    ownerDoc.addEventListener('touchstart', markHeadingHighlightActivation, true);
 
     _Bus.on('toc:jump', event => {
       if (!event || typeof event.id !== 'string') {
