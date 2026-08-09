@@ -42,6 +42,12 @@
   let resolvedAssetCache = new Map();
   let previewAssetRenderVersion = 0;
 
+  // Lv2-5 render pipeline cache: docId -> { text, html } of the post-mermaid HTML,
+  // so re-rendering unchanged text skips marked.parse/DOMPurify.sanitize/mermaid.run.
+  // Pruned (not event-driven) on each miss against AppState.listDocuments(), since
+  // state.js intentionally has no "document closed" event (Lv3-1+ policy).
+  let renderCache = new Map();
+
   const SANITIZE_CONFIG = {
     ADD_TAGS: ['input'],
     ADD_ATTR: ['type', 'class']
@@ -555,6 +561,18 @@
     });
   }
 
+  function pruneStaleRenderCache() {
+    if (!global.AppState || typeof global.AppState.listDocuments !== 'function') {
+      return;
+    }
+    const liveIds = new Set(global.AppState.listDocuments().map(doc => doc.id));
+    renderCache.forEach((entry, docId) => {
+      if (!liveIds.has(docId)) {
+        renderCache.delete(docId);
+      }
+    });
+  }
+
   /**
    * Post-render pass (Lv3-2): resolve folder-relative image src / link href values
    * that marked.parse left untouched, using Directory's path resolution. Runs
@@ -852,15 +870,28 @@
       return;
     }
 
-    const expanded = expandImagePlaceholders(raw);
-    const parsed = global.marked
-      ? global.marked.parse(expanded, { breaks: true, mangle: false })
-      : expanded;
-    previewEl.innerHTML = global.DOMPurify.sanitize(parsed, SANITIZE_CONFIG);
+    const docId = global.AppState && typeof global.AppState.getActiveDocumentId === 'function'
+      ? global.AppState.getActiveDocumentId()
+      : null;
+    const cached = docId ? renderCache.get(docId) : null;
+
+    if (cached && cached.text === raw) {
+      previewEl.innerHTML = cached.html;
+    } else {
+      const expanded = expandImagePlaceholders(raw);
+      const parsed = global.marked
+        ? global.marked.parse(expanded, { breaks: true, mangle: false })
+        : expanded;
+      previewEl.innerHTML = global.DOMPurify.sanitize(parsed, SANITIZE_CONFIG);
+      convertMermaidBlocks();
+      if (docId) {
+        pruneStaleRenderCache();
+        renderCache.set(docId, { text: raw, html: previewEl.innerHTML });
+      }
+    }
     preparePreviewLinks();
     resolvePreviewRelativeAssets();
     updatePreviewTaskCheckboxes(raw);
-    convertMermaidBlocks();
 
     const renderEnd = performance.now();
     const renderDuration = renderEnd - renderStart;

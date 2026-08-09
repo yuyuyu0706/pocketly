@@ -471,6 +471,20 @@ function startApp() {
     Layout.onResize();
   });
 
+  // Lv2-5: debounce the heavy render pipeline (Preview.render/Toc.buildTOC/
+  // Toc.updateTOCHighlight) for editor keystrokes only, so typing doesn't run a
+  // full pipeline per character. Shorter than TEXT_SAVE_DEBOUNCE(300ms) to keep
+  // preview feel responsive. Non-editor sources (Directory switch, checkbox
+  // toggle, etc.) still render immediately.
+  const RENDER_DEBOUNCE = 200;
+  let renderDebounceTimer = null;
+
+  function scheduleHeavyRenderWork(text) {
+    Preview.render(text);
+    Toc.buildTOC();
+    Toc.updateTOCHighlight();
+  }
+
   // Update preview and expand stored Base64 images
   function handleTextStateChange(event) {
     if (!event || typeof event.text !== 'string') {
@@ -499,9 +513,14 @@ function startApp() {
     Layout.updateEditorHighlight(text);
     Layout.scheduleUpdateLineNumbers();
     Layout.syncLineNumberScroll();
-    Preview.render(text);
-    Toc.buildTOC();
-    Toc.updateTOCHighlight();
+
+    if (source === 'editor') {
+      clearTimeout(renderDebounceTimer);
+      renderDebounceTimer = setTimeout(() => scheduleHeavyRenderWork(text), RENDER_DEBOUNCE);
+    } else {
+      clearTimeout(renderDebounceTimer);
+      scheduleHeavyRenderWork(text);
+    }
   }
 
   editor.addEventListener('input', () => {
