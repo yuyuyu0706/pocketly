@@ -8,6 +8,13 @@
   // via getTree()/a future accessor rather than reaching into this Map directly.
   const fileRegistry = new Map();
 
+  // path -> id, for resolving relative document links (Lv3-2) without scanning fileRegistry.
+  const pathIndex = new Map();
+
+  // Root handle of the currently open folder, used to resolve relative asset paths
+  // (images etc.) that are not registered as documents in fileRegistry.
+  let rootDirHandle = null;
+
   function isHiddenName(name) {
     return typeof name === 'string' && name.startsWith('.');
   }
@@ -39,6 +46,58 @@
   }
 
   /**
+   * Join a relative reference against the directory of fromPath, then collapse
+   * "." / ".." segments. Returns null if the reference escapes the folder root.
+   * @param {string} fromPath
+   * @param {string} ref
+   * @returns {string|null}
+   */
+  function normalizeRelativePath(fromPath, ref) {
+    const baseDir = fromPath.includes('/') ? fromPath.slice(0, fromPath.lastIndexOf('/')) : '';
+    const combined = baseDir ? `${baseDir}/${ref}` : ref;
+    const stack = [];
+    for (const segment of combined.split('/')) {
+      if (segment === '' || segment === '.') {
+        continue;
+      }
+      if (segment === '..') {
+        if (stack.length === 0) {
+          return null;
+        }
+        stack.pop();
+        continue;
+      }
+      stack.push(segment);
+    }
+    return stack.join('/');
+  }
+
+  /**
+   * Walk rootDirHandle to the file handle for a normalized path (non-.md assets
+   * are never registered in fileRegistry, so they must be resolved on demand).
+   * @param {string} normalizedPath
+   * @returns {Promise<FileSystemFileHandle|null>}
+   */
+  async function resolveAssetHandle(normalizedPath) {
+    if (!rootDirHandle || !normalizedPath) {
+      return null;
+    }
+    const segments = normalizedPath.split('/').filter(Boolean);
+    if (!segments.length) {
+      return null;
+    }
+    try {
+      let dir = rootDirHandle;
+      for (let i = 0; i < segments.length - 1; i += 1) {
+        dir = await dir.getDirectoryHandle(segments[i]);
+      }
+      return await dir.getFileHandle(segments[segments.length - 1]);
+    } catch (error) {
+      return null;
+    }
+  }
+
+  /**
    * Global directory/file-tree manager for the File System Access API integration.
    */
   const Directory = {
@@ -65,9 +124,11 @@
 
       const initialActiveId = AppState.getActiveDocumentId();
 
+      rootDirHandle = dirHandle;
       files.forEach(file => {
         const id = AppState.openDocument('', { path: file.path, name: file.name, loaded: false });
         fileRegistry.set(id, { handle: file.handle, path: file.path, name: file.name, loaded: false });
+        pathIndex.set(file.path, id);
       });
 
       // MEW-002 has no API for replacing the app's launch document in place, so the
@@ -124,6 +185,46 @@
         path: entry.path,
         loaded: entry.loaded
       }));
+    },
+
+    /**
+     * Folder-relative path of the currently active document, or null if the
+     * active document is not directory-backed (or no folder is open).
+     * @returns {string|null}
+     */
+    getActivePath() {
+      const id = AppState.getActiveDocumentId();
+      if (typeof id !== 'string') {
+        return null;
+      }
+      const entry = fileRegistry.get(id);
+      return entry ? entry.path : null;
+    },
+
+    /**
+     * Resolve a Markdown-relative reference (image src / link href) against the
+     * folder path of the document it appears in.
+     * @param {string} fromPath folder-relative path of the referencing document
+     * @param {string} ref relative reference from the Markdown (e.g. "../images/pic.png")
+     * @returns {Promise<{ type: 'document', id: string, path: string }|{ type: 'asset', path: string, handle: FileSystemFileHandle }|null>}
+     */
+    async resolveRelativePath(fromPath, ref) {
+      if (typeof fromPath !== 'string' || typeof ref !== 'string' || !ref) {
+        return null;
+      }
+      const normalizedPath = normalizeRelativePath(fromPath, ref);
+      if (!normalizedPath) {
+        return null;
+      }
+      const docId = pathIndex.get(normalizedPath);
+      if (docId) {
+        return { type: 'document', id: docId, path: normalizedPath };
+      }
+      const handle = await resolveAssetHandle(normalizedPath);
+      if (!handle) {
+        return null;
+      }
+      return { type: 'asset', path: normalizedPath, handle };
     }
   };
 
