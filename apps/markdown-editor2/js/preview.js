@@ -36,6 +36,12 @@
 
   let markedConfigured = false;
 
+  // Lv3-2 relative-path resolution: cache of folder-relative asset path -> blob: URL,
+  // so re-rendering the same document doesn't re-read the file. Entries not touched by
+  // the current render are revoked to avoid leaking Object URLs across document switches.
+  let resolvedAssetCache = new Map();
+  let previewAssetRenderVersion = 0;
+
   const SANITIZE_CONFIG = {
     ADD_TAGS: ['input'],
     ADD_ATTR: ['type', 'class']
@@ -525,10 +531,105 @@
     });
   }
 
+  function isAlreadyResolvedRef(ref) {
+    return !ref || /^(?:data:|https?:|blob:|#)/i.test(ref);
+  }
+
+  async function resolveImageObjectUrl(path, handle) {
+    const cached = resolvedAssetCache.get(path);
+    if (cached) {
+      return cached;
+    }
+    const file = await handle.getFile();
+    const url = URL.createObjectURL(file);
+    resolvedAssetCache.set(path, url);
+    return url;
+  }
+
+  function pruneUnusedAssetCache(usedPaths) {
+    resolvedAssetCache.forEach((url, path) => {
+      if (!usedPaths.has(path)) {
+        URL.revokeObjectURL(url);
+        resolvedAssetCache.delete(path);
+      }
+    });
+  }
+
+  /**
+   * Post-render pass (Lv3-2): resolve folder-relative image src / link href values
+   * that marked.parse left untouched, using Directory's path resolution. Runs
+   * fire-and-forget after render(), mirroring preparePreviewLinks' post-DOM pattern.
+   * @returns {Promise<void>}
+   */
+  async function resolvePreviewRelativeAssets() {
+    if (!previewEl || !global.Directory || typeof global.Directory.getActivePath !== 'function') {
+      return;
+    }
+    const activePath = global.Directory.getActivePath();
+    if (!activePath) {
+      return;
+    }
+
+    const version = (previewAssetRenderVersion += 1);
+    const usedPaths = new Set();
+
+    const images = Array.from(previewEl.querySelectorAll('img[src]'));
+    await Promise.all(images.map(async img => {
+      const src = img.getAttribute('src') || '';
+      if (isAlreadyResolvedRef(src)) {
+        return;
+      }
+      const entry = await global.Directory.resolveRelativePath(activePath, src);
+      if (!entry || entry.type !== 'asset') {
+        return;
+      }
+      usedPaths.add(entry.path);
+      try {
+        const url = await resolveImageObjectUrl(entry.path, entry.handle);
+        if (version === previewAssetRenderVersion) {
+          img.src = url;
+        }
+      } catch (error) {
+        console.warn('[Preview] Failed to resolve relative image.', entry.path, error);
+      }
+    }));
+
+    if (version === previewAssetRenderVersion) {
+      pruneUnusedAssetCache(usedPaths);
+    }
+
+    const anchors = Array.from(previewEl.querySelectorAll('a[href]'));
+    anchors.forEach(anchor => {
+      const href = anchor.getAttribute('href') || '';
+      if (isAlreadyResolvedRef(href)) {
+        return;
+      }
+      global.Directory.resolveRelativePath(activePath, href).then(entry => {
+        if (!entry || entry.type !== 'document' || version !== previewAssetRenderVersion) {
+          return;
+        }
+        anchor.dataset.previewDocId = entry.id;
+      });
+    });
+  }
+
   function handlePreviewClick(event) {
-    const anchor = event.target instanceof global.Element
-      ? event.target.closest('a[data-preview-anchor]')
-      : null;
+    const target = event.target instanceof global.Element ? event.target : null;
+    if (!target) {
+      return;
+    }
+
+    const docAnchor = target.closest('a[data-preview-doc-id]');
+    if (docAnchor) {
+      event.preventDefault();
+      const docId = docAnchor.dataset.previewDocId;
+      if (global.Directory && typeof global.Directory.activateDocument === 'function') {
+        global.Directory.activateDocument(docId);
+      }
+      return;
+    }
+
+    const anchor = target.closest('a[data-preview-anchor]');
     if (!anchor) {
       return;
     }
@@ -757,6 +858,7 @@
       : expanded;
     previewEl.innerHTML = global.DOMPurify.sanitize(parsed, SANITIZE_CONFIG);
     preparePreviewLinks();
+    resolvePreviewRelativeAssets();
     updatePreviewTaskCheckboxes(raw);
     convertMermaidBlocks();
 
