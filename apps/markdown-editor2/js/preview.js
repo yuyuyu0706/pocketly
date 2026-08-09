@@ -47,6 +47,7 @@
   // Pruned (not event-driven) on each miss against AppState.listDocuments(), since
   // state.js intentionally has no "document closed" event (Lv3-1+ policy).
   let renderCache = new Map();
+  let previewRenderVersion = 0;
 
   const SANITIZE_CONFIG = {
     ADD_TAGS: ['input'],
@@ -404,18 +405,24 @@
     });
 
     if (!global.mermaid) {
-      return;
+      return Promise.resolve();
     }
     try {
       const nodes = previewEl.querySelectorAll('.mermaid');
       if (typeof global.mermaid.run === 'function') {
-        global.mermaid.run({ nodes });
+        // mermaid.run() is asynchronous (SVG generation happens after this returns),
+        // so callers that need the finished DOM (e.g. render()'s cache write) must
+        // wait on the returned promise rather than assuming completion here.
+        return Promise.resolve(global.mermaid.run({ nodes })).catch(error => {
+          console.error('[Preview] Mermaid render failed.', error);
+        });
       } else if (typeof global.mermaid.init === 'function') {
         global.mermaid.init(undefined, nodes);
       }
     } catch (error) {
       console.error('[Preview] Mermaid render failed.', error);
     }
+    return Promise.resolve();
   }
 
   function updatePreviewTaskCheckboxes(raw) {
@@ -870,6 +877,7 @@
       return;
     }
 
+    const renderVersion = (previewRenderVersion += 1);
     const docId = global.AppState && typeof global.AppState.getActiveDocumentId === 'function'
       ? global.AppState.getActiveDocumentId()
       : null;
@@ -883,11 +891,17 @@
         ? global.marked.parse(expanded, { breaks: true, mangle: false })
         : expanded;
       previewEl.innerHTML = global.DOMPurify.sanitize(parsed, SANITIZE_CONFIG);
-      convertMermaidBlocks();
-      if (docId) {
-        pruneStaleRenderCache();
-        renderCache.set(docId, { text: raw, html: previewEl.innerHTML });
-      }
+      // Cache only after mermaid.run()'s promise resolves, so the cached HTML
+      // holds finished SVGs rather than unconverted <div class="mermaid"> placeholders.
+      // Guarded by renderVersion: if another render() call has started (e.g. the
+      // user kept typing or switched documents) before mermaid finishes, skip the
+      // now-stale write instead of caching outdated HTML under docId.
+      convertMermaidBlocks().then(() => {
+        if (docId && renderVersion === previewRenderVersion) {
+          pruneStaleRenderCache();
+          renderCache.set(docId, { text: raw, html: previewEl.innerHTML });
+        }
+      });
     }
     preparePreviewLinks();
     resolvePreviewRelativeAssets();

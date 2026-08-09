@@ -56,6 +56,9 @@ test.describe('Render pipeline: render() result cache (Issue #158)', () => {
     const text = '```mermaid\nflowchart LR\nA-->B\n```';
     await page.fill('#editor', text);
     await page.waitForSelector('#preview .mermaid svg');
+    // Let the post-mermaid cache write (chained on mermaid.run()'s promise) settle
+    // before overwriting mermaid.run below, so the cached HTML holds the finished SVG.
+    await page.waitForTimeout(50);
 
     await page.evaluate(() => {
       window.__mermaidRunCallCount = 0;
@@ -69,6 +72,9 @@ test.describe('Render pipeline: render() result cache (Issue #158)', () => {
     await page.evaluate(text => window.Preview.render(text), text);
 
     expect(await page.evaluate(() => window.__mermaidRunCallCount)).toBe(0);
+    // Regression guard: the cache must hold the finished SVG, not the pre-mermaid
+    // placeholder — otherwise a cache hit would render an empty/unconverted diagram.
+    await expect(page.locator('#preview .mermaid svg')).toBeVisible();
   });
 
   test('changed text for the same document bypasses the cache and re-renders', async ({ page }) => {
@@ -76,6 +82,7 @@ test.describe('Render pipeline: render() result cache (Issue #158)', () => {
     const first = '```mermaid\nflowchart LR\nA-->B\n```';
     await page.fill('#editor', first);
     await page.waitForSelector('#preview .mermaid svg');
+    await page.waitForTimeout(50);
 
     await page.evaluate(() => {
       window.__mermaidRunCallCount = 0;
