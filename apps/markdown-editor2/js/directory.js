@@ -108,8 +108,8 @@
         return;
       }
 
-      entry.loaded = true;
       if (AppState.getActiveDocumentId() === id) {
+        entry.loaded = true;
         AppState.setText(text, 'switch');
       }
     },

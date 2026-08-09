@@ -123,4 +123,37 @@ test.describe('Directory (Issue #154)', () => {
 
     expect(result).toEqual({ opened: false, reason: 'unsupported' });
   });
+
+  test('returns cancelled when the user dismisses the directory picker', async ({ page }) => {
+    const result = await page.evaluate(async () => {
+      window.showDirectoryPicker = async () => {
+        const error = new Error('The user aborted a request.');
+        error.name = 'AbortError';
+        throw error;
+      };
+      return window.Directory.openFolder();
+    });
+
+    expect(result).toEqual({ opened: false, reason: 'cancelled' });
+  });
+
+  test('activateDocument leaves the document unloaded and does not throw when getFile() fails', async ({ page }) => {
+    const result = await page.evaluate(async () => {
+      await window.Directory.openFolder();
+      const target = window.Directory.getTree().find(d => d.path === 'a.md');
+      window.__mockHandles.aMd.getFile = async () => {
+        throw new Error('permission revoked');
+      };
+
+      await window.Directory.activateDocument(target.id);
+
+      return {
+        text: window.AppState.getText(),
+        loaded: window.Directory.getTree().find(d => d.id === target.id).loaded
+      };
+    });
+
+    expect(result.text).toBe('');
+    expect(result.loaded).toBe(false);
+  });
 });
