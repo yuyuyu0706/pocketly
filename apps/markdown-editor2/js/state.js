@@ -3,7 +3,8 @@
 
   const STORAGE_KEYS = {
     text: 'md:text',
-    settings: 'md:settings'
+    settings: 'md:settings',
+    documents: 'md:documents'
   };
 
   const DEFAULT_SETTINGS = {
@@ -18,10 +19,10 @@
   // original signatures for the 24 existing call sites across preview.js/toc.js/
   // export.js/script.js/formatting.js/layout.js.
   //
-  // Persistence scope (see Issue #151): only the active document's text is persisted
-  // (md:text session storage), matching current behavior. Documents opened via
-  // openDocument() beyond the active one live in memory only and are lost on reload.
-  // Full multi-document persistence is the responsibility of MEW-005 (Lv2-6).
+  // Persistence scope (see Issue #161): all open documents' text and cursor state are
+  // persisted to sessionStorage (md:documents), keyed by activeDocumentId. Documents
+  // originating from a directory handle (meta.path set) are excluded from this scope;
+  // their persistence is the responsibility of Lv3-2 (DirectoryHandle persistence).
   const state = {
     documents: new Map(), // id -> { id, text, cursor, createdAt }
     activeDocumentId: null,
@@ -31,8 +32,10 @@
   };
 
   const TEXT_SAVE_DEBOUNCE = 300;
+  const DOCUMENTS_SAVE_DEBOUNCE = 300;
   const INERT_TEXT_PATTERN = /[\s\u200B\u200C\u200D\uFEFF]+/g;
   let textSaveTimer = null;
+  let documentsSaveTimer = null;
   let fallbackDocText = '';
   let nextDocumentId = 1;
 
@@ -82,14 +85,6 @@
       global.localStorage.setItem(key, value);
     } catch (error) {
       console.warn('[AppState] Unable to write to localStorage.', error);
-    }
-  }
-
-  function safeRemoveItem(key) {
-    try {
-      global.localStorage.removeItem(key);
-    } catch (error) {
-      console.warn('[AppState] Unable to remove from localStorage.', error);
     }
   }
 
@@ -158,9 +153,105 @@
     persistTextValue(active ? active.text : '');
   }
 
+  function isCursorLike(value) {
+    return isPlainObject(value) && typeof value.start === 'number' && typeof value.end === 'number';
+  }
+
+  function serializeDocuments() {
+    const documents = Array.from(state.documents.values())
+      .filter(doc => !(doc.meta && typeof doc.meta.path === 'string'))
+      .map(doc => ({ id: doc.id, text: doc.text, cursor: Object.assign({}, doc.cursor) }));
+    return { activeDocumentId: state.activeDocumentId, documents };
+  }
+
+  function isPristineDefaultSnapshot(snapshot) {
+    if (snapshot.documents.length !== 1) {
+      return false;
+    }
+    const [doc] = snapshot.documents;
+    if (!analyzeText(doc.text).hasMeaningful) {
+      return true;
+    }
+    return (
+      doc.text === fallbackDocText &&
+      doc.cursor.start === 0 &&
+      doc.cursor.end === 0 &&
+      doc.cursor.direction === 'f'
+    );
+  }
+
+  function persistDocumentsValue() {
+    const snapshot = serializeDocuments();
+    if (!snapshot.documents.length || isPristineDefaultSnapshot(snapshot)) {
+      safeRemoveSessionItem(STORAGE_KEYS.documents);
+      return;
+    }
+    try {
+      safeSetSessionItem(STORAGE_KEYS.documents, JSON.stringify(snapshot));
+    } catch (error) {
+      console.warn('[AppState] Failed to persist documents.', error);
+    }
+  }
+
+  function scheduleDocumentsPersist() {
+    if (typeof global.setTimeout !== 'function') {
+      persistDocumentsValue();
+      return;
+    }
+    if (documentsSaveTimer) {
+      global.clearTimeout(documentsSaveTimer);
+    }
+    documentsSaveTimer = global.setTimeout(() => {
+      persistDocumentsValue();
+      documentsSaveTimer = null;
+    }, DOCUMENTS_SAVE_DEBOUNCE);
+  }
+
+  function flushPendingDocumentsPersist() {
+    if (!documentsSaveTimer) {
+      return;
+    }
+    global.clearTimeout(documentsSaveTimer);
+    documentsSaveTimer = null;
+    persistDocumentsValue();
+  }
+
+  function parseStoredDocuments(raw) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (!isPlainObject(parsed) || typeof parsed.activeDocumentId !== 'string' || !Array.isArray(parsed.documents)) {
+        return null;
+      }
+      const documents = [];
+      for (const entry of parsed.documents) {
+        if (!isPlainObject(entry) || typeof entry.id !== 'string' || typeof entry.text !== 'string') {
+          return null;
+        }
+        const cursor = isCursorLike(entry.cursor)
+          ? { start: entry.cursor.start, end: entry.cursor.end, direction: entry.cursor.direction === 'b' ? 'b' : 'f' }
+          : { start: 0, end: 0, direction: 'f' };
+        documents.push({
+          id: entry.id,
+          text: entry.text,
+          cursor,
+          createdAt: Date.now(),
+          meta: {}
+        });
+      }
+      if (!documents.length) {
+        return null;
+      }
+      return { activeDocumentId: parsed.activeDocumentId, documents };
+    } catch (error) {
+      console.warn('[AppState] Failed to parse stored documents.', error);
+      return null;
+    }
+  }
+
   if (typeof global.addEventListener === 'function') {
     const persistOnUnload = () => {
       flushPendingTextPersist();
+      flushPendingDocumentsPersist();
     };
     global.addEventListener('beforeunload', persistOnUnload, { capture: true });
     global.addEventListener('pagehide', persistOnUnload, { capture: true });
@@ -213,23 +304,37 @@
       const nextText = normalizeText(initialText);
       fallbackDocText = nextText;
 
-      safeRemoveItem(STORAGE_KEYS.settings);
-
-      const storedRaw = safeGetSessionItem(STORAGE_KEYS.text);
-      const { normalized: restoredText, hasMeaningful } =
-        storedRaw !== null ? analyzeText(storedRaw) : { normalized: '', hasMeaningful: false };
-
       state.documents = new Map();
       state.activeHistory = [];
-      const record = createDocumentRecord(hasMeaningful ? restoredText : nextText);
-      state.documents.set(record.id, record);
-      state.activeDocumentId = record.id;
-      touchActiveHistory(record.id);
 
+      const storedDocsRaw = safeGetSessionItem(STORAGE_KEYS.documents);
+      const restored = storedDocsRaw ? parseStoredDocuments(storedDocsRaw) : null;
+
+      if (restored && restored.documents.length > 0) {
+        restored.documents.forEach(doc => state.documents.set(doc.id, doc));
+        state.activeDocumentId = state.documents.has(restored.activeDocumentId)
+          ? restored.activeDocumentId
+          : state.documents.keys().next().value;
+        nextDocumentId = restored.documents.reduce((max, doc) => {
+          const match = /^doc-(\d+)$/.exec(doc.id);
+          return match ? Math.max(max, Number(match[1]) + 1) : max;
+        }, nextDocumentId);
+      } else {
+        const storedRaw = safeGetSessionItem(STORAGE_KEYS.text);
+        const { normalized: restoredText, hasMeaningful } =
+          storedRaw !== null ? analyzeText(storedRaw) : { normalized: '', hasMeaningful: false };
+        const record = createDocumentRecord(hasMeaningful ? restoredText : nextText);
+        state.documents.set(record.id, record);
+        state.activeDocumentId = record.id;
+      }
+
+      touchActiveHistory(state.activeDocumentId);
       state.settings = mergeSettings(initial && initial.settings);
 
-      scheduleTextPersist(record.text);
-      Bus.emit('text:changed', { text: record.text, source: 'init' });
+      const active = getActiveDocument();
+      scheduleTextPersist(active.text);
+      scheduleDocumentsPersist();
+      Bus.emit('text:changed', { text: active.text, source: 'init' });
     },
     /**
      * Retrieve the current markdown text of the active document.
@@ -255,6 +360,7 @@
       }
       active.text = next;
       scheduleTextPersist(active.text);
+      scheduleDocumentsPersist();
       Bus.emit('text:changed', { text: active.text, source });
     },
     /**
@@ -303,6 +409,7 @@
         return;
       }
       active.cursor = Object.assign({}, active.cursor, cursor);
+      scheduleDocumentsPersist();
     },
     /**
      * Add a new document to the collection without switching to it.
@@ -313,6 +420,7 @@
     openDocument(text, meta) {
       const record = createDocumentRecord(text, meta);
       state.documents.set(record.id, record);
+      scheduleDocumentsPersist();
       return record.id;
     },
     /**
@@ -332,6 +440,7 @@
       state.activeHistory = state.activeHistory.filter(historyId => historyId !== id);
 
       if (!wasActive) {
+        scheduleDocumentsPersist();
         return;
       }
 
@@ -358,6 +467,7 @@
       touchActiveHistory(nextId);
       const active = getActiveDocument();
       scheduleTextPersist(active.text);
+      scheduleDocumentsPersist();
       Bus.emit('text:changed', { text: active.text, source: 'switch' });
     },
     /**
@@ -373,6 +483,7 @@
       touchActiveHistory(id);
       const active = getActiveDocument();
       scheduleTextPersist(active.text);
+      scheduleDocumentsPersist();
       Bus.emit('text:changed', { text: active.text, source: 'switch' });
     },
     /**

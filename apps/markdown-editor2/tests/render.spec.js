@@ -99,7 +99,6 @@ test('reload restores edited text from sessionStorage within the same session', 
     text => window.sessionStorage.getItem('md:text') === text,
     customText
   );
-  await page.waitForFunction(() => window.localStorage.getItem('md:settings') === null);
 });
 
 test('ignores stored text that only contains invisible characters', async ({ page }) => {
@@ -112,7 +111,6 @@ test('ignores stored text that only contains invisible characters', async ({ pag
   await expect(page.locator('#preview')).toContainText('Welcome to Markdown Editor Blue');
   await expect(page.locator('#editor')).toHaveValue(/Welcome to Markdown Editor Blue/);
   await page.waitForFunction(() => window.sessionStorage.getItem('md:text') === null);
-  await page.waitForFunction(() => window.localStorage.getItem('md:settings') === null);
 });
 
 test('clears stored text when reloading immediately after emptying editor', async ({ page }) => {
@@ -128,7 +126,6 @@ test('clears stored text when reloading immediately after emptying editor', asyn
   await expect(page.locator('#preview')).toContainText('Welcome to Markdown Editor Blue');
   await expect(page.locator('#editor')).toHaveValue(/Welcome to Markdown Editor Blue/);
   await page.waitForFunction(() => window.sessionStorage.getItem('md:text') === null);
-  await page.waitForFunction(() => window.localStorage.getItem('md:settings') === null);
 });
 
 test('new browser context does not inherit text from a previous session', async ({ browser }) => {
@@ -156,15 +153,23 @@ test('new browser context does not inherit text from a previous session', async 
   }
 });
 
-test('clears stored settings on reload', async ({ page }) => {
+test('restores stored settings on reload (Issue #161 regression)', async ({ page }) => {
   await page.evaluate(() => {
-    window.localStorage.setItem('md:settings', JSON.stringify({ lang: 'ja', extra: true }));
+    window.AppState.setSetting('showLineNumbers', true);
+  });
+  await page.waitForFunction(() => {
+    const raw = window.localStorage.getItem('md:settings');
+    return raw !== null && JSON.parse(raw).showLineNumbers === true;
   });
 
   await page.reload();
 
-  await expect(page.locator('#lang-switch')).toHaveValue('en');
-  await page.waitForFunction(() => window.localStorage.getItem('md:settings') === null);
+  const showLineNumbers = await page.evaluate(() => window.AppState.getSettings().showLineNumbers);
+  expect(showLineNumbers).toBe(true);
+  await page.waitForFunction(() => {
+    const raw = window.localStorage.getItem('md:settings');
+    return raw !== null && JSON.parse(raw).showLineNumbers === true;
+  });
 });
 
 test('clears stored language preference on reload', async ({ page }) => {
@@ -181,7 +186,6 @@ test('clears stored language preference on reload', async ({ page }) => {
       window.localStorage.getItem('markdown-editor-language') === null &&
       window.localStorage.getItem('markdown-editor-language-source') === null
   );
-  await page.waitForFunction(() => window.localStorage.getItem('md:settings') === null);
 });
 
 test('initial language defaults to English', async ({ page }) => {
