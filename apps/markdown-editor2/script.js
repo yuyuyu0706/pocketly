@@ -19,7 +19,9 @@ function startApp() {
   const mainContainer = document.querySelector('main');
   const imageInput = document.getElementById('imageInput');
   const insertImageBtn = document.getElementById('insert-image');
-  const toc = document.getElementById('toc');
+  const tocPanel = document.getElementById('toc');
+  const toc = document.getElementById('toc-headings');
+  const fileTreeEl = document.getElementById('file-tree');
   const toolbar = document.getElementById('toolbar');
   const exportPdfBtn = document.getElementById('export-pdf');
   const exportHtmlBtn = document.getElementById('export-html');
@@ -158,8 +160,8 @@ function startApp() {
       editor.scrollTop = 0;
       Layout.syncEditorHighlightScroll();
       preview.scrollTop = 0;
-      if (toc) {
-        toc.scrollTop = 0;
+      if (tocPanel) {
+        tocPanel.scrollTop = 0;
       }
     };
 
@@ -311,8 +313,8 @@ function startApp() {
           editor.scrollTop = 0;
           Layout.syncEditorHighlightScroll();
           preview.scrollTop = 0;
-          if (toc) {
-            toc.scrollTop = 0;
+          if (tocPanel) {
+            tocPanel.scrollTop = 0;
           }
         };
 
@@ -597,6 +599,10 @@ function startApp() {
   Bus.on('text:changed', handleTextStateChange);
 
   Toc.init({ editor, toc, preview, AppState, Bus, Preview, Layout });
+
+  if (fileTreeEl && window.FileTree && window.Directory) {
+    FileTree.init({ container: fileTreeEl, Directory, Bus, AppState });
+  }
 
   Bus.on('settings:changed', event => {
     if (!event || typeof event.key !== 'string') {
