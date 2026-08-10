@@ -66,6 +66,11 @@
         fallback: '[Image: {filename}]',
         markdownTemplate:
           '\n<!-- image:{filename} -->\n[Image: {filename}]\n<!-- /image -->\n'
+      },
+      reconnect: {
+        message: 'Reconnect to the previously opened folder "{name}"?',
+        reconnectButton: 'Reconnect',
+        closeButton: 'Close'
       }
     },
     ja: {
@@ -131,6 +136,11 @@
         fallback: '[画像: {filename}]',
         markdownTemplate:
           '\n<!-- image:{filename} -->\n[画像: {filename}]\n<!-- /image -->\n'
+      },
+      reconnect: {
+        message: '前回開いていたフォルダ「{name}」に再接続しますか？',
+        reconnectButton: '再接続',
+        closeButton: '閉じる'
       }
     }
   };
