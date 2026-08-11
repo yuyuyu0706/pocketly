@@ -548,13 +548,12 @@
     return !ref || /^(?:data:|https?:|blob:|#)/i.test(ref);
   }
 
-  async function resolveImageObjectUrl(path, handle) {
+  async function resolveImageObjectUrl(path, blob) {
     const cached = resolvedAssetCache.get(path);
     if (cached) {
       return cached;
     }
-    const file = await handle.getFile();
-    const url = URL.createObjectURL(file);
+    const url = URL.createObjectURL(blob);
     resolvedAssetCache.set(path, url);
     return url;
   }
@@ -610,7 +609,7 @@
       }
       usedPaths.add(entry.path);
       try {
-        const url = await resolveImageObjectUrl(entry.path, entry.handle);
+        const url = await resolveImageObjectUrl(entry.path, entry.blob);
         if (version === previewAssetRenderVersion) {
           img.src = url;
         }
