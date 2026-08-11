@@ -4,6 +4,7 @@
   },
   "toolbar": {
     "open": "📂 Open",
+    "openFile": "📄 Open File",
     "openFolder": "📁 Open Folder",
     "save": "💾 Save",
     "saveUnsaved": " (unsaved)",

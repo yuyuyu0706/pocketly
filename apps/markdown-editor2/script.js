@@ -24,6 +24,8 @@ function startApp() {
   const exportPdfBtn = document.getElementById('export-pdf');
   const exportHtmlBtn = document.getElementById('export-html');
   const saveMdBtn = document.getElementById('save-md');
+  const openBtn = document.getElementById('open-btn');
+  const openOptions = document.getElementById('open-options');
   const openMdBtn = document.getElementById('open-md');
   const openFolderBtn = document.getElementById('open-folder');
   const folderInput = document.getElementById('folder-input');
@@ -228,6 +230,44 @@ function startApp() {
       const files = Array.from(event.target.files || []);
       await Directory.importFolder(files);
       folderInput.value = ''; // 同一フォルダの連続選択でもchangeを発火させる
+    });
+  }
+
+  // "Open" / "Open Folder" are consolidated under a single toolbar entry
+  // point (open-menu) to keep the always-visible toolbar count within
+  // N_read=6 (Charter §3-3) after adding folder import.
+  if (openBtn && openOptions) {
+    const closeOpenMenu = () => {
+      if (openOptions.hidden) return;
+      openOptions.hidden = true;
+      openBtn.setAttribute('aria-expanded', 'false');
+    };
+
+    openBtn.addEventListener('click', event => {
+      event.stopPropagation();
+      const isHidden = openOptions.hidden;
+      openOptions.hidden = !isHidden;
+      openBtn.setAttribute('aria-expanded', String(isHidden));
+    });
+
+    openOptions.addEventListener('click', event => {
+      if (event.target.closest('.open-option')) {
+        closeOpenMenu();
+      }
+    });
+
+    document.addEventListener('click', event => {
+      if (openOptions.hidden || openOptions.contains(event.target) || openBtn.contains(event.target)) {
+        return;
+      }
+      closeOpenMenu();
+    });
+
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && !openOptions.hidden) {
+        closeOpenMenu();
+        openBtn.focus();
+      }
     });
   }
 

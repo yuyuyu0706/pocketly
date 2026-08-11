@@ -12,8 +12,23 @@
   <header id="toolbar">
     <h1 id="app-title" data-i18n="app.title">Markdown Editor Blue</h1>
     <div id="toolbar-actions">
-      <button id="open-md" class="toolbar-button" type="button" data-i18n="toolbar.open">📂 Open</button>
-      <button id="open-folder" class="toolbar-button" type="button" data-i18n="toolbar.openFolder">📁 Open Folder</button>
+      <div id="open-menu">
+        <button
+          id="open-btn"
+          class="toolbar-button"
+          type="button"
+          aria-haspopup="true"
+          aria-expanded="false"
+          aria-controls="open-options"
+          data-i18n="toolbar.open"
+        >
+          📂 Open
+        </button>
+        <div id="open-options" role="menu" aria-labelledby="open-btn" hidden>
+          <button id="open-md" class="open-option" type="button" role="menuitem" data-i18n="toolbar.openFile">📄 Open File</button>
+          <button id="open-folder" class="open-option" type="button" role="menuitem" data-i18n="toolbar.openFolder">📁 Open Folder</button>
+        </div>
+      </div>
       <button id="save-md" class="toolbar-button" type="button" data-i18n="toolbar.save">💾 Save</button>
       <button id="export-pdf" class="toolbar-button" type="button" data-i18n="toolbar.exportPdf" data-mode-visible="read">📄 Export PDF</button>
       <button

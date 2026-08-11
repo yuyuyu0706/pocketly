@@ -98,7 +98,8 @@ body {
   outline-offset: 2px;
 }
 
-#template-menu {
+#template-menu,
+#open-menu {
   position: relative;
 }
 
@@ -117,8 +118,43 @@ body {
   z-index: 1000;
 }
 
-#template-options[hidden] {
+#open-options {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0.25rem;
+  background: #ffffff;
+  border: 1px solid #aac8ff;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  min-width: 180px;
+  z-index: 1000;
+}
+
+#template-options[hidden],
+#open-options[hidden] {
   display: none;
+}
+
+.open-option {
+  background: transparent;
+  border: none;
+  text-align: left;
+  color: #003366;
+  font-size: 0.9rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: 4px;
+  cursor: pointer;
+  width: 100%;
+  white-space: nowrap;
+}
+
+.open-option:hover,
+.open-option:focus-visible {
+  background: #e6f0ff;
+  outline: none;
 }
 
 .template-option {

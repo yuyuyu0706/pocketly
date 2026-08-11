@@ -9,6 +9,7 @@
       },
       toolbar: {
         open: '📂 Open',
+        openFile: '📄 Open File',
         openFolder: '📁 Open Folder',
         save: '💾 Save',
         exportPdf: '📄 Export PDF',
@@ -79,6 +80,7 @@
       },
       toolbar: {
         open: '📂 開く',
+        openFile: '📄 ファイルを開く',
         openFolder: '📁 フォルダを開く',
         save: '💾 保存',
         exportPdf: '📄 PDF出力',

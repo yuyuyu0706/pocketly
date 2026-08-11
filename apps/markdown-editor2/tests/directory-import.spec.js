@@ -157,4 +157,41 @@ test.describe('Directory.importFolder (Issue #171)', () => {
     expect(result.confirmCalls.length).toBe(1);
     expect(result.paths).toEqual(['a.md', 'sub/b.md']);
   });
+
+  test('relative document link click still activates the target document (pathIndex resolution unaffected)', async ({ page }) => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'mew-folder-import-links-'));
+    const folder = path.join(root, 'my-folder');
+    await fs.mkdir(path.join(folder, 'sub'), { recursive: true });
+    await fs.mkdir(path.join(folder, 'notes'), { recursive: true });
+    await fs.writeFile(
+      path.join(folder, 'sub', 'a.md'),
+      '[go to other](../notes/other.md)'
+    );
+    await fs.writeFile(path.join(folder, 'notes', 'other.md'), '# Other doc');
+
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 2);
+
+    await page.evaluate(() => {
+      const target = window.Directory.getTree().find(d => d.path === 'sub/a.md');
+      window.Directory.activateDocument(target.id);
+    });
+
+    await page.waitForFunction(() => {
+      const anchor = document.querySelector('#preview a[href="../notes/other.md"]');
+      return !!(anchor && anchor.dataset.previewDocId);
+    });
+
+    await page.click('#preview a[href="../notes/other.md"]');
+
+    const result = await page.evaluate(() => ({
+      text: window.AppState.getText(),
+      activePath: window.Directory.getActivePath()
+    }));
+
+    expect(result.text).toBe('# Other doc');
+    expect(result.activePath).toBe('notes/other.md');
+  });
 });
