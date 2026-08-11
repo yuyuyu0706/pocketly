@@ -3,101 +3,6 @@
 
   const MARKDOWN_EXTENSION = /\.md$/i;
 
-  const DB_NAME = 'mew-directory-store';
-  const DB_VERSION = 1;
-  const STORE_NAME = 'handles';
-  const HANDLE_KEY = 'rootDirHandle';
-
-  function isIndexedDbSupported() {
-    return typeof global.indexedDB !== 'undefined' && global.indexedDB !== null;
-  }
-
-  function openDb() {
-    return new Promise((resolve, reject) => {
-      const req = global.indexedDB.open(DB_NAME, DB_VERSION);
-      req.onupgradeneeded = () => {
-        if (!req.result.objectStoreNames.contains(STORE_NAME)) {
-          req.result.createObjectStore(STORE_NAME);
-        }
-      };
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error);
-    });
-  }
-
-  /**
-   * Persist the given directory handle as the single reconnectable folder.
-   * No-ops (resolves without throwing) when IndexedDB is unavailable, or the
-   * save itself fails (e.g. transaction error); this is a best-effort cache,
-   * not something openFolder() should fail over.
-   * @param {FileSystemDirectoryHandle} handle
-   * @returns {Promise<void>}
-   */
-  async function saveHandle(handle) {
-    if (!isIndexedDbSupported()) {
-      return;
-    }
-    try {
-      const db = await openDb();
-      await new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE_NAME, 'readwrite');
-        tx.objectStore(STORE_NAME).put(handle, HANDLE_KEY);
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
-      });
-      db.close();
-    } catch (error) {
-      console.warn('[Directory] Failed to save directory handle.', error);
-    }
-  }
-
-  /**
-   * Load the previously saved directory handle, or null if none exists / IndexedDB
-   * is unavailable / the read fails.
-   * @returns {Promise<FileSystemDirectoryHandle|null>}
-   */
-  async function loadHandle() {
-    if (!isIndexedDbSupported()) {
-      return null;
-    }
-    try {
-      const db = await openDb();
-      const handle = await new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE_NAME, 'readonly');
-        const req = tx.objectStore(STORE_NAME).get(HANDLE_KEY);
-        req.onsuccess = () => resolve(req.result || null);
-        req.onerror = () => reject(req.error);
-      });
-      db.close();
-      return handle;
-    } catch (error) {
-      console.warn('[Directory] Failed to load directory handle.', error);
-      return null;
-    }
-  }
-
-  /**
-   * Remove the saved directory handle, if any. No-op when IndexedDB is unavailable.
-   * @returns {Promise<void>}
-   */
-  async function clearHandle() {
-    if (!isIndexedDbSupported()) {
-      return;
-    }
-    try {
-      const db = await openDb();
-      await new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE_NAME, 'readwrite');
-        tx.objectStore(STORE_NAME).delete(HANDLE_KEY);
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
-      });
-      db.close();
-    } catch (error) {
-      console.warn('[Directory] Failed to clear directory handle.', error);
-    }
-  }
-
   // Maps AppState document ids to their originating file handle/path/load state.
   // Kept private to this module; Lv3-2 (relative path resolution) will consume it
   // via getTree()/a future accessor rather than reaching into this Map directly.
@@ -195,8 +100,7 @@
   /**
    * Walk dirHandle for `.md` files and register them as documents in AppState,
    * closing the app's currently-active document once the new ones are in place.
-   * Shared by openFolder() (fresh picker selection) and reconnectFolder()
-   * (handle restored from IndexedDB).
+   * Shared by openFolder() (fresh picker selection).
    * @param {FileSystemDirectoryHandle} dirHandle
    * @returns {Promise<number>} number of `.md` files registered
    */
@@ -248,55 +152,7 @@
       }
 
       const count = await registerFolderContents(dirHandle);
-      await saveHandle(dirHandle);
 
-      return { opened: true, count };
-    },
-
-    /**
-     * Check whether a previously opened folder's handle was persisted in IndexedDB.
-     * Does not check or request permission (must run outside a user gesture at
-     * app startup); use reconnectFolder() to actually reconnect.
-     * @returns {Promise<{ name: string }|null>}
-     */
-    async checkForReconnectableFolder() {
-      const handle = await loadHandle();
-      return handle ? { name: handle.name } : null;
-    },
-
-    /**
-     * Reconnect to the folder saved in IndexedDB. Must be called from within a
-     * user gesture (e.g. a banner button click), since requestPermission()
-     * requires one.
-     * @returns {Promise<{ opened: boolean, reason?: 'not-found'|'denied'|'permission-error', count?: number }>}
-     */
-    async reconnectFolder() {
-      const handle = await loadHandle();
-      if (!handle) {
-        return { opened: false, reason: 'not-found' };
-      }
-
-      let permission;
-      try {
-        permission = await handle.queryPermission({ mode: 'read' });
-        if (permission !== 'granted') {
-          permission = await handle.requestPermission({ mode: 'read' });
-        }
-      } catch (error) {
-        console.warn('[Directory] Permission check/request failed.', error);
-        return { opened: false, reason: 'permission-error' };
-      }
-
-      if (permission === 'denied') {
-        await clearHandle();
-        return { opened: false, reason: 'denied' };
-      }
-
-      if (permission !== 'granted') {
-        return { opened: false, reason: 'denied' };
-      }
-
-      const count = await registerFolderContents(handle);
       return { opened: true, count };
     },
 
