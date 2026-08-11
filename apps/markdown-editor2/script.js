@@ -593,29 +593,42 @@ function startApp() {
   editor.addEventListener('keyup', Toc.updateTOCHighlight);
   editor.addEventListener('click', Toc.updateTOCHighlight);
 
+  function insertImageMarkdown(markdownImage) {
+    const cursorPos = editor.selectionStart;
+    const currentValue = AppState.getText();
+    const newValue =
+      currentValue.slice(0, cursorPos) +
+      markdownImage +
+      currentValue.slice(cursorPos);
+    Formatting.replaceEditorRange(cursorPos, cursorPos, markdownImage);
+
+    Layout.updateEditorHighlight(newValue);
+    AppState.setText(newValue, 'editor');
+  }
+
   imageInput.addEventListener('change', event => {
     const file = event.target.files[0];
     if (!file) return;
 
+    const filename = file.name.trim();
+    const assetPath = window.Directory ? Directory.registerPastedAsset(filename, file) : null;
+
+    if (assetPath) {
+      // directory-backed: standard Markdown image syntax referencing the
+      // asset by its folder-relative path (MEW-035 Lv3-2 Lv4-2).
+      insertImageMarkdown(`![${filename}](${assetPath})`);
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = () => {
       const base64 = reader.result;
-      const filename = file.name.trim();
       if (typeof base64 === 'string' && filename) {
         Bus.emit('preview:image', { filename, data: base64 });
       }
 
       const markdownImage = i18n.t('image.markdownTemplate', { filename });
-      const cursorPos = editor.selectionStart;
-      const currentValue = AppState.getText();
-      const newValue =
-        currentValue.slice(0, cursorPos) +
-        markdownImage +
-        currentValue.slice(cursorPos);
-      Formatting.replaceEditorRange(cursorPos, cursorPos, markdownImage);
-
-      Layout.updateEditorHighlight(newValue);
-      AppState.setText(newValue, 'editor');
+      insertImageMarkdown(markdownImage);
     };
     reader.readAsDataURL(file);
   });
