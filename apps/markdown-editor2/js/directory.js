@@ -18,6 +18,9 @@
   // path -> id, for resolving relative document links without scanning fileRegistry.
   const pathIndex = new Map();
 
+  // path -> Blob, for resolving relative image references (MEW-035 Lv3-2 Lv4-1).
+  const assetRegistry = new Map();
+
   function isIndexedDbSupported() {
     return typeof global.indexedDB !== 'undefined' && global.indexedDB !== null;
   }
@@ -36,11 +39,11 @@
   }
 
   /**
-   * Persist the imported workspace ({ documents, importedAt }) as the single
-   * stored workspace. No-ops (resolves without throwing) when IndexedDB is
-   * unavailable, or the save itself fails; this is a best-effort cache, not
-   * something importFolder() should fail over.
-   * @param {{ documents: Array<{path:string,text:string}>, importedAt: number }} workspace
+   * Persist the imported workspace ({ documents, assets, importedAt }) as the
+   * single stored workspace. No-ops (resolves without throwing) when
+   * IndexedDB is unavailable, or the save itself fails; this is a
+   * best-effort cache, not something importFolder() should fail over.
+   * @param {{ documents: Array<{path:string,text:string}>, assets: Array<{path:string,blob:Blob}>, importedAt: number }} workspace
    * @returns {Promise<void>}
    */
   async function saveWorkspace(workspace) {
@@ -64,7 +67,7 @@
   /**
    * Load the previously saved workspace, or null if none exists / IndexedDB
    * is unavailable / the read fails.
-   * @returns {Promise<{ documents: Array<{path:string,text:string}>, importedAt: number }|null>}
+   * @returns {Promise<{ documents: Array<{path:string,text:string}>, assets?: Array<{path:string,blob:Blob}>, importedAt: number }|null>}
    */
   async function loadWorkspace() {
     if (!isIndexedDbSupported()) {
@@ -213,6 +216,21 @@
   }
 
   /**
+   * Register already-read assets ({ path, blob }) into assetRegistry, clearing
+   * whatever was previously registered so a re-import doesn't leave stale
+   * entries from the previous folder behind. Shared by importFolder() and
+   * restoreOnStartup(), called in tandem with registerDocuments().
+   * @param {Array<{ path: string, blob: Blob }>} assets
+   * @returns {void}
+   */
+  function registerAssets(assets) {
+    assetRegistry.clear();
+    (assets || []).forEach(({ path, blob }) => {
+      assetRegistry.set(path, blob);
+    });
+  }
+
+  /**
    * Global directory/file-tree manager for the folder-import flow
    * (`<input type="file" webkitdirectory>` based; see Issue #171 / MEW-035 Lv4-2).
    */
@@ -248,21 +266,26 @@
 
       showImportProgress(candidates.length);
       const documents = [];
+      const assets = [];
       let processed = 0;
       for (const { file, path } of candidates) {
         if (ALLOWED_EXTENSIONS.test(path)) {
           documents.push({ path, text: await file.text() });
+        } else if (ASSET_EXTENSIONS.test(path)) {
+          // File is a Blob subclass, so it can be stored as-is.
+          assets.push({ path, blob: file });
         }
-        // Assets (images) are not persisted until MEW-035 Lv3-2 (read-and-discard).
-        // The allow-list filter is implemented ahead of time so Lv3-2 only needs
-        // to add the "store as Blob" step.
         processed += 1;
         updateImportProgress(processed, candidates.length);
       }
 
-      await saveWorkspace({ documents, importedAt: Date.now() });
+      await saveWorkspace({ documents, assets, importedAt: Date.now() });
       await requestPersistentStorage();
 
+      // Assets must be registered before documents: registering documents makes
+      // the (only remaining) document active and triggers an immediate preview
+      // render, which resolves relative asset paths against assetRegistry.
+      registerAssets(assets);
       registerDocuments(documents);
       hideImportProgress();
 
@@ -280,6 +303,7 @@
       if (!workspace) {
         return { restored: false };
       }
+      registerAssets(workspace.assets || []);
       registerDocuments(workspace.documents);
       return { restored: true, count: workspace.documents.length };
     },
@@ -323,12 +347,11 @@
     /**
      * Resolve a Markdown-relative reference (image src / link href) against the
      * folder path of the document it appears in. Document-to-document links
-     * (via pathIndex) keep working; the asset branch is a temporary no-op
-     * since this flow has no live directory handle to resolve assets against
-     * (MEW-035 Lv4-2 intentional regression, restored in MEW-035 Lv3-2).
+     * are resolved via pathIndex; image/asset references are resolved via
+     * assetRegistry (MEW-035 Lv3-2 Lv4-1).
      * @param {string} fromPath folder-relative path of the referencing document
      * @param {string} ref relative reference from the Markdown (e.g. "../images/pic.png")
-     * @returns {Promise<{ type: 'document', id: string, path: string }|null>}
+     * @returns {Promise<{ type: 'document', id: string, path: string }|{ type: 'asset', path: string, blob: Blob }|null>}
      */
     async resolveRelativePath(fromPath, ref) {
       if (typeof fromPath !== 'string' || typeof ref !== 'string' || !ref) {
@@ -342,16 +365,18 @@
       if (docId) {
         return { type: 'document', id: docId, path: normalizedPath };
       }
-      // Asset resolution (images etc.) is unavailable in the FileList-based
-      // import flow: there is no live directory handle to walk. Returning
-      // null here is intentional (see MEW-035 Lv3-2 for restoration).
-      return null;
+      const blob = assetRegistry.get(normalizedPath);
+      if (!blob) {
+        return null;
+      }
+      return { type: 'asset', path: normalizedPath, blob };
     }
   };
 
   // Expose internals for unit testing via window.__directoryTest
   global.__directoryTest = {
-    getRegistrySize: () => fileRegistry.size
+    getRegistrySize: () => fileRegistry.size,
+    getAssetRegistrySize: () => assetRegistry.size
   };
 
   global.Directory = Directory;
