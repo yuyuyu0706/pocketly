@@ -9,6 +9,8 @@
       },
       toolbar: {
         open: '📂 Open',
+        openFile: '📄 Open File',
+        openFolder: '📁 Open Folder',
         save: '💾 Save',
         exportPdf: '📄 Export PDF',
         exportHtml: '🌐 Export HTML',
@@ -66,6 +68,10 @@
         fallback: '[Image: {filename}]',
         markdownTemplate:
           '\n<!-- image:{filename} -->\n[Image: {filename}]\n<!-- /image -->\n'
+      },
+      importFolder: {
+        confirmReplace:
+          'A folder imported on {date} is already stored. Replace it with the newly selected folder?'
       }
     },
     ja: {
@@ -74,6 +80,8 @@
       },
       toolbar: {
         open: '📂 開く',
+        openFile: '📄 ファイルを開く',
+        openFolder: '📁 フォルダを開く',
         save: '💾 保存',
         exportPdf: '📄 PDF出力',
         exportHtml: '🌐 HTML出力',
@@ -131,6 +139,10 @@
         fallback: '[画像: {filename}]',
         markdownTemplate:
           '\n<!-- image:{filename} -->\n[画像: {filename}]\n<!-- /image -->\n'
+      },
+      importFolder: {
+        confirmReplace:
+          '{date} にインポートしたフォルダが既に保存されています。新しく選択したフォルダで置き換えますか？'
       }
     }
   };

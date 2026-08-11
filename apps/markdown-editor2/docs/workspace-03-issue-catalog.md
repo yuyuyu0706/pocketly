@@ -110,12 +110,15 @@
 | MEW-028 | 体験改善 | 右クリック装飾メニューにコードブロックがない | `js/formatting.js`（メニュー構築）にapplyCodeBlockFormatting未実装 | コードを含む文書の作成効率。ただしMEWでは編集は従 | S | 低 | **小** | 5 | 旧MDE-005。MEWでは編集は「従」のため優先度をMERより低く判定。依存: 独立 |
 | MEW-029 | 品質・保守 | 装飾UI・クリップボード処理の責務が複雑 | `js/formatting.js`957行（装飾・クリップボード・右クリックメニュー混在） | 装飾UI再構成時（MEW-028等）の改修コスト | M | 低 | **小** | 5 | 旧装飾UI二層構造（MER保留テーマ）。ワークスペースUI再構成（Charter §3-4）の過程で整理する。依存: MEW-028 |
 | MEW-030 | 品質・保守 | IMEハイライト追従が未対応 | `layout.js`の`updateEditorHighlight()`が`compositionstart/end`を未登録（ws-02 C） | 日本語IME変換中のハイライトオーバーレイちらつき | S | 低 | **小** | 5 | ws-02 C。`preview.js:658/660`はスクロール同期側対応済み。ハイライト側が未対応。依存: 独立 |
-| MEW-031 | 品質・保守 | 非対応ブラウザフォールバックが未実装 | `<input webkitdirectory>`実装ゼロ / `showOpenFilePicker`のみ | File System Access API非対応環境（Brave等）でフォルダ読込不可 | M | 低 | **中（計画的投資）** | 2 | (d)横断的前提条件。読み取り専用フォールバック（閲覧完全動作・保存はダウンロード方式）。**Phase 2保存戦略と同時設計必須**。依存: MEW-003/005 |
+| MEW-031 | 品質・保守 | ~~非対応ブラウザフォールバックが未実装~~ **解消済み（Issue #171）** | `<input webkitdirectory>`実装ゼロ / `showOpenFilePicker`のみ | File System Access API非対応環境（Brave等）でフォルダ読込不可 | M | 低 | **解消済み** | — | (d)横断的前提条件。Issue #171（Lv4-2）にて`Directory.importFolder()`が`<input type="file" webkitdirectory>`ベースに刷新され、File System Access API非対応環境でも動作する経路が主方式となったため解消。依存: MEW-003/005 |
 | MEW-032 | 品質・保守 | 画像ドラッグ・リサイズ機能がない | 該当実装ゼロ | 画像サイズを本文中で調整できない | M | 低 | **小** | 5 | MER保留テーマ（画像ドラッグリサイズ）。MEWではフォルダ対応後に再評価。依存: MEW-003 |
 | MEW-033 | 将来構想 | 静的サイト一式エクスポート（フォルダ→配布物） | エクスポートが単一文書innerHTML前提（ws-02⑦） | MkDocs Material相当の「検索付き・ナビ付きHTMLサイト」の生成 | L | 低 | **対象外** | — | ⑳⊃ws-02⑦統合。ビルドツール化するとコンセプト（開いてすぐ使える・ツール化しない）と正面衝突。vision候補として`workspace-04-vision.md`に記録する（Lv2-4の領分）。本PJ対象外。依存: — |
 | MEW-034 | 将来構想 | ノートDB化（タグ・メタデータ・グラフビュー等） | 対応機構実装ゼロ | 「俯瞰する」の延長線上にある高度な知識管理 | L | 低 | **対象外** | — | Charter §3-5 将来構想として確定済み。本PJ対象外。`workspace-04-vision.md`に記録。依存: — |
+| MEW-035 | 品質・保守 | 画像等アセットのBlob格納・パス解決が内部化されていない | `directory.js`の`resolveRelativePath()`アセット分岐が新方式（`importFolder`のFileList入力）では常にnullを返す | Issue #171でフォルダ由来文書の画像相対パス解決が一時的に機能停止（文書間リンク解決は影響なし） | M | 中 | **中（計画的投資）** | 3 | Issue #171の申し送り事項。画像アセットをIndexedDBへBlob格納し、`resolveRelativePath()`のアセット分岐を新方式のデータソースへ差し替えて復旧する。依存: MEW-003（旧resolveAssetHandle実装を置き換え） |
+| MEW-036 | 品質・保守 | フォルダ由来文書の編集内容をSave（IndexedDB workspaceへの書き戻し）する経路がない | `directory.js`の`importFolder()`はインポート時点のテキストをAppStateへ登録するのみで、以後の編集は`workspaces`ストアへ反映されない | リロード・自動復元（`restoreOnStartup()`）で編集前の内容に戻ってしまう | M | 中 | **中（計画的投資）** | 3 | Issue #171の非対象範囲として明記済み。編集→Save統合はMEW-005（保存戦略）と同時設計が望ましい。依存: MEW-005/MEW-035 |
+| MEW-037 | 品質・保守 | インポート除外ルールが固定（ユーザー設定不可） | `directory.js`の`EXCLUDED_SEGMENTS`が`node_modules`固定・拡張子許可リストもハードコード | `.git`等の他の慣習的除外ディレクトリや、プロジェクト固有の除外パターンに対応できない | S | 低 | **小** | 5 | Issue #171実装時に発見。`.gitignore`相当の除外設定UIまたは追加ハードコードルールの要否を将来判断する。依存: 独立 |
 
-**確定後の配属集計**: Phase 2 = 9件 / Phase 3 = 8件 / Phase 4 = 9件 / Phase 5 = 6件 / 対象外 = 2件（計34件）
+**確定後の配属集計**: Phase 2 = 8件 / Phase 3 = 10件 / Phase 4 = 9件 / Phase 5 = 7件 / 対象外 = 2件 / 解消済み = 1件（計37件、MEW-031解消済み・MEW-035〜037追加）
 
 > **境界事例（【境界】マーク付き行）**: §4 個別詳細を参照。マージ前に利用者レビューで確定すること。
 
