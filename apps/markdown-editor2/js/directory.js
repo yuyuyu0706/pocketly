@@ -21,6 +21,57 @@
   // path -> Blob, for resolving relative image references (MEW-035 Lv3-2 Lv4-1).
   const assetRegistry = new Map();
 
+  // importedAt of the currently loaded workspace, or null when the active
+  // document set is not directory-backed. Cached at the module scope so
+  // scheduleWorkspacePersist() doesn't need to re-derive it on every call
+  // (MEW-035 Lv3-2 Lv4-2).
+  let currentImportedAt = null;
+
+  const DOCUMENTS_SAVE_DEBOUNCE = 300; // Matches state.js's DOCUMENTS_SAVE_DEBOUNCE.
+  let saveTimer = null;
+
+  /**
+   * Debounce a saveWorkspace() call reconstructed from the current
+   * fileRegistry/assetRegistry contents. No-ops when the active document set
+   * is not directory-backed (currentImportedAt === null).
+   * @returns {void}
+   */
+  function scheduleWorkspacePersist() {
+    if (typeof global.setTimeout !== 'function') {
+      persistWorkspaceNow();
+      return;
+    }
+    global.clearTimeout(saveTimer);
+    saveTimer = global.setTimeout(() => {
+      saveTimer = null;
+      persistWorkspaceNow();
+    }, DOCUMENTS_SAVE_DEBOUNCE);
+  }
+
+  function persistWorkspaceNow() {
+    if (currentImportedAt === null) {
+      return;
+    }
+    const documents = Array.from(fileRegistry.values()).map(({ path, text }) => ({ path, text }));
+    const assets = Array.from(assetRegistry.entries()).map(([path, blob]) => ({ path, blob }));
+    saveWorkspace({ documents, assets, importedAt: currentImportedAt });
+  }
+
+  /**
+   * Flush a pending debounced workspace persist immediately, synchronously
+   * scheduling the IndexedDB write. Intended for beforeunload/pagehide,
+   * mirroring state.js's flushPendingDocumentsPersist() pattern.
+   * @returns {void}
+   */
+  function flushPendingWorkspacePersist() {
+    if (!saveTimer) {
+      return;
+    }
+    global.clearTimeout(saveTimer);
+    saveTimer = null;
+    persistWorkspaceNow();
+  }
+
   function isIndexedDbSupported() {
     return typeof global.indexedDB !== 'undefined' && global.indexedDB !== null;
   }
@@ -201,7 +252,7 @@
     documents.forEach(({ path, text }) => {
       const name = path.split('/').pop();
       const id = AppState.openDocument(text, { path, name, loaded: true });
-      fileRegistry.set(id, { path, name, loaded: true });
+      fileRegistry.set(id, { path, name, loaded: true, text });
       pathIndex.set(path, id);
     });
 
@@ -279,8 +330,11 @@
         updateImportProgress(processed, candidates.length);
       }
 
-      await saveWorkspace({ documents, assets, importedAt: Date.now() });
+      const importedAt = Date.now();
+      await saveWorkspace({ documents, assets, importedAt });
       await requestPersistentStorage();
+
+      currentImportedAt = importedAt;
 
       // Assets must be registered before documents: registering documents makes
       // the (only remaining) document active and triggers an immediate preview
@@ -303,6 +357,7 @@
       if (!workspace) {
         return { restored: false };
       }
+      currentImportedAt = workspace.importedAt;
       registerAssets(workspace.assets || []);
       registerDocuments(workspace.documents);
       return { restored: true, count: workspace.documents.length };
@@ -370,8 +425,49 @@
         return null;
       }
       return { type: 'asset', path: normalizedPath, blob };
+    },
+
+    /**
+     * Register a pasted/attached image into assetRegistry under `assets/`
+     * and schedule a workspace persist, for directory-backed documents
+     * (MEW-035 Lv3-2 Lv4-2). Returns null when the active document set is
+     * not directory-backed, so callers fall back to the legacy imageMap
+     * flow.
+     * @param {string} filename
+     * @param {Blob} blob
+     * @returns {string|null} the folder-relative asset path, or null
+     */
+    registerPastedAsset(filename, blob) {
+      if (currentImportedAt === null) {
+        return null;
+      }
+      const path = `assets/${filename}`;
+      assetRegistry.set(path, blob);
+      scheduleWorkspacePersist();
+      return path;
     }
   };
+
+  if (global.Bus && typeof global.Bus.on === 'function') {
+    global.Bus.on('text:changed', ({ text } = {}) => {
+      if (typeof text !== 'string') {
+        return;
+      }
+      const activeId = AppState.getActiveDocumentId();
+      const entry = fileRegistry.get(activeId);
+      if (!entry) {
+        return; // Not a directory-backed document.
+      }
+      entry.text = text;
+      scheduleWorkspacePersist();
+    });
+  }
+
+  if (typeof global.addEventListener === 'function') {
+    const persistOnUnload = () => flushPendingWorkspacePersist();
+    global.addEventListener('beforeunload', persistOnUnload, { capture: true });
+    global.addEventListener('pagehide', persistOnUnload, { capture: true });
+  }
 
   // Expose internals for unit testing via window.__directoryTest
   global.__directoryTest = {
