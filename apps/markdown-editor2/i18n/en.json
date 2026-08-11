@@ -4,6 +4,7 @@
   },
   "toolbar": {
     "open": "📂 Open",
+    "openFolder": "📁 Open Folder",
     "save": "💾 Save",
     "saveUnsaved": " (unsaved)",
     "exportPdf": "📄 Export PDF",
@@ -65,5 +66,8 @@
   },
   "preview": {
     "sanitizerUnavailable": "The preview cannot be shown safely because the security sanitizer (DOMPurify) failed to load. Please reload the page or check that the vendor files are deployed correctly."
+  },
+  "importFolder": {
+    "confirmReplace": "A folder imported on {date} is already stored. Replace it with the newly selected folder?"
   }
 }

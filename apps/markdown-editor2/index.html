@@ -13,6 +13,7 @@
     <h1 id="app-title" data-i18n="app.title">Markdown Editor Blue</h1>
     <div id="toolbar-actions">
       <button id="open-md" class="toolbar-button" type="button" data-i18n="toolbar.open">📂 Open</button>
+      <button id="open-folder" class="toolbar-button" type="button" data-i18n="toolbar.openFolder">📁 Open Folder</button>
       <button id="save-md" class="toolbar-button" type="button" data-i18n="toolbar.save">💾 Save</button>
       <button id="export-pdf" class="toolbar-button" type="button" data-i18n="toolbar.exportPdf" data-mode-visible="read">📄 Export PDF</button>
       <button
@@ -82,6 +83,7 @@
       accept=".md,.markdown,.txt,text/markdown"
       hidden
     >
+    <input type="file" id="folder-input" webkitdirectory multiple hidden>
   </header>
 
   <main>

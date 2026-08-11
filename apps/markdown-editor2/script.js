@@ -25,6 +25,8 @@ function startApp() {
   const exportHtmlBtn = document.getElementById('export-html');
   const saveMdBtn = document.getElementById('save-md');
   const openMdBtn = document.getElementById('open-md');
+  const openFolderBtn = document.getElementById('open-folder');
+  const folderInput = document.getElementById('folder-input');
   const helpBtn = document.getElementById('help-btn');
   const helpWindow = document.getElementById('help-window');
   const helpClose = document.getElementById('help-close');
@@ -217,6 +219,15 @@ function startApp() {
       };
 
       reader.readAsText(file, 'utf-8');
+    });
+  }
+
+  if (openFolderBtn && folderInput && window.Directory) {
+    openFolderBtn.addEventListener('click', () => folderInput.click());
+    folderInput.addEventListener('change', async event => {
+      const files = Array.from(event.target.files || []);
+      await Directory.importFolder(files);
+      folderInput.value = ''; // 同一フォルダの連続選択でもchangeを発火させる
     });
   }
 
@@ -935,6 +946,10 @@ function startApp() {
     text: editor.value,
     settings: { lang: i18n.getCurrentLang() }
   });
+
+  if (window.Directory) {
+    Directory.restoreOnStartup();
+  }
 
   const initialSettings = AppState.getSettings();
   Layout.applyLineNumbersEnabled(Boolean(initialSettings.showLineNumbers));

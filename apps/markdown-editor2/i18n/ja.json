@@ -4,6 +4,7 @@
   },
   "toolbar": {
     "open": "📂 開く",
+    "openFolder": "📁 フォルダを開く",
     "save": "💾 保存",
     "saveUnsaved": "（未保存）",
     "exportPdf": "📄 PDF出力",
@@ -65,5 +66,8 @@
   },
   "preview": {
     "sanitizerUnavailable": "セキュリティ保護（DOMPurify）を読み込めなかったため、プレビューを安全に表示できません。ページを再読み込みするか、配置ファイルを確認してください。"
+  },
+  "importFolder": {
+    "confirmReplace": "{date} にインポートしたフォルダが既に保存されています。新しく選択したフォルダで置き換えますか？"
   }
 }
