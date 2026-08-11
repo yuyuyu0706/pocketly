@@ -1,12 +1,76 @@
 (function (global) {
   'use strict';
 
-  const MARKDOWN_EXTENSION = /\.md$/i;
+  const ALLOWED_EXTENSIONS = /\.(md|markdown)$/i;
+  const ASSET_EXTENSIONS = /\.(png|jpe?g|gif|webp|svg)$/i;
+  const EXCLUDED_SEGMENTS = ['node_modules'];
 
-  const DB_NAME = 'mew-directory-store';
+  const DB_NAME = 'mew-workspace-store';
   const DB_VERSION = 1;
-  const STORE_NAME = 'handles';
-  const HANDLE_KEY = 'rootDirHandle';
+  const STORE_NAME = 'workspaces';
+  const WORKSPACE_KEY = 'default';
+
+  // Maps AppState document ids to their originating path/load state.
+  // Kept private to this module; consumed via getTree()/getActivePath() rather
+  // than reaching into this Map directly.
+  const fileRegistry = new Map();
+
+  // path -> id, for resolving relative document links without scanning fileRegistry.
+  const pathIndex = new Map();
+
+  // path -> Blob, for resolving relative image references (MEW-035 Lv3-2 Lv4-1).
+  const assetRegistry = new Map();
+
+  // importedAt of the currently loaded workspace, or null when the active
+  // document set is not directory-backed. Cached at the module scope so
+  // scheduleWorkspacePersist() doesn't need to re-derive it on every call
+  // (MEW-035 Lv3-2 Lv4-2).
+  let currentImportedAt = null;
+
+  const DOCUMENTS_SAVE_DEBOUNCE = 300; // Matches state.js's DOCUMENTS_SAVE_DEBOUNCE.
+  let saveTimer = null;
+
+  /**
+   * Debounce a saveWorkspace() call reconstructed from the current
+   * fileRegistry/assetRegistry contents. No-ops when the active document set
+   * is not directory-backed (currentImportedAt === null).
+   * @returns {void}
+   */
+  function scheduleWorkspacePersist() {
+    if (typeof global.setTimeout !== 'function') {
+      persistWorkspaceNow();
+      return;
+    }
+    global.clearTimeout(saveTimer);
+    saveTimer = global.setTimeout(() => {
+      saveTimer = null;
+      persistWorkspaceNow();
+    }, DOCUMENTS_SAVE_DEBOUNCE);
+  }
+
+  function persistWorkspaceNow() {
+    if (currentImportedAt === null) {
+      return;
+    }
+    const documents = Array.from(fileRegistry.values()).map(({ path, text }) => ({ path, text }));
+    const assets = Array.from(assetRegistry.entries()).map(([path, blob]) => ({ path, blob }));
+    saveWorkspace({ documents, assets, importedAt: currentImportedAt });
+  }
+
+  /**
+   * Flush a pending debounced workspace persist immediately, synchronously
+   * scheduling the IndexedDB write. Intended for beforeunload/pagehide,
+   * mirroring state.js's flushPendingDocumentsPersist() pattern.
+   * @returns {void}
+   */
+  function flushPendingWorkspacePersist() {
+    if (!saveTimer) {
+      return;
+    }
+    global.clearTimeout(saveTimer);
+    saveTimer = null;
+    persistWorkspaceNow();
+  }
 
   function isIndexedDbSupported() {
     return typeof global.indexedDB !== 'undefined' && global.indexedDB !== null;
@@ -26,14 +90,14 @@
   }
 
   /**
-   * Persist the given directory handle as the single reconnectable folder.
-   * No-ops (resolves without throwing) when IndexedDB is unavailable, or the
-   * save itself fails (e.g. transaction error); this is a best-effort cache,
-   * not something openFolder() should fail over.
-   * @param {FileSystemDirectoryHandle} handle
+   * Persist the imported workspace ({ documents, assets, importedAt }) as the
+   * single stored workspace. No-ops (resolves without throwing) when
+   * IndexedDB is unavailable, or the save itself fails; this is a
+   * best-effort cache, not something importFolder() should fail over.
+   * @param {{ documents: Array<{path:string,text:string}>, assets: Array<{path:string,blob:Blob}>, importedAt: number }} workspace
    * @returns {Promise<void>}
    */
-  async function saveHandle(handle) {
+  async function saveWorkspace(workspace) {
     if (!isIndexedDbSupported()) {
       return;
     }
@@ -41,103 +105,70 @@
       const db = await openDb();
       await new Promise((resolve, reject) => {
         const tx = db.transaction(STORE_NAME, 'readwrite');
-        tx.objectStore(STORE_NAME).put(handle, HANDLE_KEY);
+        tx.objectStore(STORE_NAME).put(workspace, WORKSPACE_KEY);
         tx.oncomplete = () => resolve();
         tx.onerror = () => reject(tx.error);
       });
       db.close();
     } catch (error) {
-      console.warn('[Directory] Failed to save directory handle.', error);
+      console.warn('[Directory] Failed to save workspace.', error);
     }
   }
 
   /**
-   * Load the previously saved directory handle, or null if none exists / IndexedDB
+   * Load the previously saved workspace, or null if none exists / IndexedDB
    * is unavailable / the read fails.
-   * @returns {Promise<FileSystemDirectoryHandle|null>}
+   * @returns {Promise<{ documents: Array<{path:string,text:string}>, assets?: Array<{path:string,blob:Blob}>, importedAt: number }|null>}
    */
-  async function loadHandle() {
+  async function loadWorkspace() {
     if (!isIndexedDbSupported()) {
       return null;
     }
     try {
       const db = await openDb();
-      const handle = await new Promise((resolve, reject) => {
+      const workspace = await new Promise((resolve, reject) => {
         const tx = db.transaction(STORE_NAME, 'readonly');
-        const req = tx.objectStore(STORE_NAME).get(HANDLE_KEY);
+        const req = tx.objectStore(STORE_NAME).get(WORKSPACE_KEY);
         req.onsuccess = () => resolve(req.result || null);
         req.onerror = () => reject(req.error);
       });
       db.close();
-      return handle;
+      return workspace;
     } catch (error) {
-      console.warn('[Directory] Failed to load directory handle.', error);
+      console.warn('[Directory] Failed to load workspace.', error);
       return null;
     }
   }
 
   /**
-   * Remove the saved directory handle, if any. No-op when IndexedDB is unavailable.
+   * Best-effort request for persistent storage so the browser is less likely
+   * to evict the IndexedDB workspace under storage pressure. Never throws.
    * @returns {Promise<void>}
    */
-  async function clearHandle() {
-    if (!isIndexedDbSupported()) {
-      return;
-    }
+  async function requestPersistentStorage() {
     try {
-      const db = await openDb();
-      await new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE_NAME, 'readwrite');
-        tx.objectStore(STORE_NAME).delete(HANDLE_KEY);
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
-      });
-      db.close();
+      if (global.navigator && global.navigator.storage && typeof global.navigator.storage.persist === 'function') {
+        await global.navigator.storage.persist();
+      }
     } catch (error) {
-      console.warn('[Directory] Failed to clear directory handle.', error);
+      console.warn('[Directory] Failed to request persistent storage.', error);
     }
   }
 
-  // Maps AppState document ids to their originating file handle/path/load state.
-  // Kept private to this module; Lv3-2 (relative path resolution) will consume it
-  // via getTree()/a future accessor rather than reaching into this Map directly.
-  const fileRegistry = new Map();
-
-  // path -> id, for resolving relative document links (Lv3-2) without scanning fileRegistry.
-  const pathIndex = new Map();
-
-  // Root handle of the currently open folder, used to resolve relative asset paths
-  // (images etc.) that are not registered as documents in fileRegistry.
-  let rootDirHandle = null;
-
-  function isHiddenName(name) {
-    return typeof name === 'string' && name.startsWith('.');
-  }
-
-  function isMarkdownFile(name) {
-    return typeof name === 'string' && MARKDOWN_EXTENSION.test(name) && !isHiddenName(name);
+  function isExcludedPath(relativePath) {
+    const segments = relativePath.split('/');
+    return segments.some(seg => seg.startsWith('.') || EXCLUDED_SEGMENTS.includes(seg));
   }
 
   /**
-   * Recursively walk a directory handle, collecting `.md` file handles.
-   * Hidden entries (dotfiles/dot-directories) and non-.md files are excluded.
-   * @param {FileSystemDirectoryHandle} dirHandle
-   * @param {string} basePath
-   * @param {Array<{ handle: FileSystemFileHandle, path: string, name: string }>} out
-   * @returns {Promise<void>}
+   * webkitRelativePath is e.g. "my-folder/notes/a.md"; strip the leading root
+   * folder name so paths are folder-relative like the previous handle-based flow.
+   * @param {File} file
+   * @returns {string}
    */
-  async function collectMarkdownFiles(dirHandle, basePath, out) {
-    for await (const entry of dirHandle.values()) {
-      if (isHiddenName(entry.name)) {
-        continue;
-      }
-      const entryPath = basePath ? `${basePath}/${entry.name}` : entry.name;
-      if (entry.kind === 'directory') {
-        await collectMarkdownFiles(entry, entryPath, out);
-      } else if (entry.kind === 'file' && isMarkdownFile(entry.name)) {
-        out.push({ handle: entry, path: entryPath, name: entry.name });
-      }
-    }
+  function normalizeWebkitPath(file) {
+    const parts = file.webkitRelativePath.split('/');
+    return parts.slice(1).join('/');
   }
 
   /**
@@ -167,169 +198,179 @@
     return stack.join('/');
   }
 
-  /**
-   * Walk rootDirHandle to the file handle for a normalized path (non-.md assets
-   * are never registered in fileRegistry, so they must be resolved on demand).
-   * @param {string} normalizedPath
-   * @returns {Promise<FileSystemFileHandle|null>}
-   */
-  async function resolveAssetHandle(normalizedPath) {
-    if (!rootDirHandle || !normalizedPath) {
-      return null;
+  // --- Import progress UI --------------------------------------------------
+  // No pre-existing progress/loading indicator pattern elsewhere in the app,
+  // so a minimal DOM-based indicator is created/torn down here.
+
+  let progressEl = null;
+
+  function showImportProgress(count) {
+    hideImportProgress();
+    const doc = global.document;
+    if (!doc || !doc.body) {
+      return;
     }
-    const segments = normalizedPath.split('/').filter(Boolean);
-    if (!segments.length) {
-      return null;
-    }
-    try {
-      let dir = rootDirHandle;
-      for (let i = 0; i < segments.length - 1; i += 1) {
-        dir = await dir.getDirectoryHandle(segments[i]);
-      }
-      return await dir.getFileHandle(segments[segments.length - 1]);
-    } catch (error) {
-      return null;
+    progressEl = doc.createElement('div');
+    progressEl.id = 'import-folder-progress';
+    progressEl.setAttribute('role', 'status');
+    progressEl.setAttribute('aria-live', 'polite');
+    progressEl.textContent = `0 / ${count}`;
+    doc.body.appendChild(progressEl);
+  }
+
+  function updateImportProgress(processed, total) {
+    if (progressEl) {
+      progressEl.textContent = `${processed} / ${total}`;
     }
   }
 
-  /**
-   * Walk dirHandle for `.md` files and register them as documents in AppState,
-   * closing the app's currently-active document once the new ones are in place.
-   * Shared by openFolder() (fresh picker selection) and reconnectFolder()
-   * (handle restored from IndexedDB).
-   * @param {FileSystemDirectoryHandle} dirHandle
-   * @returns {Promise<number>} number of `.md` files registered
-   */
-  async function registerFolderContents(dirHandle) {
-    const files = [];
-    await collectMarkdownFiles(dirHandle, '', files);
+  function hideImportProgress() {
+    if (progressEl && progressEl.parentNode) {
+      progressEl.parentNode.removeChild(progressEl);
+    }
+    progressEl = null;
+  }
 
+  /**
+   * Register already-read documents ({ path, text }) into AppState, closing
+   * the app's currently-active document once the new ones are in place.
+   * Shared by importFolder() and restoreOnStartup().
+   * @param {Array<{ path: string, text: string }>} documents
+   * @returns {void}
+   */
+  function registerDocuments(documents) {
     const initialActiveId = AppState.getActiveDocumentId();
 
-    rootDirHandle = dirHandle;
-    files.forEach(file => {
-      const id = AppState.openDocument('', { path: file.path, name: file.name, loaded: false });
-      fileRegistry.set(id, { handle: file.handle, path: file.path, name: file.name, loaded: false });
-      pathIndex.set(file.path, id);
+    // Re-import (importFolder called again after a workspace already exists)
+    // replaces the previously registered documents rather than layering new
+    // ones on top of them; close whatever this module previously registered
+    // before adding the freshly imported/restored set.
+    const previousIds = Array.from(fileRegistry.keys());
+    fileRegistry.clear();
+    pathIndex.clear();
+
+    documents.forEach(({ path, text }) => {
+      const name = path.split('/').pop();
+      const id = AppState.openDocument(text, { path, name, loaded: true });
+      fileRegistry.set(id, { path, name, loaded: true, text });
+      pathIndex.set(path, id);
     });
 
     // MEW-002 has no API for replacing the app's launch document in place, so the
-    // initial document is closed once the folder's documents are registered;
+    // initial document is closed once the imported documents are registered;
     // AppState.closeDocument() falls back to one of the newly-opened documents
-    // (or a fresh empty one if the folder had no .md files). Multi-tab UX
-    // refinement is deferred to MEW-012.
+    // (or a fresh empty one if the import had no .md files).
     if (typeof initialActiveId === 'string') {
       AppState.closeDocument(initialActiveId);
     }
-
-    return files.length;
+    previousIds.forEach(id => AppState.closeDocument(id));
   }
 
   /**
-   * Global directory/file-tree manager for the File System Access API integration.
+   * Register already-read assets ({ path, blob }) into assetRegistry, clearing
+   * whatever was previously registered so a re-import doesn't leave stale
+   * entries from the previous folder behind. Shared by importFolder() and
+   * restoreOnStartup(), called in tandem with registerDocuments().
+   * @param {Array<{ path: string, blob: Blob }>} assets
+   * @returns {void}
+   */
+  function registerAssets(assets) {
+    assetRegistry.clear();
+    (assets || []).forEach(({ path, blob }) => {
+      assetRegistry.set(path, blob);
+    });
+  }
+
+  /**
+   * Global directory/file-tree manager for the folder-import flow
+   * (`<input type="file" webkitdirectory>` based; see Issue #171 / MEW-035 Lv4-2).
    */
   const Directory = {
     /**
-     * Open a folder via showDirectoryPicker, register all `.md` files found in it
-     * (recursively) as documents in AppState, and close the app's initial document.
-     * File contents are not read here; activateDocument() loads them lazily.
-     * @returns {Promise<{ opened: boolean, reason?: 'unsupported'|'cancelled', count?: number }>}
+     * Import a FileList selected via the webkitdirectory input. Filters to the
+     * allow-list (.md/.markdown + image extensions), excluding hidden segments
+     * and node_modules. Markdown file contents are read upfront and persisted
+     * to IndexedDB; if a workspace is already stored, the user is asked via
+     * window.confirm() whether to replace it.
+     * @param {FileList|Array<File>} fileList
+     * @returns {Promise<{ imported: boolean, reason?: 'empty'|'cancelled', count?: number }>}
      */
-    async openFolder() {
-      if (typeof global.showDirectoryPicker !== 'function') {
-        return { opened: false, reason: 'unsupported' };
+    async importFolder(fileList) {
+      const candidates = Array.from(fileList || [])
+        .map(file => ({ file, path: normalizeWebkitPath(file) }))
+        .filter(({ path }) => !isExcludedPath(path))
+        .filter(({ path }) => ALLOWED_EXTENSIONS.test(path) || ASSET_EXTENSIONS.test(path));
+
+      if (candidates.length === 0) {
+        return { imported: false, reason: 'empty' };
       }
 
-      let dirHandle;
-      try {
-        dirHandle = await global.showDirectoryPicker();
-      } catch (error) {
-        return { opened: false, reason: 'cancelled' };
-      }
-
-      const count = await registerFolderContents(dirHandle);
-      await saveHandle(dirHandle);
-
-      return { opened: true, count };
-    },
-
-    /**
-     * Check whether a previously opened folder's handle was persisted in IndexedDB.
-     * Does not check or request permission (must run outside a user gesture at
-     * app startup); use reconnectFolder() to actually reconnect.
-     * @returns {Promise<{ name: string }|null>}
-     */
-    async checkForReconnectableFolder() {
-      const handle = await loadHandle();
-      return handle ? { name: handle.name } : null;
-    },
-
-    /**
-     * Reconnect to the folder saved in IndexedDB. Must be called from within a
-     * user gesture (e.g. a banner button click), since requestPermission()
-     * requires one.
-     * @returns {Promise<{ opened: boolean, reason?: 'not-found'|'denied'|'permission-error', count?: number }>}
-     */
-    async reconnectFolder() {
-      const handle = await loadHandle();
-      if (!handle) {
-        return { opened: false, reason: 'not-found' };
-      }
-
-      let permission;
-      try {
-        permission = await handle.queryPermission({ mode: 'read' });
-        if (permission !== 'granted') {
-          permission = await handle.requestPermission({ mode: 'read' });
+      const existing = await loadWorkspace();
+      if (existing) {
+        const proceed = global.confirm(
+          i18n.t('importFolder.confirmReplace', { date: new Date(existing.importedAt).toLocaleString() })
+        );
+        if (!proceed) {
+          return { imported: false, reason: 'cancelled' };
         }
-      } catch (error) {
-        console.warn('[Directory] Permission check/request failed.', error);
-        return { opened: false, reason: 'permission-error' };
       }
 
-      if (permission === 'denied') {
-        await clearHandle();
-        return { opened: false, reason: 'denied' };
+      showImportProgress(candidates.length);
+      const documents = [];
+      const assets = [];
+      let processed = 0;
+      for (const { file, path } of candidates) {
+        if (ALLOWED_EXTENSIONS.test(path)) {
+          documents.push({ path, text: await file.text() });
+        } else if (ASSET_EXTENSIONS.test(path)) {
+          // File is a Blob subclass, so it can be stored as-is.
+          assets.push({ path, blob: file });
+        }
+        processed += 1;
+        updateImportProgress(processed, candidates.length);
       }
 
-      if (permission !== 'granted') {
-        return { opened: false, reason: 'denied' };
-      }
+      const importedAt = Date.now();
+      await saveWorkspace({ documents, assets, importedAt });
+      await requestPersistentStorage();
 
-      const count = await registerFolderContents(handle);
-      return { opened: true, count };
+      currentImportedAt = importedAt;
+
+      // Assets must be registered before documents: registering documents makes
+      // the (only remaining) document active and triggers an immediate preview
+      // render, which resolves relative asset paths against assetRegistry.
+      registerAssets(assets);
+      registerDocuments(documents);
+      hideImportProgress();
+
+      return { imported: true, count: documents.length };
     },
 
     /**
-     * Switch to the given document, lazily loading its file contents on first
-     * activation. Subsequent activations reuse the cached (loaded) text.
-     * @param {string} id
-     * @returns {Promise<void>}
+     * Load a previously imported workspace from IndexedDB (if any) and
+     * register its documents into AppState. Intended to be called once at
+     * startup, after AppState.init().
+     * @returns {Promise<{ restored: boolean, count?: number }>}
      */
-    async activateDocument(id) {
+    async restoreOnStartup() {
+      const workspace = await loadWorkspace();
+      if (!workspace) {
+        return { restored: false };
+      }
+      currentImportedAt = workspace.importedAt;
+      registerAssets(workspace.assets || []);
+      registerDocuments(workspace.documents);
+      return { restored: true, count: workspace.documents.length };
+    },
+
+    /**
+     * Switch to the given document. Text is already loaded into AppState at
+     * import/restore time, so this is a thin wrapper.
+     * @param {string} id
+     * @returns {void}
+     */
+    activateDocument(id) {
       AppState.switchActiveDocument(id);
-
-      const entry = fileRegistry.get(id);
-      if (!entry || entry.loaded) {
-        return;
-      }
-
-      let text;
-      try {
-        const file = await entry.handle.getFile();
-        text = await file.text();
-      } catch (error) {
-        // Safe-side fallback (mirrors preview.js's renderSanitizerUnavailableError
-        // pattern): leave the document empty rather than throwing, so a missing or
-        // permission-revoked file doesn't break the rest of the app.
-        console.warn('[Directory] Failed to read file for document.', id, error);
-        return;
-      }
-
-      if (AppState.getActiveDocumentId() === id) {
-        entry.loaded = true;
-        AppState.setText(text, 'switch');
-      }
     },
 
     /**
@@ -346,7 +387,7 @@
 
     /**
      * Folder-relative path of the currently active document, or null if the
-     * active document is not directory-backed (or no folder is open).
+     * active document is not directory-backed (or none imported/restored).
      * @returns {string|null}
      */
     getActivePath() {
@@ -360,10 +401,12 @@
 
     /**
      * Resolve a Markdown-relative reference (image src / link href) against the
-     * folder path of the document it appears in.
+     * folder path of the document it appears in. Document-to-document links
+     * are resolved via pathIndex; image/asset references are resolved via
+     * assetRegistry (MEW-035 Lv3-2 Lv4-1).
      * @param {string} fromPath folder-relative path of the referencing document
      * @param {string} ref relative reference from the Markdown (e.g. "../images/pic.png")
-     * @returns {Promise<{ type: 'document', id: string, path: string }|{ type: 'asset', path: string, handle: FileSystemFileHandle }|null>}
+     * @returns {Promise<{ type: 'document', id: string, path: string }|{ type: 'asset', path: string, blob: Blob }|null>}
      */
     async resolveRelativePath(fromPath, ref) {
       if (typeof fromPath !== 'string' || typeof ref !== 'string' || !ref) {
@@ -377,17 +420,59 @@
       if (docId) {
         return { type: 'document', id: docId, path: normalizedPath };
       }
-      const handle = await resolveAssetHandle(normalizedPath);
-      if (!handle) {
+      const blob = assetRegistry.get(normalizedPath);
+      if (!blob) {
         return null;
       }
-      return { type: 'asset', path: normalizedPath, handle };
+      return { type: 'asset', path: normalizedPath, blob };
+    },
+
+    /**
+     * Register a pasted/attached image into assetRegistry under `assets/`
+     * and schedule a workspace persist, for directory-backed documents
+     * (MEW-035 Lv3-2 Lv4-2). Returns null when the active document set is
+     * not directory-backed, so callers fall back to the legacy imageMap
+     * flow.
+     * @param {string} filename
+     * @param {Blob} blob
+     * @returns {string|null} the folder-relative asset path, or null
+     */
+    registerPastedAsset(filename, blob) {
+      if (currentImportedAt === null) {
+        return null;
+      }
+      const path = `assets/${filename}`;
+      assetRegistry.set(path, blob);
+      scheduleWorkspacePersist();
+      return path;
     }
   };
 
+  if (global.Bus && typeof global.Bus.on === 'function') {
+    global.Bus.on('text:changed', ({ text } = {}) => {
+      if (typeof text !== 'string') {
+        return;
+      }
+      const activeId = AppState.getActiveDocumentId();
+      const entry = fileRegistry.get(activeId);
+      if (!entry) {
+        return; // Not a directory-backed document.
+      }
+      entry.text = text;
+      scheduleWorkspacePersist();
+    });
+  }
+
+  if (typeof global.addEventListener === 'function') {
+    const persistOnUnload = () => flushPendingWorkspacePersist();
+    global.addEventListener('beforeunload', persistOnUnload, { capture: true });
+    global.addEventListener('pagehide', persistOnUnload, { capture: true });
+  }
+
   // Expose internals for unit testing via window.__directoryTest
   global.__directoryTest = {
-    getRegistrySize: () => fileRegistry.size
+    getRegistrySize: () => fileRegistry.size,
+    getAssetRegistrySize: () => assetRegistry.size
   };
 
   global.Directory = Directory;

@@ -26,8 +26,11 @@ function startApp() {
   const exportPdfBtn = document.getElementById('export-pdf');
   const exportHtmlBtn = document.getElementById('export-html');
   const saveMdBtn = document.getElementById('save-md');
+  const openBtn = document.getElementById('open-btn');
+  const openOptions = document.getElementById('open-options');
   const openMdBtn = document.getElementById('open-md');
   const openFolderBtn = document.getElementById('open-folder');
+  const folderInput = document.getElementById('folder-input');
   const helpBtn = document.getElementById('help-btn');
   const helpWindow = document.getElementById('help-window');
   const helpClose = document.getElementById('help-close');
@@ -223,14 +226,49 @@ function startApp() {
     });
   }
 
-  if (openFolderBtn && window.Directory) {
-    openFolderBtn.addEventListener('click', async () => {
-      await closePiPBeforeNativeAction();
-      const result = await Directory.openFolder();
-      if (!result.opened && result.reason === 'unsupported') {
-        // MEW-031 (unsupported-browser fallback) is not implemented yet, so we
-        // silently no-op here for now; disabling the button etc. is MEW-031's scope.
-        console.warn('[App] showDirectoryPicker is not supported in this browser.');
+  if (openFolderBtn && folderInput && window.Directory) {
+    openFolderBtn.addEventListener('click', () => folderInput.click());
+    folderInput.addEventListener('change', async event => {
+      const files = Array.from(event.target.files || []);
+      await Directory.importFolder(files);
+      folderInput.value = ''; // 同一フォルダの連続選択でもchangeを発火させる
+    });
+  }
+
+  // "Open" / "Open Folder" are consolidated under a single toolbar entry
+  // point (open-menu) to keep the always-visible toolbar count within
+  // N_read=6 (Charter §3-3) after adding folder import.
+  if (openBtn && openOptions) {
+    const closeOpenMenu = () => {
+      if (openOptions.hidden) return;
+      openOptions.hidden = true;
+      openBtn.setAttribute('aria-expanded', 'false');
+    };
+
+    openBtn.addEventListener('click', event => {
+      event.stopPropagation();
+      const isHidden = openOptions.hidden;
+      openOptions.hidden = !isHidden;
+      openBtn.setAttribute('aria-expanded', String(isHidden));
+    });
+
+    openOptions.addEventListener('click', event => {
+      if (event.target.closest('.open-option')) {
+        closeOpenMenu();
+      }
+    });
+
+    document.addEventListener('click', event => {
+      if (openOptions.hidden || openOptions.contains(event.target) || openBtn.contains(event.target)) {
+        return;
+      }
+      closeOpenMenu();
+    });
+
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && !openOptions.hidden) {
+        closeOpenMenu();
+        openBtn.focus();
       }
     });
   }
@@ -557,29 +595,42 @@ function startApp() {
   editor.addEventListener('keyup', Toc.updateTOCHighlight);
   editor.addEventListener('click', Toc.updateTOCHighlight);
 
+  function insertImageMarkdown(markdownImage) {
+    const cursorPos = editor.selectionStart;
+    const currentValue = AppState.getText();
+    const newValue =
+      currentValue.slice(0, cursorPos) +
+      markdownImage +
+      currentValue.slice(cursorPos);
+    Formatting.replaceEditorRange(cursorPos, cursorPos, markdownImage);
+
+    Layout.updateEditorHighlight(newValue);
+    AppState.setText(newValue, 'editor');
+  }
+
   imageInput.addEventListener('change', event => {
     const file = event.target.files[0];
     if (!file) return;
 
+    const filename = file.name.trim();
+    const assetPath = window.Directory ? Directory.registerPastedAsset(filename, file) : null;
+
+    if (assetPath) {
+      // directory-backed: standard Markdown image syntax referencing the
+      // asset by its folder-relative path (MEW-035 Lv3-2 Lv4-2).
+      insertImageMarkdown(`![${filename}](${assetPath})`);
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = () => {
       const base64 = reader.result;
-      const filename = file.name.trim();
       if (typeof base64 === 'string' && filename) {
         Bus.emit('preview:image', { filename, data: base64 });
       }
 
       const markdownImage = i18n.t('image.markdownTemplate', { filename });
-      const cursorPos = editor.selectionStart;
-      const currentValue = AppState.getText();
-      const newValue =
-        currentValue.slice(0, cursorPos) +
-        markdownImage +
-        currentValue.slice(cursorPos);
-      Formatting.replaceEditorRange(cursorPos, cursorPos, markdownImage);
-
-      Layout.updateEditorHighlight(newValue);
-      AppState.setText(newValue, 'editor');
+      insertImageMarkdown(markdownImage);
     };
     reader.readAsDataURL(file);
   });
@@ -955,34 +1006,12 @@ function startApp() {
     settings: { lang: i18n.getCurrentLang() }
   });
 
+  if (window.Directory) {
+    Directory.restoreOnStartup();
+  }
+
   const initialSettings = AppState.getSettings();
   Layout.applyLineNumbersEnabled(Boolean(initialSettings.showLineNumbers));
   applyMode(initialSettings.mode);
-
-  const reconnectBanner = document.getElementById('reconnect-banner');
-  const reconnectBannerMessage = document.getElementById('reconnect-banner-message');
-  const reconnectBannerReconnect = document.getElementById('reconnect-banner-reconnect');
-  const reconnectBannerClose = document.getElementById('reconnect-banner-close');
-
-  if (reconnectBanner && reconnectBannerMessage && reconnectBannerReconnect && reconnectBannerClose && window.Directory) {
-    reconnectBannerClose.addEventListener('click', () => {
-      reconnectBanner.classList.add('hidden');
-    });
-
-    reconnectBannerReconnect.addEventListener('click', async () => {
-      const result = await Directory.reconnectFolder();
-      if (result.opened) {
-        reconnectBanner.classList.add('hidden');
-      }
-    });
-
-    Directory.checkForReconnectableFolder().then(folder => {
-      if (!folder) {
-        return;
-      }
-      reconnectBannerMessage.textContent = i18n.t('reconnect.message', { name: folder.name });
-      reconnectBanner.classList.remove('hidden');
-    });
-  }
 }
 

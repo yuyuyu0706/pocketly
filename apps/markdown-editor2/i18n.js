@@ -9,6 +9,8 @@
       },
       toolbar: {
         open: '📂 Open',
+        openFile: '📄 Open File',
+        openFolder: '📁 Open Folder',
         save: '💾 Save',
         exportPdf: '📄 Export PDF',
         exportHtml: '🌐 Export HTML',
@@ -67,10 +69,9 @@
         markdownTemplate:
           '\n<!-- image:{filename} -->\n[Image: {filename}]\n<!-- /image -->\n'
       },
-      reconnect: {
-        message: 'Reconnect to the previously opened folder "{name}"?',
-        reconnectButton: 'Reconnect',
-        closeButton: 'Close'
+      importFolder: {
+        confirmReplace:
+          'A folder imported on {date} is already stored. Replace it with the newly selected folder?'
       }
     },
     ja: {
@@ -79,6 +80,8 @@
       },
       toolbar: {
         open: '📂 開く',
+        openFile: '📄 ファイルを開く',
+        openFolder: '📁 フォルダを開く',
         save: '💾 保存',
         exportPdf: '📄 PDF出力',
         exportHtml: '🌐 HTML出力',
@@ -137,10 +140,9 @@
         markdownTemplate:
           '\n<!-- image:{filename} -->\n[画像: {filename}]\n<!-- /image -->\n'
       },
-      reconnect: {
-        message: '前回開いていたフォルダ「{name}」に再接続しますか？',
-        reconnectButton: '再接続',
-        closeButton: '閉じる'
+      importFolder: {
+        confirmReplace:
+          '{date} にインポートしたフォルダが既に保存されています。新しく選択したフォルダで置き換えますか？'
       }
     }
   };
