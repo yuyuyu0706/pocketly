@@ -76,6 +76,32 @@ test.describe('File tree (Issue #165 / MEW-011)', () => {
     await expect(notesFolder.locator('.file-tree-file', { hasText: 'index.md' })).toBeVisible();
   });
 
+  test('clicking "Open Folder" calls Directory.openFolder() and renders the tree', async ({ page }) => {
+    const fileTree = page.locator('#file-tree');
+    await expect(fileTree).toHaveClass(/hidden/);
+
+    await page.click('#open-folder');
+    await expect(fileTree).not.toHaveClass(/hidden/);
+    await expect(fileTree.locator('.file-tree-file', { hasText: 'b.md' })).toBeVisible();
+  });
+
+  test('clicking "Open Folder" without showDirectoryPicker support does not error', async ({ page }) => {
+    await page.evaluate(() => {
+      delete window.showDirectoryPicker;
+    });
+
+    let pageError = null;
+    page.once('pageerror', error => {
+      pageError = error;
+    });
+
+    await page.click('#open-folder');
+    await page.waitForTimeout(100);
+
+    expect(pageError).toBeNull();
+    await expect(page.locator('#file-tree')).toHaveClass(/hidden/);
+  });
+
   test('index.md is promoted to the top of its level', async ({ page }) => {
     await page.evaluate(() => window.Directory.openFolder());
 

@@ -4,6 +4,7 @@
   },
   "toolbar": {
     "open": "📂 開く",
+    "openFolder": "📁 フォルダを開く",
     "save": "💾 保存",
     "saveUnsaved": "（未保存）",
     "exportPdf": "📄 PDF出力",

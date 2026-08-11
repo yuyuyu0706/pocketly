@@ -27,6 +27,7 @@ function startApp() {
   const exportHtmlBtn = document.getElementById('export-html');
   const saveMdBtn = document.getElementById('save-md');
   const openMdBtn = document.getElementById('open-md');
+  const openFolderBtn = document.getElementById('open-folder');
   const helpBtn = document.getElementById('help-btn');
   const helpWindow = document.getElementById('help-window');
   const helpClose = document.getElementById('help-close');
@@ -219,6 +220,18 @@ function startApp() {
       };
 
       reader.readAsText(file, 'utf-8');
+    });
+  }
+
+  if (openFolderBtn && window.Directory) {
+    openFolderBtn.addEventListener('click', async () => {
+      await closePiPBeforeNativeAction();
+      const result = await Directory.openFolder();
+      if (!result.opened && result.reason === 'unsupported') {
+        // MEW-031 (unsupported-browser fallback) is not implemented yet, so we
+        // silently no-op here for now; disabling the button etc. is MEW-031's scope.
+        console.warn('[App] showDirectoryPicker is not supported in this browser.');
+      }
     });
   }
 
