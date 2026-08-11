@@ -939,31 +939,5 @@ function startApp() {
   const initialSettings = AppState.getSettings();
   Layout.applyLineNumbersEnabled(Boolean(initialSettings.showLineNumbers));
   applyMode(initialSettings.mode);
-
-  const reconnectBanner = document.getElementById('reconnect-banner');
-  const reconnectBannerMessage = document.getElementById('reconnect-banner-message');
-  const reconnectBannerReconnect = document.getElementById('reconnect-banner-reconnect');
-  const reconnectBannerClose = document.getElementById('reconnect-banner-close');
-
-  if (reconnectBanner && reconnectBannerMessage && reconnectBannerReconnect && reconnectBannerClose && window.Directory) {
-    reconnectBannerClose.addEventListener('click', () => {
-      reconnectBanner.classList.add('hidden');
-    });
-
-    reconnectBannerReconnect.addEventListener('click', async () => {
-      const result = await Directory.reconnectFolder();
-      if (result.opened) {
-        reconnectBanner.classList.add('hidden');
-      }
-    });
-
-    Directory.checkForReconnectableFolder().then(folder => {
-      if (!folder) {
-        return;
-      }
-      reconnectBannerMessage.textContent = i18n.t('reconnect.message', { name: folder.name });
-      reconnectBanner.classList.remove('hidden');
-    });
-  }
 }
 

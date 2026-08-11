@@ -63,11 +63,6 @@
     "fallback": "[画像: {filename}]",
     "markdownTemplate": "\n<!-- image:{filename} -->\n[画像: {filename}]\n<!-- /image -->\n"
   },
-  "reconnect": {
-    "message": "前回開いていたフォルダ「{name}」に再接続しますか？",
-    "reconnectButton": "再接続",
-    "closeButton": "閉じる"
-  },
   "preview": {
     "sanitizerUnavailable": "セキュリティ保護（DOMPurify）を読み込めなかったため、プレビューを安全に表示できません。ページを再読み込みするか、配置ファイルを確認してください。"
   }
