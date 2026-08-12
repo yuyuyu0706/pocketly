@@ -74,5 +74,9 @@
   },
   "clearWorkspace": {
     "confirm": "This will remove all imported documents and assets and reset the workspace. Continue?"
+  },
+  "tabs": {
+    "untitled": "Untitled",
+    "close": "Close tab"
   }
 }

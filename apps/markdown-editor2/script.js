@@ -637,6 +637,11 @@ function startApp() {
     FileTree.init({ container: fileTreeEl, Directory, Bus, AppState });
   }
 
+  const tabBarEl = document.getElementById('tab-bar');
+  if (tabBarEl && window.Tabs && window.Directory) {
+    Tabs.init({ container: tabBarEl, Directory, Bus, AppState });
+  }
+
   Bus.on('settings:changed', event => {
     if (!event || typeof event.key !== 'string') {
       return;

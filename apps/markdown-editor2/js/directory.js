@@ -354,7 +354,11 @@
      */
     async restoreOnStartup() {
       const workspace = await loadWorkspace();
-      if (!workspace) {
+      if (
+        !workspace ||
+        !Array.isArray(workspace.documents) ||
+        workspace.documents.length === 0
+      ) {
         return { restored: false };
       }
       currentImportedAt = workspace.importedAt;
@@ -365,12 +369,34 @@
 
     /**
      * Switch to the given document. Text is already loaded into AppState at
-     * import/restore time, so this is a thin wrapper.
+     * import/restore time, so this is normally a thin wrapper.
+     *
+     * Exception (Issue #181 / MEW-012 Lv2-8): a document closed via its tab
+     * (Tabs.closeTab -> AppState.closeDocument) is removed from AppState
+     * entirely, but its cached text/path stays in fileRegistry (added for
+     * Lv4-2). If the caller re-activates that id (e.g. re-clicking the same
+     * file in the tree) and AppState no longer knows about it, re-open the
+     * cached entry as a fresh document, re-key fileRegistry/pathIndex to the
+     * new id, then switch to it.
      * @param {string} id
      * @returns {void}
      */
     activateDocument(id) {
-      AppState.switchActiveDocument(id);
+      if (AppState.listDocuments().some(doc => doc.id === id)) {
+        AppState.switchActiveDocument(id);
+        return;
+      }
+
+      const entry = fileRegistry.get(id);
+      if (!entry) {
+        return;
+      }
+
+      const newId = AppState.openDocument(entry.text, { path: entry.path, name: entry.name });
+      fileRegistry.delete(id);
+      fileRegistry.set(newId, entry);
+      pathIndex.set(entry.path, newId);
+      AppState.switchActiveDocument(newId);
     },
 
     /**
