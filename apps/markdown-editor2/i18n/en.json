@@ -6,6 +6,7 @@
     "open": "📂 Open",
     "openFile": "📄 Open File",
     "openFolder": "📁 Open Folder",
+    "clearWorkspace": "🗑️ Clear Workspace",
     "save": "💾 Save",
     "saveUnsaved": " (unsaved)",
     "exportPdf": "📄 Export PDF",
@@ -70,5 +71,8 @@
   },
   "importFolder": {
     "confirmReplace": "A folder imported on {date} is already stored. Replace it with the newly selected folder?"
+  },
+  "clearWorkspace": {
+    "confirm": "This will remove all imported documents and assets and reset the workspace. Continue?"
   }
 }
