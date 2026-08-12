@@ -108,6 +108,45 @@ test.describe('Workspace edit persistence and pasted-asset integration (Issue #1
     expect(src.startsWith('blob:')).toBe(true);
   });
 
+  test('restoreOnStartup() ignores an empty-documents workspace record left by clearWorkspace() (Issue #181)', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+
+    const fallbackText = await page.evaluate(() => window.AppState.getFallbackText());
+
+    // Pre-seed IndexedDB with the shape left behind by Directory.clearWorkspace():
+    // an empty documents/assets array with a null importedAt.
+    await page.evaluate(async () => {
+      const db = await new Promise((resolve, reject) => {
+        const req = window.indexedDB.open('mew-workspace-store', 1);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+      await new Promise((resolve, reject) => {
+        const tx = db.transaction('workspaces', 'readwrite');
+        tx.objectStore('workspaces').put(
+          { documents: [], assets: [], importedAt: null },
+          'default'
+        );
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+      db.close();
+    });
+
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 1);
+
+    const result = await page.evaluate(() => ({
+      docCount: window.AppState.listDocuments().length,
+      activeText: window.AppState.getText()
+    }));
+
+    expect(result.docCount).toBe(1);
+    expect(result.activeText).toBe(fallbackText);
+  });
+
   test('pasted image on a non-directory-backed document still uses imageMap/base64 syntax', async ({ page }) => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');

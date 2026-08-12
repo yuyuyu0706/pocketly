@@ -354,7 +354,11 @@
      */
     async restoreOnStartup() {
       const workspace = await loadWorkspace();
-      if (!workspace) {
+      if (
+        !workspace ||
+        !Array.isArray(workspace.documents) ||
+        workspace.documents.length === 0
+      ) {
         return { restored: false };
       }
       currentImportedAt = workspace.importedAt;
