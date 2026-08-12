@@ -400,10 +400,80 @@ main {
   background-color: #8fb8ff;
 }
 
-/* Shell constraints for #preview (layout/overflow); document appearance is in preview.css */
-#preview {
+/* #preview-pane wraps the tab bar + #preview so the two share the space
+   previously occupied by #preview alone (Issue #181 / MEW-012 Lv2-8). */
+#preview-pane {
+  display: flex;
+  flex-direction: column;
   flex: 1;
   height: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+#tab-bar {
+  display: flex;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  gap: 0.25rem;
+  padding: 0.4rem 0.6rem 0;
+  background-color: #f6faff;
+  border-bottom: 1px solid #aac8ff;
+  box-sizing: border-box;
+}
+
+#tab-bar:empty {
+  display: none;
+}
+
+.tab-bar-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid #aac8ff;
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+  background-color: #e6f0ff;
+  color: #003366;
+  font-size: 0.85rem;
+  cursor: pointer;
+  max-width: 200px;
+}
+
+.tab-bar-item.active {
+  background-color: #ffffff;
+  font-weight: 600;
+}
+
+.tab-bar-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tab-bar-close {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+  font-size: 0.85rem;
+  line-height: 1;
+  padding: 0 0.1rem;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.tab-bar-close:hover {
+  background: rgba(0, 51, 102, 0.12);
+}
+
+/* Shell constraints for #preview (layout/overflow); document appearance is in preview.css.
+   flex:1/height:100% now live on the #preview-pane wrapper above; #preview itself
+   only needs flex:1 + min-height:0 to fill the remaining column space below #tab-bar. */
+#preview {
+  flex: 1;
+  min-height: 0;
   overflow: auto;
   /* Firefox */
   scrollbar-width: thin;
