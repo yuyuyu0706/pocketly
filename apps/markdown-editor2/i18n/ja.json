@@ -6,6 +6,7 @@
     "open": "📂 開く",
     "openFile": "📄 ファイルを開く",
     "openFolder": "📁 フォルダを開く",
+    "clearWorkspace": "🗑️ ワークスペースを初期化",
     "save": "💾 保存",
     "saveUnsaved": "（未保存）",
     "exportPdf": "📄 PDF出力",
@@ -70,5 +71,8 @@
   },
   "importFolder": {
     "confirmReplace": "{date} にインポートしたフォルダが既に保存されています。新しく選択したフォルダで置き換えますか？"
+  },
+  "clearWorkspace": {
+    "confirm": "インポート済みの全文書・アセットを削除し、ワークスペースを初期化します。よろしいですか？"
   }
 }

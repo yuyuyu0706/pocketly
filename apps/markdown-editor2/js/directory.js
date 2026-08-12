@@ -445,6 +445,55 @@
       assetRegistry.set(path, blob);
       scheduleWorkspacePersist();
       return path;
+    },
+
+    /**
+     * Reset the workspace (IndexedDB + fileRegistry/pathIndex/assetRegistry)
+     * to its initial empty state, then restore the app to a single Welcome-text
+     * document (MEW-039). Destructive; callers must confirm with the user first.
+     * @returns {Promise<{ cleared: boolean }>}
+     */
+    async clearWorkspace() {
+      const allIds = Array.from(fileRegistry.keys());
+      fileRegistry.clear();
+      assetRegistry.clear();
+      pathIndex.clear();
+      currentImportedAt = null;
+      await saveWorkspace({ documents: [], assets: [], importedAt: null });
+      allIds.forEach(id => AppState.closeDocument(id));
+
+      const activeId = AppState.getActiveDocumentId();
+      if (activeId) {
+        AppState.setText(AppState.getFallbackText(), 'init');
+      }
+      return { cleared: true };
+    },
+
+    /**
+     * Register a single file opened via "Open File" into fileRegistry
+     * alongside any existing folder-imported documents (additive; does not
+     * clear the existing workspace). Same-name files overwrite the previous
+     * entry, matching registerPastedAsset()'s overwrite behavior (MEW-039).
+     * @param {File} file
+     * @returns {Promise<{ imported: boolean, id: string }>}
+     */
+    async importSingleFile(file) {
+      const path = file.name;
+      const text = await file.text();
+      const previousId = pathIndex.get(path);
+      const id = AppState.openDocument(text, { path, name: file.name });
+      fileRegistry.set(id, { path, name: file.name, loaded: true, text });
+      pathIndex.set(path, id);
+      AppState.switchActiveDocument(id);
+      if (previousId && previousId !== id) {
+        fileRegistry.delete(previousId);
+        AppState.closeDocument(previousId);
+      }
+      if (currentImportedAt === null) {
+        currentImportedAt = Date.now();
+      }
+      scheduleWorkspacePersist();
+      return { imported: true, id };
     }
   };
 

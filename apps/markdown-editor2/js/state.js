@@ -500,6 +500,14 @@
     getActiveDocumentId() {
       return state.activeDocumentId;
     },
+    /**
+     * Retrieve the Welcome-text shown for a freshly initialized/cleared
+     * workspace (read-only; set once by init()).
+     * @returns {string}
+     */
+    getFallbackText() {
+      return fallbackDocText;
+    },
     // undo/redo: delegated to the browser's native undo stack via execCommand('insertText')
     // in replaceEditorRange (script.js). A custom AppState undo stack is not needed for
     // the current scope; revisit if fine-grained multi-step undo is required in a future phase.

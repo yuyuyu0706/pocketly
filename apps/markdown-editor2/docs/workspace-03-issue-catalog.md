@@ -117,8 +117,9 @@
 | MEW-035 | 品質・保守 | ~~画像等アセットのBlob格納・パス解決が内部化されていない~~ **解消済み（Issue #174, #176）** | `directory.js`の`resolveRelativePath()`アセット分岐が新方式（`importFolder`のFileList入力）では常にnullを返す | Issue #171でフォルダ由来文書の画像相対パス解決が一時的に機能停止（文書間リンク解決は影響なし） | M | 中 | **解消済み** | — | Issue #174（Lv4-1）で画像アセット取込・相対パス解決の内部化（assetRegistry確立）、Issue #176（Lv4-2）でフォルダ由来文書の編集の永続化・貼付画像統合（`registerPastedAsset()`）が完了し解消。依存: MEW-003（旧resolveAssetHandle実装を置き換え） |
 | MEW-036 | 品質・保守 | ~~フォルダ由来文書の編集内容をSave（IndexedDB workspaceへの書き戻し）する経路がない~~ **解消済み（Issue #176）** | `directory.js`の`importFolder()`はインポート時点のテキストをAppStateへ登録するのみで、以後の編集は`workspaces`ストアへ反映されない | リロード・自動復元（`restoreOnStartup()`）で編集前の内容に戻ってしまう | M | 中 | **解消済み** | — | Issue #176（Lv4-2）にて`text:changed`購読・デバウンス書き戻しが実装され、フォルダ由来文書の編集がIndexedDB workspaceへ反映されるようになったため解消。依存: MEW-005/MEW-035 |
 | MEW-037 | 品質・保守 | インポート除外ルールが固定（ユーザー設定不可） | `directory.js`の`EXCLUDED_SEGMENTS`が`node_modules`固定・拡張子許可リストもハードコード | `.git`等の他の慣習的除外ディレクトリや、プロジェクト固有の除外パターンに対応できない | S | 低 | **小** | 5 | Issue #171実装時に発見。`.gitignore`相当の除外設定UIまたは追加ハードコードルールの要否を将来判断する。依存: 独立 |
+| MEW-039 | 品質・保守 | ワークスペース初期化手段がなく、単一ファイルOpenがfileRegistry管理外 | ワークスペースをクリアする手段が存在せず、動作確認のたびにIndexedDBを手動クリアする必要がある / `#open-md`が`AppState.setText()`直接呼び出しでfileRegistry未登録 | 動作確認の作業効率低下。単一ファイルOpenで開いた文書がファイルツリーに表示されない不整合 | M | 低 | **小** | 2 | バックログ棚卸しにより土台性は低いが動作確認効率向上のためPhase 2へ配属確定（2026-08-12）。Issue #179（Lv2-11）にて`clearWorkspace()`・`importSingleFile()`を実装し解消。依存: MEW-035（Lv2-10・fileRegistry/scheduleWorkspacePersist()確立）|
 
-**確定後の配属集計**: Phase 2 = 8件 / Phase 3 = 8件 / Phase 4 = 9件 / Phase 5 = 7件 / 対象外 = 2件 / 解消済み = 3件（計37件、MEW-031・MEW-035・MEW-036解消済み・MEW-037追加）
+**確定後の配属集計**: Phase 2 = 9件 / Phase 3 = 8件 / Phase 4 = 9件 / Phase 5 = 7件 / 対象外 = 2件 / 解消済み = 3件（計38件、MEW-031・MEW-035・MEW-036解消済み・MEW-037・MEW-039追加）
 
 > **境界事例（【境界】マーク付き行）**: §4 個別詳細を参照。マージ前に利用者レビューで確定すること。
 

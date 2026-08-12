@@ -31,6 +31,7 @@ function startApp() {
   const openMdBtn = document.getElementById('open-md');
   const openFolderBtn = document.getElementById('open-folder');
   const folderInput = document.getElementById('folder-input');
+  const clearWorkspaceBtn = document.getElementById('clear-workspace');
   const helpBtn = document.getElementById('help-btn');
   const helpWindow = document.getElementById('help-window');
   const helpClose = document.getElementById('help-close');
@@ -141,42 +142,7 @@ function startApp() {
     saveMdBtn.textContent = _isDirty ? base + i18n.t('toolbar.saveUnsaved') : base;
   }
 
-  function applyLoadedContent(result) {
-    // Group B: intentional direct assignment — full-document sync on file load.
-    // execCommand would pollute the undo stack with the entire loaded content as a single entry.
-    editor.value = result;
-    editor.selectionStart = editor.selectionEnd = 0;
-
-    Layout.updateEditorHighlight(result);
-    if (typeof editor.focus === 'function') {
-      try {
-        editor.focus({ preventScroll: true });
-      } catch (err) {
-        editor.focus();
-      }
-    }
-
-    AppState.setText(result, 'editor');
-    adjustTOCPosition();
-    Toc.updateTOCHighlight();
-
-    const resetScrollPositions = () => {
-      editor.scrollTop = 0;
-      Layout.syncEditorHighlightScroll();
-      preview.scrollTop = 0;
-      if (tocPanel) {
-        tocPanel.scrollTop = 0;
-      }
-    };
-
-    resetScrollPositions();
-    requestAnimationFrame(resetScrollPositions);
-    Bus.emit('preview:manual-reset');
-    _isDirty = false;
-    updateSaveBtnLabel();
-  }
-
-  if (openMdBtn && markdownInput) {
+  if (openMdBtn && markdownInput && window.Directory) {
     openMdBtn.addEventListener('click', async () => {
       if (typeof window.showOpenFilePicker === 'function') {
         try {
@@ -186,8 +152,9 @@ function startApp() {
           });
           Export.setFileHandle(fileHandle);
           const file = await fileHandle.getFile();
-          const result = await file.text();
-          applyLoadedContent(result);
+          await Directory.importSingleFile(file);
+          _isDirty = false;
+          updateSaveBtnLabel();
           return;
         } catch (err) {
           console.warn('[Open] showOpenFilePicker failed, falling back to input.', err);
@@ -197,32 +164,22 @@ function startApp() {
       markdownInput.click();
     });
 
-    markdownInput.addEventListener('change', event => {
+    markdownInput.addEventListener('change', async event => {
       const [file] = event.target.files || [];
       if (!file) {
         return;
       }
 
-      const reader = new FileReader();
-
-      reader.onload = loadEvent => {
-        const { result } = loadEvent.target || {};
-        if (typeof result !== 'string') {
-          markdownInput.value = '';
-          return;
-        }
-
-        applyLoadedContent(result);
-        markdownInput.value = '';
-      };
-
-      reader.onerror = () => {
-        console.error(i18n.t('dialogs.fileReadErrorLog'));
+      try {
+        await Directory.importSingleFile(file);
+        _isDirty = false;
+        updateSaveBtnLabel();
+      } catch (err) {
+        console.error(i18n.t('dialogs.fileReadErrorLog'), err);
         alert(i18n.t('dialogs.fileReadErrorAlert'));
+      } finally {
         markdownInput.value = '';
-      };
-
-      reader.readAsText(file, 'utf-8');
+      }
     });
   }
 
@@ -232,6 +189,18 @@ function startApp() {
       const files = Array.from(event.target.files || []);
       await Directory.importFolder(files);
       folderInput.value = ''; // 同一フォルダの連続選択でもchangeを発火させる
+    });
+  }
+
+  if (clearWorkspaceBtn && window.Directory) {
+    clearWorkspaceBtn.addEventListener('click', async () => {
+      const proceed = window.confirm(i18n.t('clearWorkspace.confirm'));
+      if (!proceed) {
+        return;
+      }
+      await Directory.clearWorkspace();
+      _isDirty = false;
+      updateSaveBtnLabel();
     });
   }
 
