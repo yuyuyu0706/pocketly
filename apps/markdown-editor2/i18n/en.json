@@ -9,6 +9,7 @@
     "clearWorkspace": "🗑️ Clear Workspace",
     "save": "💾 Save",
     "saveUnsaved": " (unsaved)",
+    "export": "⬇️ Export",
     "exportPdf": "📄 Export PDF",
     "exportHtml": "🌐 Export HTML",
     "exportWorkspaceZip": "🗜️ Export Workspace (zip)",

@@ -154,6 +154,7 @@ test('exports PDF via button', async ({ page }) => {
       return win;
     };
   });
+  await page.click('#export-btn');
   const [popup] = await Promise.all([
     page.waitForEvent('popup'),
     page.click('#export-pdf'),
@@ -165,6 +166,7 @@ test('exports PDF via button', async ({ page }) => {
 
 test('exports preview HTML via button', async ({ page }) => {
   await page.goto('/');
+  await page.click('#export-btn');
   const [download] = await Promise.all([
     page.waitForEvent('download'),
     page.click('#export-html'),

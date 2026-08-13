@@ -17,11 +17,9 @@ async function buildFixtureFolder() {
 }
 
 async function downloadAndUnzip(page) {
-  // export-workspace-zip is edit-mode-only (keeps the read-mode toolbar's
-  // N_read=6 item cap intact; see app charter docs).
-  if (await page.evaluate(() => document.body.dataset.mode !== 'edit')) {
-    await page.click('#toggle-mode');
-  }
+  // export-workspace-zip lives inside the "Export" dropdown (read-mode only;
+  // keeps the read-mode toolbar's N_read=6 item cap intact).
+  await page.click('#export-btn');
   const [download] = await Promise.all([
     page.waitForEvent('download'),
     page.click('#export-workspace-zip'),

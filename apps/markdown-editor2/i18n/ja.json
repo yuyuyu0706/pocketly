@@ -9,6 +9,7 @@
     "clearWorkspace": "🗑️ ワークスペースを初期化",
     "save": "💾 保存",
     "saveUnsaved": "（未保存）",
+    "export": "⬇️ エクスポート",
     "exportPdf": "📄 PDF出力",
     "exportHtml": "🌐 HTML出力",
     "exportWorkspaceZip": "🗜️ ワークスペースをzip出力",

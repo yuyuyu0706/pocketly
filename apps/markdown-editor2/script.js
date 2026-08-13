@@ -32,6 +32,8 @@ function startApp() {
   const openFolderBtn = document.getElementById('open-folder');
   const folderInput = document.getElementById('folder-input');
   const clearWorkspaceBtn = document.getElementById('clear-workspace');
+  const exportBtn = document.getElementById('export-btn');
+  const exportOptions = document.getElementById('export-options');
   const helpBtn = document.getElementById('help-btn');
   const helpWindow = document.getElementById('help-window');
   const helpClose = document.getElementById('help-close');
@@ -238,6 +240,45 @@ function startApp() {
       if (event.key === 'Escape' && !openOptions.hidden) {
         closeOpenMenu();
         openBtn.focus();
+      }
+    });
+  }
+
+  // "Export PDF" / "Export HTML" / "Export Workspace (zip)" are consolidated
+  // under a single toolbar entry point (export-menu), mirroring open-menu
+  // above, to keep the read-mode toolbar count within N_read=6 (Charter
+  // §3-3) after adding workspace zip export (Issue #183 / MEW-040 Lv2-12).
+  if (exportBtn && exportOptions) {
+    const closeExportMenu = () => {
+      if (exportOptions.hidden) return;
+      exportOptions.hidden = true;
+      exportBtn.setAttribute('aria-expanded', 'false');
+    };
+
+    exportBtn.addEventListener('click', event => {
+      event.stopPropagation();
+      const isHidden = exportOptions.hidden;
+      exportOptions.hidden = !isHidden;
+      exportBtn.setAttribute('aria-expanded', String(isHidden));
+    });
+
+    exportOptions.addEventListener('click', event => {
+      if (event.target.closest('.open-option')) {
+        closeExportMenu();
+      }
+    });
+
+    document.addEventListener('click', event => {
+      if (exportOptions.hidden || exportOptions.contains(event.target) || exportBtn.contains(event.target)) {
+        return;
+      }
+      closeExportMenu();
+    });
+
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && !exportOptions.hidden) {
+        closeExportMenu();
+        exportBtn.focus();
       }
     });
   }
