@@ -6,6 +6,24 @@ const path = require('path');
 // 手順①事前検証: Chromium PDF の /Type /Page マーカーを latin1 文字列として正規表現でカウントできることを確認済み。
 // Chromium headless の pdf() API が生成する PDF は圧縮オbjStm を使わず
 // /Type /Page エントリが生バイト列に含まれるため、この手法が有効。
+//
+// 既知の環境依存事象（Issue #185 ①）: このファイルのページ数アサーションは、
+// ローカル（Claude Codeサンドボックス）とCIとでheadless Chromiumのフォント・
+// レンダリング条件が異なる場合、テキストの折り返し位置がずれてPDFページ数が
+// 変動し、ローカルのみで失敗することがある。
+// 根拠: `.github/workflows/ci.yml`の`Prepare Linux OS dependencies`ステップが
+// `playwright install-deps chromium`を実行しており、これはheadless Chromiumの
+// 描画に使うフォント等のOSレベル依存関係を明示的にインストールするコマンドで
+// ある。ローカルサンドボックスではこのステップが走らないため、フォント環境が
+// CIと異なりうる。実際、本Issueの作業セッションで`playwright install-deps
+// chromium`を試行したところ正常に完了し（後続の`Prepare Chromium`＝
+// `npm run test:browser:install`のブラウザ本体取得と役割が異なることを確認）、
+// OS依存関係の欠落がありうるという仮説を補強する結果となった。ただし、本セッ
+// ションではPlaywrightのブラウザバイナリのバージョン不一致（pin済み1.62.1が
+// 要求するrevisionと、サンドボックスに事前配置されたrevisionの相違）により
+// 実際のテスト実行までは行えておらず、「フォント導入で該当テストが成功する
+// ようになる」ことまでは実地検証できていない。CI（.github/workflows/ci.yml）
+// が green であれば正の実行結果とみなしてよい。
 
 test('exported HTML contains preview.css style (#0055aa)', async ({ page }) => {
   await page.goto('/');

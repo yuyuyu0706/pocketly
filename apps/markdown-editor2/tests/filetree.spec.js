@@ -100,6 +100,18 @@ test.describe('File tree (Issue #165 / MEW-011)', () => {
     expect(rootNames).toEqual(['notes', 'zeta', 'index.md', 'b.md']);
   });
 
+  test('file tree labels have pointer-events enabled so clicks are receivable (Issue #185)', async ({ page }) => {
+    const folder = await buildFixtureFolder();
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 4);
+
+    const pointerEvents = await page.evaluate(() => {
+      const label = document.querySelector('.file-tree-label');
+      return label ? getComputedStyle(label).pointerEvents : null;
+    });
+    expect(pointerEvents).toBe('auto');
+  });
+
   test('clicking a file activates the document and highlights it', async ({ page }) => {
     const folder = await buildFixtureFolder();
     await page.setInputFiles('#folder-input', folder);

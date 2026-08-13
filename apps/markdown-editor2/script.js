@@ -186,7 +186,10 @@ function startApp() {
   }
 
   if (openFolderBtn && folderInput && window.Directory) {
-    openFolderBtn.addEventListener('click', () => folderInput.click());
+    openFolderBtn.addEventListener('click', async () => {
+      await closePiPBeforeNativeAction();
+      folderInput.click();
+    });
     folderInput.addEventListener('change', async event => {
       const files = Array.from(event.target.files || []);
       await Directory.importFolder(files);

@@ -107,4 +107,46 @@ test.describe('Multi-tab (Issue #181 / MEW-012)', () => {
     await expect(page.locator('#editor')).toHaveValue('# B');
     await expect(tabBar.locator('.tab-bar-item', { hasText: 'b.md' })).toBeVisible();
   });
+
+  // Regression (Issue #185): tabs and the file tree must route clicks by
+  // document ID, not by label text, so same-named files in different
+  // folders don't get confused with each other.
+  test('same-named files in different folders open their own distinct tabs and content', async ({ page }) => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'mew-tabs-dup-'));
+    const folder = path.join(root, 'my-folder');
+    await fs.mkdir(path.join(folder, 'folderA'), { recursive: true });
+    await fs.mkdir(path.join(folder, 'folderB'), { recursive: true });
+    await fs.writeFile(path.join(folder, 'folderA', 'notes.md'), '# Notes A');
+    await fs.writeFile(path.join(folder, 'folderB', 'notes.md'), '# Notes B');
+
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 2);
+
+    const fileTree = page.locator('#file-tree');
+    const folderANotes = fileTree
+      .locator('.file-tree-folder', { hasText: 'folderA' })
+      .locator('.file-tree-file', { hasText: 'notes.md' });
+    const folderBNotes = fileTree
+      .locator('.file-tree-folder', { hasText: 'folderB' })
+      .locator('.file-tree-file', { hasText: 'notes.md' });
+
+    await folderANotes.locator('.file-tree-label').click();
+    await expect(page.locator('#editor')).toHaveValue('# Notes A');
+
+    await folderBNotes.locator('.file-tree-label').click();
+    await expect(page.locator('#editor')).toHaveValue('# Notes B');
+
+    const tabBar = page.locator('#tab-bar');
+    await expect(tabBar.locator('.tab-bar-item', { hasText: 'notes.md' })).toHaveCount(2);
+
+    // Clicking each tab must restore its own distinct content, proving
+    // routing is by document ID rather than by the (ambiguous) label text.
+    const tabs = tabBar.locator('.tab-bar-item', { hasText: 'notes.md' });
+    await tabs.nth(0).click();
+    const firstTabContent = await page.locator('#editor').inputValue();
+    await tabs.nth(1).click();
+    const secondTabContent = await page.locator('#editor').inputValue();
+
+    expect(new Set([firstTabContent, secondTabContent])).toEqual(new Set(['# Notes A', '# Notes B']));
+  });
 });
