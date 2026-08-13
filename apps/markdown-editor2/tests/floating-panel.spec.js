@@ -1,5 +1,11 @@
 const { test, expect } = require('@playwright/test');
 
+// 既知の環境依存事象（Issue #185 ①）: 本ファイルの getBoundingClientRect() ベースの
+// 位置アサーションは、ローカル（Claude Codeサンドボックス）とCIとでheadless
+// Chromiumのフォント・レンダリング条件が異なる場合、ピクセル位置がずれて
+// ローカルのみで失敗することがある。CI（.github/workflows/ci.yml）が green で
+// あれば正の実行結果とみなしてよい。
+
 const VIEWPORT = { width: 1280, height: 1024 };
 
 test.describe('Floating panel (edit mode)', () => {

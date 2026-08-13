@@ -6,6 +6,13 @@ const path = require('path');
 // 手順①事前検証: Chromium PDF の /Type /Page マーカーを latin1 文字列として正規表現でカウントできることを確認済み。
 // Chromium headless の pdf() API が生成する PDF は圧縮オbjStm を使わず
 // /Type /Page エントリが生バイト列に含まれるため、この手法が有効。
+//
+// 既知の環境依存事象（Issue #185 ①）: このファイルのページ数アサーションは、
+// ローカル（Claude Codeサンドボックス）とCIとでheadless Chromiumのフォント・
+// レンダリング条件が異なる場合、テキストの折り返し位置がずれてPDFページ数が
+// 変動し、ローカルのみで失敗することがある。CI（.github/workflows/ci.yml）は
+// `npm run test:browser:install`でPlaywright管理のChromiumを都度取得するため
+// 一貫した基準となる。CIが green であれば正の実行結果とみなしてよい。
 
 test('exported HTML contains preview.css style (#0055aa)', async ({ page }) => {
   await page.goto('/');
