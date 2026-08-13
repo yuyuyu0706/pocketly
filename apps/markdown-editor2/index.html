@@ -31,16 +31,24 @@
         </div>
       </div>
       <button id="save-md" class="toolbar-button" type="button" data-i18n="toolbar.save">💾 Save</button>
-      <button id="export-pdf" class="toolbar-button" type="button" data-i18n="toolbar.exportPdf" data-mode-visible="read">📄 Export PDF</button>
-      <button
-        id="export-html"
-        class="toolbar-button"
-        type="button"
-        data-i18n="toolbar.exportHtml"
-        data-mode-visible="read"
-      >
-        🌐 Export HTML
-      </button>
+      <div id="export-menu" data-mode-visible="read">
+        <button
+          id="export-btn"
+          class="toolbar-button"
+          type="button"
+          aria-haspopup="true"
+          aria-expanded="false"
+          aria-controls="export-options"
+          data-i18n="toolbar.export"
+        >
+          ⬇️ Export
+        </button>
+        <div id="export-options" role="menu" aria-labelledby="export-btn" hidden>
+          <button id="export-pdf" class="open-option" type="button" role="menuitem" data-i18n="toolbar.exportPdf">📄 Export PDF</button>
+          <button id="export-html" class="open-option" type="button" role="menuitem" data-i18n="toolbar.exportHtml">🌐 Export HTML</button>
+          <button id="export-workspace-zip" class="open-option" type="button" role="menuitem" data-i18n="toolbar.exportWorkspaceZip">🗜️ Export Workspace (zip)</button>
+        </div>
+      </div>
       <button
         id="insert-image"
         class="toolbar-button"
@@ -177,6 +185,7 @@ graph TD
   <script src="vendor/marked.min.js"></script>
   <script src="vendor/purify.min.js"></script>
   <script src="vendor/mermaid.min.js"></script>
+  <script src="vendor/fflate.min.js"></script>
   <script src="config.js"></script>
   <script src="i18n.js"></script>
   <script src="js/bus.js"></script>

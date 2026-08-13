@@ -30,6 +30,43 @@
   const DOCUMENTS_SAVE_DEBOUNCE = 300; // Matches state.js's DOCUMENTS_SAVE_DEBOUNCE.
   let saveTimer = null;
 
+  // Injected via Directory.init(); triggers a browser download for a Blob.
+  // Shared with Export (script.js) rather than re-implemented here.
+  let _triggerDownloadFromBlob = null;
+
+  function pad2(n) {
+    return String(n).padStart(2, '0');
+  }
+
+  /**
+   * "YYYYMMDD-HHMMSS" timestamp (local time) for the export zip filename.
+   * @returns {string}
+   */
+  function dateStamp() {
+    const d = new Date();
+    return (
+      `${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}` +
+      `-${pad2(d.getHours())}${pad2(d.getMinutes())}${pad2(d.getSeconds())}`
+    );
+  }
+
+  /**
+   * Generate a collision-free "Untitled[-n].md" path for a document that has
+   * no fileRegistry-tracked path (i.e. the active document when it isn't
+   * directory-backed), avoiding any path already claimed within usedPaths.
+   * @param {Set<string>} usedPaths
+   * @returns {string}
+   */
+  function generateFallbackPath(usedPaths) {
+    let candidate = 'Untitled.md';
+    let n = 2;
+    while (usedPaths.has(candidate)) {
+      candidate = `Untitled-${n}.md`;
+      n += 1;
+    }
+    return candidate;
+  }
+
   /**
    * Debounce a saveWorkspace() call reconstructed from the current
    * fileRegistry/assetRegistry contents. No-ops when the active document set
@@ -287,6 +324,18 @@
    */
   const Directory = {
     /**
+     * Inject shared dependencies. Currently only triggerDownloadFromBlob,
+     * reused from script.js rather than re-implemented here (Issue #183).
+     * @param {{ triggerDownloadFromBlob: (blob: Blob, filename: string) => void }} deps
+     * @returns {void}
+     */
+    init({ triggerDownloadFromBlob } = {}) {
+      if (typeof triggerDownloadFromBlob === 'function') {
+        _triggerDownloadFromBlob = triggerDownloadFromBlob;
+      }
+    },
+
+    /**
      * Import a FileList selected via the webkitdirectory input. Filters to the
      * allow-list (.md/.markdown + image extensions), excluding hidden segments
      * and node_modules. Markdown file contents are read upfront and persisted
@@ -520,6 +569,48 @@
       }
       scheduleWorkspacePersist();
       return { imported: true, id };
+    },
+
+    /**
+     * Export all currently open documents (Issue #183 / MEW-040) as a zip:
+     * fileRegistry-tracked (folder-imported/single-file-opened) documents by
+     * their tracked path/text, plus the active document even when it isn't
+     * fileRegistry-tracked (e.g. the initial Welcome document) so a workspace
+     * that was never folder-imported doesn't export empty. Any other
+     * non-tracked, non-active document is skipped: AppState has no API to
+     * read the text of a document that is neither active nor cached here
+     * (confirmed design decision, see workspace-03-issue-catalog.md MEW-040).
+     * Registered assets (assetRegistry) are always included.
+     * @returns {Promise<void>}
+     */
+    async exportWorkspaceAsZip() {
+      const { strToU8, zipSync } = global.fflate;
+      const activeId = AppState.getActiveDocumentId();
+      const docs = AppState.listDocuments();
+      const files = {};
+      const usedPaths = new Set();
+
+      docs.forEach(doc => {
+        const entry = fileRegistry.get(doc.id);
+        if (!entry && doc.id !== activeId) {
+          return;
+        }
+        const text = entry ? entry.text : AppState.getText();
+        const path = entry ? entry.path : generateFallbackPath(usedPaths);
+        usedPaths.add(path);
+        files[path] = strToU8(text);
+      });
+
+      for (const [path, blob] of assetRegistry) {
+        files[path] = new Uint8Array(await blob.arrayBuffer());
+      }
+
+      const zipped = zipSync(files);
+      const blob = new Blob([zipped], { type: 'application/zip' });
+      const filename = `workspace-export-${dateStamp()}.zip`;
+      if (typeof _triggerDownloadFromBlob === 'function') {
+        _triggerDownloadFromBlob(blob, filename);
+      }
     }
   };
 

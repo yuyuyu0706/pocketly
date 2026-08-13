@@ -9,6 +9,7 @@ const path = require('path');
 
 test('exported HTML contains preview.css style (#0055aa)', async ({ page }) => {
   await page.goto('/');
+  await page.click('#export-btn');
   const [download] = await Promise.all([
     page.waitForEvent('download'),
     page.click('#export-html'),
@@ -55,6 +56,7 @@ test('exported PDF spans multiple pages for long documents', async ({ page }) =>
     };
   });
 
+  await page.click('#export-btn');
   const [popup] = await Promise.all([
     page.waitForEvent('popup'),
     page.click('#export-pdf'),
@@ -95,6 +97,7 @@ test('exported HTML spans multiple pages when printed for long documents', async
   }, longMarkdown);
 
   // HTML ファイルをダウンロード保存（Lv3-A と同じパターン）
+  await page.click('#export-btn');
   const [download] = await Promise.all([
     page.waitForEvent('download'),
     page.click('#export-html'),
@@ -124,6 +127,7 @@ test('exported HTML spans multiple pages when printed for long documents', async
 
 test('exported HTML does not contain app.css styles (100vh, #e8f0ff)', async ({ page }) => {
   await page.goto('/');
+  await page.click('#export-btn');
   const [download] = await Promise.all([
     page.waitForEvent('download'),
     page.click('#export-html'),
