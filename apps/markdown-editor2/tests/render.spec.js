@@ -3,8 +3,9 @@ const { test, expect } = require('@playwright/test');
 // 既知の環境依存事象（Issue #185 ①）: 本ファイルの getBoundingClientRect() ベースの
 // 位置アサーションおよび filechooser 待機は、ローカル（Claude Codeサンドボックス）と
 // CIとでheadless Chromiumのフォント・レンダリング条件やダイアログ処理制約が異なる
-// 場合、ローカルのみで失敗することがある。CI（.github/workflows/ci.yml）が green
-// であれば正の実行結果とみなしてよい。
+// 場合、ローカルのみで失敗することがある。根拠・実地検証状況の詳細は
+// tests/export-regression.spec.js 冒頭のコメントを参照。CI
+// （.github/workflows/ci.yml）が green であれば正の実行結果とみなしてよい。
 
 test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
