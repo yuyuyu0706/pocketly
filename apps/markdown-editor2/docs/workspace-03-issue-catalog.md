@@ -118,8 +118,9 @@
 | MEW-036 | 品質・保守 | ~~フォルダ由来文書の編集内容をSave（IndexedDB workspaceへの書き戻し）する経路がない~~ **解消済み（Issue #176）** | `directory.js`の`importFolder()`はインポート時点のテキストをAppStateへ登録するのみで、以後の編集は`workspaces`ストアへ反映されない | リロード・自動復元（`restoreOnStartup()`）で編集前の内容に戻ってしまう | M | 中 | **解消済み** | — | Issue #176（Lv4-2）にて`text:changed`購読・デバウンス書き戻しが実装され、フォルダ由来文書の編集がIndexedDB workspaceへ反映されるようになったため解消。依存: MEW-005/MEW-035 |
 | MEW-037 | 品質・保守 | インポート除外ルールが固定（ユーザー設定不可） | `directory.js`の`EXCLUDED_SEGMENTS`が`node_modules`固定・拡張子許可リストもハードコード | `.git`等の他の慣習的除外ディレクトリや、プロジェクト固有の除外パターンに対応できない | S | 低 | **小** | 5 | Issue #171実装時に発見。`.gitignore`相当の除外設定UIまたは追加ハードコードルールの要否を将来判断する。依存: 独立 |
 | MEW-039 | 品質・保守 | ワークスペース初期化手段がなく、単一ファイルOpenがfileRegistry管理外 | ワークスペースをクリアする手段が存在せず、動作確認のたびにIndexedDBを手動クリアする必要がある / `#open-md`が`AppState.setText()`直接呼び出しでfileRegistry未登録 | 動作確認の作業効率低下。単一ファイルOpenで開いた文書がファイルツリーに表示されない不整合 | M | 低 | **小** | 2 | バックログ棚卸しにより土台性は低いが動作確認効率向上のためPhase 2へ配属確定（2026-08-12）。Issue #179（Lv2-11）にて`clearWorkspace()`・`importSingleFile()`を実装し解消。依存: MEW-035（Lv2-10・fileRegistry/scheduleWorkspacePersist()確立）|
+| MEW-040 | 新機能 | ~~ワークスペースzipエクスポートがない~~ **解消済み（Issue #183）** | フォルダ由来文書群・単一文書を含むワークスペース全体を一括ダウンロードする手段が存在しない | 複数文書をまとめて外部へ持ち出す・バックアップする手段がない | M | 低 | **解消済み** | — | 決定記録（2026-08-11）でPhase 2格上げ配属確定も、ID番号が別課題に転用され未実装のまま残存（棚卸しで発見）。Issue #183（Lv2-12）にて`fflate`導入・`Directory.exportWorkspaceAsZip()`を実装し解消。依存: MEW-035（fileRegistry/assetRegistry確立）|
 
-**確定後の配属集計**: Phase 2 = 9件 / Phase 3 = 8件 / Phase 4 = 9件 / Phase 5 = 7件 / 対象外 = 2件 / 解消済み = 3件（計38件、MEW-031・MEW-035・MEW-036解消済み・MEW-037・MEW-039追加）
+**確定後の配属集計**: Phase 2 = 9件 / Phase 3 = 8件 / Phase 4 = 9件 / Phase 5 = 7件 / 対象外 = 2件 / 解消済み = 4件（計39件、MEW-031・MEW-035・MEW-036・MEW-040解消済み・MEW-037追加）
 
 > **境界事例（【境界】マーク付き行）**: §4 個別詳細を参照。マージ前に利用者レビューで確定すること。
 

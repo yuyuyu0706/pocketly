@@ -606,6 +606,18 @@ function startApp() {
 
   Export.init({ preview, i18n, triggerDownloadFromBlob, AppState, exportPdfBtn, exportHtmlBtn, saveMdBtn, closePiPBeforeNativeAction, onSaveSuccess: () => { _isDirty = false; updateSaveBtnLabel(); } });
 
+  if (window.Directory) {
+    Directory.init({ triggerDownloadFromBlob });
+  }
+
+  const exportWorkspaceZipBtn = document.getElementById('export-workspace-zip');
+  if (exportWorkspaceZipBtn && window.Directory) {
+    exportWorkspaceZipBtn.addEventListener('click', async () => {
+      await closePiPBeforeNativeAction();
+      await Directory.exportWorkspaceAsZip();
+    });
+  }
+
   function onCtrlS(event) {
     if ((event.ctrlKey || event.metaKey) && event.key === 's') {
       event.preventDefault();

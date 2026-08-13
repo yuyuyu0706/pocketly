@@ -11,6 +11,7 @@
     "saveUnsaved": "（未保存）",
     "exportPdf": "📄 PDF出力",
     "exportHtml": "🌐 HTML出力",
+    "exportWorkspaceZip": "🗜️ ワークスペースをzip出力",
     "insertImage": "🖼 画像を挿入",
     "template": "📋 テンプレート",
     "help": "❔ チート",

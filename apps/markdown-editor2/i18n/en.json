@@ -11,6 +11,7 @@
     "saveUnsaved": " (unsaved)",
     "exportPdf": "📄 Export PDF",
     "exportHtml": "🌐 Export HTML",
+    "exportWorkspaceZip": "🗜️ Export Workspace (zip)",
     "insertImage": "🖼 Insert Image",
     "template": "📋 Templates",
     "help": "❔ Cheat",
