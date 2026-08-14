@@ -716,6 +716,108 @@ main {
   cursor: pointer;
 }
 
+#shortcuts-window {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  width: 320px;
+  max-height: 70vh;
+  overflow-y: auto;
+  background: #ffffff;
+  border: 1px solid #aac8ff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  padding: 0.5rem;
+  font-size: 0.9rem;
+  z-index: 1000;
+}
+
+#shortcuts-window.hidden {
+  display: none;
+}
+
+#shortcuts-window table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+#shortcuts-window td {
+  padding: 0.35rem 0.25rem;
+  border-bottom: 1px solid rgba(140, 170, 220, 0.3);
+}
+
+#shortcuts-window kbd {
+  display: inline-block;
+  padding: 0.05rem 0.35rem;
+  border: 1px solid #aac8ff;
+  border-radius: 3px;
+  background: rgba(140, 170, 220, 0.16);
+  font-family: inherit;
+  font-size: 0.85em;
+}
+
+#shortcuts-close {
+  float: right;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+/* Quick switcher (Issue #191 / MEW-013) */
+#quickswitcher {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 20, 50, 0.35);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 12vh;
+  z-index: 1100;
+}
+
+#quickswitcher.hidden {
+  display: none;
+}
+
+#quickswitcher-panel {
+  width: 480px;
+  max-width: 90vw;
+  max-height: 60vh;
+  background: #ffffff;
+  border: 1px solid #aac8ff;
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#quickswitcher-input {
+  border: none;
+  border-bottom: 1px solid #aac8ff;
+  padding: 0.75rem;
+  font-size: 1rem;
+  outline: none;
+  box-sizing: border-box;
+}
+
+#quickswitcher-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+}
+
+.quickswitcher-item {
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(140, 170, 220, 0.16);
+}
+
+.quickswitcher-item.selected,
+.quickswitcher-item:hover {
+  background-color: rgba(140, 170, 220, 0.25);
+}
+
 /* Mode-based layout */
 body[data-mode="read"] #editor-pane,
 body[data-mode="read"] #divider,

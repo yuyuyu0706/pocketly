@@ -84,6 +84,8 @@
       <button id="help-btn" class="toolbar-button" type="button" data-i18n="toolbar.help" data-mode-visible="edit">
         ❔ Help
       </button>
+      <button id="shortcuts-btn" class="toolbar-button" type="button"
+        data-i18n="toolbar.shortcuts" data-mode-visible="read">⌨️ Shortcuts</button>
       <button
         id="toggle-mode"
         class="toolbar-button"
@@ -182,6 +184,15 @@ graph TD
     </pre>
   </div>
 
+  <div id="shortcuts-window" class="hidden">
+    <button id="shortcuts-close" data-i18n-aria-label="shortcuts.close">✖</button>
+    <h3 data-i18n="shortcuts.title">Keyboard Shortcuts</h3>
+    <table>
+      <tr><td><kbd>Ctrl</kbd>+<kbd>P</kbd></td><td data-i18n="shortcuts.quickSwitcher">Quick switcher</td></tr>
+      <tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td data-i18n="shortcuts.save">Save</td></tr>
+    </table>
+  </div>
+
   <script src="vendor/marked.min.js"></script>
   <script src="vendor/purify.min.js"></script>
   <script src="vendor/mermaid.min.js"></script>
@@ -198,6 +209,7 @@ graph TD
   <script src="js/toc.js"></script>
   <script src="js/filetree.js"></script>
   <script src="js/tabs.js"></script>
+  <script src="js/quickswitcher.js"></script>
   <script src="js/directory.js"></script>
   <script src="script.js"></script>
 </body>

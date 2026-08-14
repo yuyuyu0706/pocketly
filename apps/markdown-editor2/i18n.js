@@ -17,6 +17,7 @@
         insertImage: '🖼 Insert Image',
         template: '📋 Templates',
         help: '❔ Help',
+        shortcuts: '⌨️ Shortcuts',
         languageLabel: 'Language',
         showLineNumbers: '🔢 Show Line Numbers',
         hideLineNumbers: '🔢 Hide Line Numbers'
@@ -58,6 +59,15 @@
         mermaidCheatsheet:
           '```mermaid\ngraph TD\n  A[Start] --> B{Condition}\n  B -->|Yes| C[Process 1]\n  B -->|No| D[Process 2]\n```'
       },
+      shortcuts: {
+        close: 'Close',
+        title: 'Keyboard Shortcuts',
+        quickSwitcher: 'Quick switcher',
+        save: 'Save'
+      },
+      quickswitcher: {
+        placeholder: 'Search documents...'
+      },
       formatting: {
         bold: '𝐁 Bold',
         externalLink: '🔗 Add External Link',
@@ -88,6 +98,7 @@
         insertImage: '🖼 画像を挿入',
         template: '📋 テンプレート',
         help: '❔ ヘルプ',
+        shortcuts: '⌨️ ショートカット',
         languageLabel: '言語',
         showLineNumbers: '🔢 行番号を表示',
         hideLineNumbers: '🔢 行番号を非表示'
@@ -128,6 +139,15 @@
         mermaidTitle: 'Mermaid チートシート',
         mermaidCheatsheet:
           '```mermaid\ngraph TD\n  A[開始] --> B{条件}\n  B -->|はい| C[処理1]\n  B -->|いいえ| D[処理2]\n```'
+      },
+      shortcuts: {
+        close: '閉じる',
+        title: 'キーボードショートカット',
+        quickSwitcher: 'クイックスイッチャー',
+        save: '保存'
+      },
+      quickswitcher: {
+        placeholder: '文書を検索...'
       },
       formatting: {
         bold: '太字',

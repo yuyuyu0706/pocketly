@@ -18,7 +18,8 @@
     "help": "❔ チート",
     "languageLabel": "言語",
     "showLineNumbers": "🔢 行番号 On",
-    "hideLineNumbers": "🔢 行番号 Off"
+    "hideLineNumbers": "🔢 行番号 Off",
+    "shortcuts": "⌨️ ショートカット"
   },
   "language": {
     "english": "English",
@@ -80,5 +81,14 @@
   "tabs": {
     "untitled": "無題",
     "close": "タブを閉じる"
+  },
+  "shortcuts": {
+    "close": "閉じる",
+    "title": "キーボードショートカット",
+    "quickSwitcher": "クイックスイッチャー",
+    "save": "保存"
+  },
+  "quickswitcher": {
+    "placeholder": "文書を検索..."
   }
 }
