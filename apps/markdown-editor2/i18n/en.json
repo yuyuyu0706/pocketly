@@ -19,7 +19,7 @@
     "languageLabel": "Language",
     "showLineNumbers": "🔢 Numbers On",
     "hideLineNumbers": "🔢 Numbers Off",
-    "shortcuts": "⌨️ Shortcuts"
+    "shortcuts": "⌨️ Cheat"
   },
   "language": {
     "english": "English",
@@ -89,6 +89,9 @@
     "save": "Save"
   },
   "quickswitcher": {
-    "placeholder": "Search documents..."
+    "placeholder": "Search documents...",
+    "move": "move",
+    "select": "open",
+    "dismiss": "close"
   }
 }

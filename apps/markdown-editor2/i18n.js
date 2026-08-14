@@ -17,7 +17,7 @@
         insertImage: '🖼 Insert Image',
         template: '📋 Templates',
         help: '❔ Help',
-        shortcuts: '⌨️ Shortcuts',
+        shortcuts: '⌨️ Cheat',
         languageLabel: 'Language',
         showLineNumbers: '🔢 Show Line Numbers',
         hideLineNumbers: '🔢 Hide Line Numbers'
@@ -66,7 +66,10 @@
         save: 'Save'
       },
       quickswitcher: {
-        placeholder: 'Search documents...'
+        placeholder: 'Search documents...',
+        move: 'move',
+        select: 'open',
+        dismiss: 'close'
       },
       formatting: {
         bold: '𝐁 Bold',
@@ -98,7 +101,7 @@
         insertImage: '🖼 画像を挿入',
         template: '📋 テンプレート',
         help: '❔ ヘルプ',
-        shortcuts: '⌨️ ショートカット',
+        shortcuts: '⌨️ チート',
         languageLabel: '言語',
         showLineNumbers: '🔢 行番号を表示',
         hideLineNumbers: '🔢 行番号を非表示'
@@ -147,7 +150,10 @@
         save: '保存'
       },
       quickswitcher: {
-        placeholder: '文書を検索...'
+        placeholder: '文書を検索...',
+        move: '移動',
+        select: '開く',
+        dismiss: '閉じる'
       },
       formatting: {
         bold: '太字',

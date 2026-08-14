@@ -19,7 +19,7 @@
     "languageLabel": "言語",
     "showLineNumbers": "🔢 行番号 On",
     "hideLineNumbers": "🔢 行番号 Off",
-    "shortcuts": "⌨️ ショートカット"
+    "shortcuts": "⌨️ チート"
   },
   "language": {
     "english": "English",
@@ -89,6 +89,9 @@
     "save": "保存"
   },
   "quickswitcher": {
-    "placeholder": "文書を検索..."
+    "placeholder": "文書を検索...",
+    "move": "移動",
+    "select": "開く",
+    "dismiss": "閉じる"
   }
 }

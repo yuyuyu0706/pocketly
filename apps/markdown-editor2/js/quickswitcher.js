@@ -78,6 +78,17 @@
     return all.filter(doc => fuzzyMatch(query, doc.label));
   }
 
+  /**
+   * Rebuild the <li> elements for the current _results. Only call this when
+   * the result set itself changes (query edits, open()) -- NOT on every
+   * selection change. Selection-only changes (hover, arrow keys) must go
+   * through updateSelectionClasses() instead: rebuilding the DOM on
+   * mouseenter replaces the element the pointer is over, which makes the
+   * browser fire a fresh mouseenter on the replacement and rebuild again,
+   * looping indefinitely under a stationary pointer and starving the
+   * mousedown/click pair of a stable target (click never fires; the modal
+   * never closes). See Issue #191 follow-up bug report #1.
+   */
   function renderResults() {
     if (!_list || !_ownerDocument) {
       return;
@@ -86,19 +97,44 @@
     _results.forEach((doc, index) => {
       const item = _ownerDocument.createElement('li');
       item.className = 'quickswitcher-item';
-      item.textContent = doc.label;
-      item.dataset.id = doc.id;
       item.classList.toggle('selected', index === _selectedIndex);
+
+      const icon = _ownerDocument.createElement('span');
+      icon.className = 'quickswitcher-item-icon';
+      icon.textContent = '📄';
+      icon.setAttribute('aria-hidden', 'true');
+      item.appendChild(icon);
+
+      const label = _ownerDocument.createElement('span');
+      label.className = 'quickswitcher-item-label';
+      label.textContent = doc.label;
+      item.appendChild(label);
+
+      item.dataset.id = doc.id;
 
       item.addEventListener('mouseenter', () => {
         _selectedIndex = index;
-        renderResults();
+        updateSelectionClasses();
       });
       item.addEventListener('click', () => {
         confirmSelection(index);
       });
 
       _list.appendChild(item);
+    });
+  }
+
+  /**
+   * Update the 'selected' class on the already-rendered <li> elements to
+   * match _selectedIndex, without touching element identity/listeners.
+   * Used by hover and arrow-key navigation so the DOM stays stable.
+   */
+  function updateSelectionClasses() {
+    if (!_list) {
+      return;
+    }
+    Array.prototype.forEach.call(_list.children, (item, index) => {
+      item.classList.toggle('selected', index === _selectedIndex);
     });
   }
 
@@ -127,7 +163,7 @@
       return;
     }
     _selectedIndex = (_selectedIndex + delta + _results.length) % _results.length;
-    renderResults();
+    updateSelectionClasses();
   }
 
   function handleKeydown(event) {
@@ -189,9 +225,33 @@
     _list = ownerDocument.createElement('ul');
     _list.id = 'quickswitcher-list';
 
+    const footer = ownerDocument.createElement('div');
+    footer.className = 'quickswitcher-footer';
+
+    const moveHint = ownerDocument.createElement('span');
+    moveHint.innerHTML = '↑↓ <span data-i18n="quickswitcher.move"></span>';
+    footer.appendChild(moveHint);
+
+    const selectHint = ownerDocument.createElement('span');
+    selectHint.innerHTML = 'Enter <span data-i18n="quickswitcher.select"></span>';
+    footer.appendChild(selectHint);
+
+    const dismissHint = ownerDocument.createElement('span');
+    dismissHint.innerHTML = 'Esc <span data-i18n="quickswitcher.dismiss"></span>';
+    footer.appendChild(dismissHint);
+
     panel.appendChild(_input);
     panel.appendChild(_list);
+    panel.appendChild(footer);
     _root.appendChild(panel);
+
+    if (typeof i18n.applyToDOM === 'function') {
+      i18n.applyToDOM(footer);
+    } else {
+      footer.querySelectorAll('[data-i18n]').forEach(el => {
+        el.textContent = i18n.t(el.getAttribute('data-i18n'));
+      });
+    }
 
     const body = ownerDocument.body || ownerDocument.documentElement;
     body.appendChild(_root);

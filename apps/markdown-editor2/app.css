@@ -10,12 +10,19 @@ body {
 :root {
   --heading-flash-bg: #fff8b3;
   --heading-flash-ring: rgba(255, 248, 179, 0.6);
+  --bg-accent-muted: rgba(140, 170, 220, 0.25);
+  --text-accent: #003366;
+  --text-muted: #5a6b85;
+  --radius: 6px;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --heading-flash-bg: rgba(255, 225, 140, 0.4);
     --heading-flash-ring: rgba(255, 225, 140, 0.55);
+    --bg-accent-muted: rgba(140, 170, 220, 0.35);
+    --text-accent: #cde1ff;
+    --text-muted: #9fb0c9;
   }
 }
 
@@ -766,7 +773,7 @@ main {
 #quickswitcher {
   position: fixed;
   inset: 0;
-  background: rgba(0, 20, 50, 0.35);
+  background: rgba(0, 0, 0, 0.45);
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -784,7 +791,7 @@ main {
   max-height: 60vh;
   background: #ffffff;
   border: 1px solid #aac8ff;
-  border-radius: 6px;
+  border-radius: var(--radius);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
   display: flex;
   flex-direction: column;
@@ -808,14 +815,38 @@ main {
 }
 
 .quickswitcher-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   padding: 0.5rem 0.75rem;
   cursor: pointer;
   border-bottom: 1px solid rgba(140, 170, 220, 0.16);
 }
 
+.quickswitcher-item-icon {
+  flex: none;
+}
+
+.quickswitcher-item-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .quickswitcher-item.selected,
 .quickswitcher-item:hover {
-  background-color: rgba(140, 170, 220, 0.25);
+  background: var(--bg-accent-muted);
+  color: var(--text-accent);
+  border-radius: var(--radius);
+}
+
+.quickswitcher-footer {
+  display: flex;
+  gap: 1rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 12px;
+  color: var(--text-muted);
+  border-top: 1px solid rgba(140, 170, 220, 0.16);
 }
 
 /* Mode-based layout */
