@@ -61,6 +61,32 @@ body {
   }
 }
 
+#preview table {
+  display: block;
+  overflow-x: auto;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  width: max-content;
+  max-width: 100%;
+}
+
+#preview th,
+#preview td {
+  border: 1px solid #aac8ff;
+  padding: 0.4rem 0.75rem;
+  text-align: left;
+}
+
+#preview th {
+  background-color: #dfefff;
+  color: #0055aa;
+  font-weight: 600;
+}
+
+#preview tbody tr:nth-child(even) {
+  background-color: #f4f8ff;
+}
+
 pre {
   background: #dfefff;
   padding: 0.5rem;
