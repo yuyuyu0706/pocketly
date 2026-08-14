@@ -18,7 +18,8 @@
     "help": "❔ Cheat",
     "languageLabel": "Language",
     "showLineNumbers": "🔢 Numbers On",
-    "hideLineNumbers": "🔢 Numbers Off"
+    "hideLineNumbers": "🔢 Numbers Off",
+    "shortcuts": "⌨️ Cheat"
   },
   "language": {
     "english": "English",
@@ -80,5 +81,17 @@
   "tabs": {
     "untitled": "Untitled",
     "close": "Close tab"
+  },
+  "shortcuts": {
+    "close": "Close",
+    "title": "Keyboard Shortcuts",
+    "quickSwitcher": "Quick switcher",
+    "save": "Save"
+  },
+  "quickswitcher": {
+    "placeholder": "Search documents...",
+    "move": "move",
+    "select": "open",
+    "dismiss": "close"
   }
 }

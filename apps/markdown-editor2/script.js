@@ -37,6 +37,9 @@ function startApp() {
   const helpBtn = document.getElementById('help-btn');
   const helpWindow = document.getElementById('help-window');
   const helpClose = document.getElementById('help-close');
+  const shortcutsBtn = document.getElementById('shortcuts-btn');
+  const shortcutsWindow = document.getElementById('shortcuts-window');
+  const shortcutsClose = document.getElementById('shortcuts-close');
   const templateBtn = document.getElementById('template-btn');
   const templateOptions = document.getElementById('template-options');
   const markdownInput = document.getElementById('markdownInput');
@@ -679,6 +682,34 @@ function startApp() {
     helpWindow.classList.add('hidden');
   });
 
+  if (shortcutsBtn && shortcutsWindow && shortcutsClose) {
+    shortcutsBtn.addEventListener('click', () => {
+      shortcutsWindow.classList.toggle('hidden');
+    });
+
+    shortcutsClose.addEventListener('click', () => {
+      shortcutsWindow.classList.add('hidden');
+    });
+  }
+
+  if (window.QuickSwitcher) {
+    QuickSwitcher.init({ AppState, Directory });
+  }
+
+  // Ctrl+P opens the quick switcher (Issue #191 / MEW-013). Exempt from the
+  // ownerDocument convention like onCtrlS above: keyboard shortcuts are only
+  // meaningful under the main window's focus (window-and-multi-window.md §4).
+  function onCtrlP(event) {
+    if ((event.ctrlKey || event.metaKey) && event.key === 'p') {
+      event.preventDefault();
+      if (window.QuickSwitcher) {
+        QuickSwitcher.open();
+      }
+    }
+  }
+
+  document.addEventListener('keydown', onCtrlP);
+
   if (toggleLineNumbersBtn) {
     toggleLineNumbersBtn.addEventListener('click', () => {
       Layout.setLineNumbersEnabled(!Layout.isLineNumbersEnabled());
@@ -924,6 +955,18 @@ function startApp() {
 
   async function applyMode(mode) {
     const isEdit = mode === 'edit';
+
+    // Both cheat/help modals stay open across a mode switch unless closed
+    // here explicitly, so close both on every mode change (regardless of
+    // direction) for symmetry between #shortcuts-window (read-mode button)
+    // and #help-window (edit-mode button).
+    if (shortcutsWindow) {
+      shortcutsWindow.classList.add('hidden');
+    }
+    if (helpWindow) {
+      helpWindow.classList.add('hidden');
+    }
+
     const setModeAttributes = edit => {
       document.body.dataset.mode = edit ? 'edit' : 'read';
       if (toggleModeBtn) {
