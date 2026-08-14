@@ -118,4 +118,19 @@ test.describe('Quick switcher (Issue #191 / MEW-013)', () => {
     await page.click('#shortcuts-close');
     await expect(shortcutsWindow).toHaveClass(/hidden/);
   });
+
+  test('switching mode auto-closes the cheat/help window regardless of direction', async ({ page }) => {
+    const shortcutsWindow = page.locator('#shortcuts-window');
+    const helpWindow = page.locator('#help-window');
+
+    await page.click('#shortcuts-btn');
+    await expect(shortcutsWindow).not.toHaveClass(/hidden/);
+    await page.click('#toggle-mode');
+    await expect(shortcutsWindow).toHaveClass(/hidden/);
+
+    await page.click('#help-btn');
+    await expect(helpWindow).not.toHaveClass(/hidden/);
+    await page.click('#toggle-mode');
+    await expect(helpWindow).toHaveClass(/hidden/);
+  });
 });

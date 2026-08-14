@@ -956,13 +956,15 @@ function startApp() {
   async function applyMode(mode) {
     const isEdit = mode === 'edit';
 
-    // The shortcuts cheat window (#shortcuts-btn, read-mode only) has no
-    // equivalent auto-close for #help-window (edit-mode only) because a mode
-    // switch always hides read-mode-only controls anyway -- but the modal
-    // itself stays open across the switch unless explicitly closed here, so
-    // do that on every mode change (regardless of direction) for symmetry.
+    // Both cheat/help modals stay open across a mode switch unless closed
+    // here explicitly, so close both on every mode change (regardless of
+    // direction) for symmetry between #shortcuts-window (read-mode button)
+    // and #help-window (edit-mode button).
     if (shortcutsWindow) {
       shortcutsWindow.classList.add('hidden');
+    }
+    if (helpWindow) {
+      helpWindow.classList.add('hidden');
     }
 
     const setModeAttributes = edit => {
