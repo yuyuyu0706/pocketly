@@ -234,6 +234,31 @@
     return input;
   }
 
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  const FOLDER_ICON_PATH = 'M1.5 3A1.5 1.5 0 0 1 3 1.5h3.379a1.5 1.5 0 0 1 1.06.44l1.122 1.12H13A1.5 1.5 0 0 1 14.5 4.56V12.5A1.5 1.5 0 0 1 13 14H3a1.5 1.5 0 0 1-1.5-1.5V3z';
+  const FILE_ICON_PATH = 'M3 1.5A1.5 1.5 0 0 1 4.5 0h4.379a1.5 1.5 0 0 1 1.06.44l2.622 2.621A1.5 1.5 0 0 1 13 4.121V14.5a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 3 14.5v-13zM9 1v2.5A1.5 1.5 0 0 0 10.5 5H13';
+
+  /**
+   * Inline SVG icon (fill: currentColor, colored via CSS) distinguishing
+   * folders from files in the tree (PR #197 review feedback).
+   * @param {Document} ownerDocument
+   * @param {'folder'|'file'} type
+   * @returns {SVGSVGElement}
+   */
+  function renderTreeIcon(ownerDocument, type) {
+    const svg = ownerDocument.createElementNS(SVG_NS, 'svg');
+    svg.setAttribute('class', 'file-tree-icon');
+    svg.setAttribute('viewBox', '0 0 16 16');
+    svg.setAttribute('width', '14');
+    svg.setAttribute('height', '14');
+    svg.setAttribute('fill', 'currentColor');
+    svg.setAttribute('aria-hidden', 'true');
+    const path = ownerDocument.createElementNS(SVG_NS, 'path');
+    path.setAttribute('d', type === 'folder' ? FOLDER_ICON_PATH : FILE_ICON_PATH);
+    svg.appendChild(path);
+    return svg;
+  }
+
   function renderNodeList(nodes, ownerDocument, ctx, folderPath) {
     const ul = ownerDocument.createElement('ul');
     ul.className = 'file-tree-list';
@@ -287,6 +312,7 @@
           ctx.openFolderMenu(node, li);
         });
 
+        row.appendChild(renderTreeIcon(ownerDocument, 'folder'));
         row.appendChild(label);
         li.appendChild(row);
         if (isOpen && (node.children.length || ctx.pendingCreateFolder === node.path)) {
@@ -335,6 +361,7 @@
           ctx.openFileMenu(node, li);
         });
 
+        row.appendChild(renderTreeIcon(ownerDocument, 'file'));
         row.appendChild(label);
         li.appendChild(row);
       }
