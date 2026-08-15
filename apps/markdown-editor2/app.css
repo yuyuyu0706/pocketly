@@ -529,7 +529,7 @@ main {
   background-color: #f6faff;
   border-right: 1px solid #aac8ff;
   color: #88b4ff;
-  font-size: 1.05rem;
+  font-size: 0.95rem;
   position: sticky;
   top: var(--header-offset, 0);
   height: calc(100vh - var(--header-offset, 0));
@@ -592,7 +592,6 @@ main {
 
 #toc .toc-item.active > .toc-label {
   color: #0055aa;
-  font-weight: bold;
 }
 
 #toc .toc-item[data-level="3"] > ul {
@@ -628,6 +627,7 @@ main {
 }
 
 #file-tree {
+  position: relative;
   margin: -1rem -1rem 0.75rem;
   padding: 0.75rem 1rem;
   border-bottom: 1px solid #aac8ff;
@@ -651,6 +651,13 @@ main {
   margin: 0.1rem 0;
 }
 
+#file-tree .file-tree-row {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+
 #file-tree .file-tree-label {
   cursor: pointer;
   display: block;
@@ -667,26 +674,104 @@ main {
   background-color: rgba(140, 170, 220, 0.12);
 }
 
-#file-tree .file-tree-folder > .file-tree-label {
-  font-weight: 600;
+#file-tree .file-tree-folder > .file-tree-row > .file-tree-label {
   color: #3d7bd6;
+  text-shadow: 0 0 1px rgba(0, 0, 0, 0.12);
 }
 
-#file-tree .file-tree-folder > .file-tree-label::before {
+#file-tree .file-tree-folder > .file-tree-row > .file-tree-label::before {
   content: '▸';
   display: inline-block;
   width: 1em;
   transition: transform 0.15s ease;
 }
 
-#file-tree .file-tree-folder.open > .file-tree-label::before {
+#file-tree .file-tree-folder.open > .file-tree-row > .file-tree-label::before {
   transform: rotate(90deg);
 }
 
-#file-tree .file-tree-file.active > .file-tree-label {
+#file-tree .file-tree-file.active > .file-tree-row > .file-tree-label {
   color: #0055aa;
-  font-weight: bold;
   background-color: rgba(140, 170, 220, 0.16);
+}
+
+#file-tree .file-tree-header {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.25rem;
+}
+
+#file-tree .file-tree-add-btn {
+  pointer-events: auto;
+  border: none;
+  background: transparent;
+  color: #3d7bd6;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 0.1rem 0.4rem;
+}
+
+#file-tree .file-tree-add-btn:hover {
+  background-color: rgba(140, 170, 220, 0.12);
+}
+
+#file-tree .file-tree-row > .file-tree-label {
+  flex: 1;
+  min-width: 0;
+}
+
+#file-tree .file-tree-icon {
+  flex: none;
+  color: #88b4ff; /* Default: file. */
+}
+
+#file-tree .file-tree-folder > .file-tree-row .file-tree-icon {
+  color: #3d7bd6; /* Folder: matches the existing toggle-arrow color. */
+}
+
+#file-tree .file-tree-create-input,
+#file-tree .file-tree-rename-input {
+  pointer-events: auto;
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  border: 1px solid #3d7bd6;
+  border-radius: 4px;
+  padding: 0.1rem 0.3rem;
+}
+
+/* Appended to <body> (see filetree.js openMenuFor()), not scoped under
+   #file-tree, so it escapes #toc's sticky-positioning stacking context and
+   always draws above siblings like #toc-divider regardless of z-index. */
+.file-tree-menu {
+  pointer-events: auto;
+  position: fixed;
+  z-index: 20;
+  list-style: none;
+  margin: 0;
+  padding: 0.25rem 0;
+  background: #fff;
+  border: 1px solid #aac8ff;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  min-width: 8rem;
+}
+
+.file-tree-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  padding: 0.35rem 0.75rem;
+  cursor: pointer;
+  font: inherit;
+}
+
+.file-tree-menu button:hover {
+  background-color: rgba(140, 170, 220, 0.12);
 }
 
 #help-window {

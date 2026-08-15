@@ -518,7 +518,7 @@ function startApp() {
     editorPane,
     lineNumberGutter,
     mainContainer,
-    toc,
+    toc: tocPanel,
     tocDivider,
     divider,
     toggleLineNumbersBtn,

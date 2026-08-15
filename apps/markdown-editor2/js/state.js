@@ -487,6 +487,21 @@
       Bus.emit('text:changed', { text: active.text, source: 'switch' });
     },
     /**
+     * Shallow-merge a patch into a document's meta object without touching
+     * text/cursor (Issue #196 / MEW-011 Lv3-1, e.g. Directory.renameFile()).
+     * @param {string} id
+     * @param {object} metaPatch
+     * @returns {boolean} true if the document existed and was updated
+     */
+    updateDocumentMeta(id, metaPatch) {
+      if (typeof id !== 'string' || !state.documents.has(id) || !isPlainObject(metaPatch)) {
+        return false;
+      }
+      const doc = state.documents.get(id);
+      doc.meta = Object.assign({}, doc.meta, metaPatch);
+      return true;
+    },
+    /**
      * List all open documents in insertion order.
      * @returns {Array<{ id: string, meta: object }>}
      */

@@ -82,6 +82,16 @@
     "untitled": "Untitled",
     "close": "Close tab"
   },
+  "filetree": {
+    "newFile": "New file",
+    "newFilePlaceholder": "filename.md",
+    "newFileHere": "New file here",
+    "rename": "Rename",
+    "delete": "Delete",
+    "confirmDelete": "Delete this file? This cannot be undone.",
+    "errorInvalidExtension": "File names must end in .md or .markdown.",
+    "errorDuplicate": "A file already exists at that path."
+  },
   "shortcuts": {
     "close": "Close",
     "title": "Keyboard Shortcuts",
