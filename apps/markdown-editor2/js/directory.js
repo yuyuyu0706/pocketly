@@ -461,6 +461,21 @@
     },
 
     /**
+     * List all directory-backed documents with their cached text, for
+     * cross-document search (Issue #193 / MEW-014). Unlike getTree(), this
+     * includes `text` so callers don't need to activate each document to
+     * read its content.
+     * @returns {Array<{ id: string, path: string, text: string }>}
+     */
+    getSearchableDocuments() {
+      return Array.from(fileRegistry.entries()).map(([id, entry]) => ({
+        id,
+        path: entry.path,
+        text: entry.text
+      }));
+    },
+
+    /**
      * Folder-relative path of the currently active document, or null if the
      * active document is not directory-backed (or none imported/restored).
      * @returns {string|null}

@@ -99,6 +99,26 @@
     target.style.height = 'auto';
     target.style.minHeight = '0';
     target.style.maxHeight = 'none';
+
+    // The copied 'width' above is the editor's CSS (border-)box width, which
+    // does NOT account for a classic (space-taking) scrollbar gutter — unlike
+    // this clone (overflow:visible, no scrollbar), a real scrolled textarea
+    // wraps text into a narrower usable width whenever its vertical
+    // scrollbar isn't an overlay one. Left uncorrected, the clone under-wraps
+    // long lines and undercounts the measured height, which throws off
+    // alignEditorScrollToHeading()'s scroll target. Re-narrow the clone by
+    // the actual scrollbar gutter (offsetWidth - clientWidth merges border
+    // width with scrollbar width; border is already matched via the copied
+    // border-*-width above, so subtracting the raw difference over-corrects
+    // by one border width — negligible, sub-pixel in practice — while
+    // correctly removing the scrollbar's width). No-op when the scrollbar is
+    // an overlay one (difference is 0), e.g. this test sandbox's Chromium.
+    const scrollbarGutter = Math.max(0, _editor.offsetWidth - _editor.clientWidth);
+    if (scrollbarGutter > 0) {
+      const currentWidth = parseFloat(styles.getPropertyValue('width')) || 0;
+      target.style.width = Math.max(0, currentWidth - scrollbarGutter) + 'px';
+    }
+
     return styles;
   }
 
@@ -185,6 +205,32 @@
     const maxScroll = Math.max(_editor.scrollHeight - _editor.clientHeight, 0);
     const clamped = Math.min(Math.max(0, targetScrollTop), maxScroll);
     animateEditorScrollTo(clamped);
+  }
+
+  /**
+   * Scroll the editor so the character offset `position` is roughly
+   * vertically centered in the viewport. Reused by cross-search's own
+   * editor jump (crosssearch.js's jumpToMatch): a plain
+   * `editor.focus()` + `setSelectionRange()` (without `preventScroll`)
+   * does NOT reliably auto-scroll a `<textarea>` to a programmatically-set
+   * selection in Chromium — confirmed by a dedicated Playwright test — so
+   * cross-search needs the same kind of explicit scroll math this module
+   * already uses for TOC heading jumps (measureEditorContentBefore +
+   * animateEditorScrollTo), just without a preview-offset target to match.
+   * @param {number} position
+   * @returns {void}
+   */
+  function scrollEditorToPosition(position) {
+    if (!_editor || typeof position !== 'number' || position < 0) {
+      return;
+    }
+    const measurement = measureEditorContentBefore(position);
+    if (!measurement) {
+      return;
+    }
+    const targetScrollTop =
+      measurement.paddingTop + measurement.height - _editor.clientHeight / 2;
+    animateEditorScrollTo(targetScrollTop);
   }
 
   function getPreviewScrollTargetForHeading(id) {
@@ -568,6 +614,7 @@
     init,
     buildTOC,
     updateTOCHighlight,
+    scrollEditorToPosition,
   };
 
 }(typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : this));

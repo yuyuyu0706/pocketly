@@ -710,6 +710,25 @@ function startApp() {
 
   document.addEventListener('keydown', onCtrlP);
 
+  if (window.CrossSearch) {
+    CrossSearch.init({ AppState, Directory });
+  }
+
+  // Ctrl+Shift+F opens the cross-document search (Issue #193 / MEW-014).
+  // Exempt from the ownerDocument convention like onCtrlP above: keyboard
+  // shortcuts are only meaningful under the main window's focus
+  // (window-and-multi-window.md §4).
+  function onCtrlShiftF(event) {
+    if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === 'f') {
+      event.preventDefault();
+      if (window.CrossSearch) {
+        CrossSearch.open();
+      }
+    }
+  }
+
+  document.addEventListener('keydown', onCtrlShiftF);
+
   if (toggleLineNumbersBtn) {
     toggleLineNumbersBtn.addEventListener('click', () => {
       Layout.setLineNumbersEnabled(!Layout.isLineNumbersEnabled());

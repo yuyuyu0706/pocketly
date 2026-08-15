@@ -86,10 +86,17 @@
     "close": "閉じる",
     "title": "キーボードショートカット",
     "quickSwitcher": "クイックスイッチャー",
-    "save": "保存"
+    "save": "保存",
+    "crossSearch": "横断検索"
   },
   "quickswitcher": {
     "placeholder": "文書を検索...",
+    "move": "移動",
+    "select": "開く",
+    "dismiss": "閉じる"
+  },
+  "crosssearch": {
+    "placeholder": "全文書を横断して検索...",
     "move": "移動",
     "select": "開く",
     "dismiss": "閉じる"

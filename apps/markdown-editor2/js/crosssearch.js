@@ -1,0 +1,439 @@
+(function (global) {
+  'use strict';
+
+  // KNOWN ISSUE (round-3 investigation, Issue #193): on some real browsers,
+  // Ctrl+Shift+F does not fire while the editor <textarea> has focus -- a
+  // capture-phase keydown listener on `document` never logs anything, so
+  // the event is being swallowed before it reaches the DOM at all. Repros
+  // in Incognito with extensions disabled too (not an extension). No
+  // code-level cause was found: no listener between the textarea and
+  // document calls stopPropagation/stopImmediatePropagation on keydown
+  // (checked formatting.js's capture-phase doc listener, toc.js's capture
+  // -phase doc listener, and script.js's editor keydown handler -- none
+  // stop propagation), and a Playwright test does not reproduce it. Most
+  // likely an OS/browser-native shortcut interception (e.g. IME-switch or
+  // system-search binding) that never surfaces to JS; this can't be fully
+  // verified from a headless/Playwright sandbox. See the fallback entry
+  // point below (Quick Switcher's "?" prefix) as a reliable alternative.
+  //
+  // Cross-document search (Issue #193 / MEW-014): a Ctrl+Shift+F modal that
+  // searches the cached text of every directory-backed document
+  // (Directory.getSearchableDocuments()) plus the active document when it
+  // isn't directory-backed (e.g. the fallback Welcome doc), and activates
+  // the chosen result via Directory.activateDocument(), mirroring
+  // js/quickswitcher.js's modal/keyboard-nav pattern (Issue #191 / MEW-013).
+
+  const SEARCH_DEBOUNCE = 200; // Same debounce level as script.js's RENDER_DEBOUNCE.
+  const SNIPPET_CONTEXT = 40; // Characters of context kept on each side of a match.
+  const MAX_SNIPPETS_PER_RESULT = 3;
+
+  let _AppState = null;
+  let _Directory = null;
+  let _root = null;      // modal backdrop element
+  let _input = null;
+  let _list = null;
+  let _results = [];
+  let _selectedIndex = -1;
+  let _ownerDocument = null;
+  let _previouslyFocused = null;
+  let _debounceTimer = null;
+
+  /**
+   * Case-insensitive substring match. Returns every match offset (not fuzzy).
+   * @param {string} text
+   * @param {string} query
+   * @returns {number[]}
+   */
+  function findMatches(text, query) {
+    if (!text || !query) {
+      return [];
+    }
+    const haystack = text.toLowerCase();
+    const needle = query.toLowerCase();
+    const offsets = [];
+    let from = 0;
+    let index = haystack.indexOf(needle, from);
+    while (index !== -1) {
+      offsets.push(index);
+      from = index + needle.length;
+      index = haystack.indexOf(needle, from);
+    }
+    return offsets;
+  }
+
+  /**
+   * Build up to MAX_SNIPPETS_PER_RESULT context snippets around match
+   * offsets, each as { before, match, after } text fragments truncated with
+   * an ellipsis when the match isn't at the start/end of the document.
+   * @param {string} text
+   * @param {number[]} matches
+   * @param {number} matchLength
+   * @returns {Array<{ before: string, match: string, after: string }>}
+   */
+  function buildSnippets(text, matches, matchLength) {
+    return matches.slice(0, MAX_SNIPPETS_PER_RESULT).map(offset => {
+      const start = Math.max(0, offset - SNIPPET_CONTEXT);
+      const end = Math.min(text.length, offset + matchLength + SNIPPET_CONTEXT);
+      const before = (start > 0 ? '…' : '') + text.slice(start, offset);
+      const match = text.slice(offset, offset + matchLength);
+      const after = text.slice(offset + matchLength, end) + (end < text.length ? '…' : '');
+      return { before, match, after };
+    });
+  }
+
+  /**
+   * Search every fileRegistry-tracked document plus the active document when
+   * it isn't fileRegistry-tracked (mirrors js/directory.js exportWorkspaceAsZip's
+   * "not tracked, but active" fallback).
+   * @param {string} query
+   * @returns {Array<{ id: string, path: string, snippets: Array<{before:string, match:string, after:string}> }>}
+   */
+  function searchAllDocuments(query) {
+    if (!query) {
+      return [];
+    }
+    const results = [];
+    const searchable = _Directory.getSearchableDocuments();
+    searchable.forEach(entry => {
+      const matches = findMatches(entry.text, query);
+      if (matches.length) {
+        results.push({
+          id: entry.id,
+          path: entry.path,
+          snippets: buildSnippets(entry.text, matches, query.length),
+          // First (topmost) match offset, carried through to the click handler so it
+          // can jump the editor/preview straight to it (Issue #193 §2-4-1 addition).
+          matchIndex: matches[0]
+        });
+      }
+    });
+
+    const activeId = _AppState.getActiveDocumentId();
+    const isTracked = searchable.some(entry => entry.id === activeId);
+    if (activeId && !isTracked) {
+      const text = _AppState.getText();
+      const matches = findMatches(text, query);
+      if (matches.length) {
+        results.push({
+          id: activeId,
+          path: i18n.t('tabs.untitled'),
+          snippets: buildSnippets(text, matches, query.length),
+          matchIndex: matches[0]
+        });
+      }
+    }
+    return results;
+  }
+
+  function renderResults() {
+    if (!_list || !_ownerDocument) {
+      return;
+    }
+    _list.innerHTML = '';
+    _results.forEach((result, index) => {
+      const item = _ownerDocument.createElement('li');
+      item.className = 'crosssearch-item';
+      item.classList.toggle('selected', index === _selectedIndex);
+      item.dataset.id = result.id;
+
+      const pathRow = _ownerDocument.createElement('div');
+      pathRow.className = 'crosssearch-item-path';
+
+      const icon = _ownerDocument.createElement('i');
+      icon.className = 'ti ti-file-text';
+      icon.setAttribute('aria-hidden', 'true');
+      pathRow.appendChild(icon);
+
+      const pathLabel = _ownerDocument.createElement('span');
+      pathLabel.textContent = result.path;
+      pathRow.appendChild(pathLabel);
+
+      item.appendChild(pathRow);
+
+      const snippet = result.snippets[0];
+      if (snippet) {
+        const snippetRow = _ownerDocument.createElement('div');
+        snippetRow.className = 'crosssearch-item-snippet';
+
+        snippetRow.appendChild(_ownerDocument.createTextNode(snippet.before));
+
+        const mark = _ownerDocument.createElement('mark');
+        mark.textContent = snippet.match;
+        snippetRow.appendChild(mark);
+
+        snippetRow.appendChild(_ownerDocument.createTextNode(snippet.after));
+
+        item.appendChild(snippetRow);
+      }
+
+      item.addEventListener('mouseenter', () => {
+        _selectedIndex = index;
+        updateSelectionClasses();
+      });
+      item.addEventListener('click', () => {
+        confirmSelection(index);
+      });
+
+      _list.appendChild(item);
+    });
+  }
+
+  function updateSelectionClasses() {
+    if (!_list) {
+      return;
+    }
+    Array.prototype.forEach.call(_list.children, (item, index) => {
+      item.classList.toggle('selected', index === _selectedIndex);
+    });
+  }
+
+  function runSearch() {
+    const query = _input ? _input.value : '';
+    _results = searchAllDocuments(query);
+    if (_results.length === 0) {
+      _selectedIndex = -1;
+    } else if (_selectedIndex < 0 || _selectedIndex >= _results.length) {
+      _selectedIndex = 0;
+    }
+    renderResults();
+  }
+
+  function scheduleSearch() {
+    if (_debounceTimer) {
+      clearTimeout(_debounceTimer);
+    }
+    _debounceTimer = setTimeout(runSearch, SEARCH_DEBOUNCE);
+  }
+
+  /**
+   * Jump the editor selection and preview scroll to the first (topmost) match
+   * of `query` in the just-activated document (Issue #193 §2-4-1 addition):
+   * "edit mode keeps editor and preview in sync" also applies to cross-search
+   * result selection.
+   *
+   * Directory.activateDocument() -> AppState.switchActiveDocument() ->
+   * Bus.emit('text:changed') -> script.js's handleTextStateChange (source
+   * !== 'editor', so no RENDER_DEBOUNCE) -> Preview.render() all run
+   * synchronously on this same call stack (Bus dispatches handlers inline,
+   * not via microtask/setTimeout — see js/bus.js), so by the time
+   * activateDocument() returns, editor.value and the preview DOM already
+   * reflect the newly-activated document. No render-complete event is
+   * needed here; mermaid SVG conversion (the one async part of render()) is
+   * irrelevant to plain-text match scrolling.
+   * @param {string} query
+   * @param {number} matchIndex
+   */
+  function jumpToMatch(query, matchIndex) {
+    if (!query || typeof matchIndex !== 'number' || matchIndex < 0) {
+      return;
+    }
+    const ownerDocument = _ownerDocument || global.document;
+    const editor = ownerDocument && ownerDocument.getElementById('editor');
+    if (editor && typeof editor.setSelectionRange === 'function') {
+      editor.setSelectionRange(matchIndex, matchIndex + query.length);
+      editor.focus();
+      // editor.focus() + setSelectionRange() alone does NOT reliably
+      // auto-scroll a <textarea> to a programmatically-set selection
+      // (confirmed: for a match far down a long document, editor.scrollTop
+      // stayed at 0). Reuse Toc's explicit scroll-math helper (the same one
+      // powering TOC heading jumps) instead of relying on native behavior.
+      if (global.Toc && typeof global.Toc.scrollEditorToPosition === 'function') {
+        global.Toc.scrollEditorToPosition(matchIndex);
+      }
+      // Programmatic setSelectionRange() doesn't fire the editor's keyup/click
+      // events that Toc.updateTOCHighlight() is normally wired to, so the TOC
+      // highlight would otherwise stay stuck on the previously active heading.
+      if (global.Toc && typeof global.Toc.updateTOCHighlight === 'function') {
+        global.Toc.updateTOCHighlight();
+      }
+    }
+    if (global.Preview && typeof global.Preview.scrollToTextMatch === 'function') {
+      global.Preview.scrollToTextMatch(query);
+    }
+  }
+
+  function confirmSelection(index) {
+    const result = _results[index];
+    if (!result) {
+      return;
+    }
+    const query = _input ? _input.value : '';
+    _Directory.activateDocument(result.id);
+    close();
+    jumpToMatch(query, result.matchIndex);
+  }
+
+  function moveSelection(delta) {
+    if (!_results.length) {
+      return;
+    }
+    _selectedIndex = (_selectedIndex + delta + _results.length) % _results.length;
+    updateSelectionClasses();
+  }
+
+  function handleKeydown(event) {
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      moveSelection(1);
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      moveSelection(-1);
+    } else if (event.key === 'Enter') {
+      event.preventDefault();
+      confirmSelection(_selectedIndex);
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      close();
+    }
+  }
+
+  function handleBackdropClick(event) {
+    if (event.target === _root) {
+      close();
+    }
+  }
+
+  /**
+   * Build the modal DOM (once) on the same document as the given anchor
+   * element, so the modal renders correctly in a PiP/popout window too
+   * (Charter §9-2 / window-and-multi-window.md).
+   * @param {Document} ownerDocument
+   */
+  function ensureModal(ownerDocument) {
+    if (_root && _ownerDocument === ownerDocument) {
+      return;
+    }
+    if (_root && _root.parentNode) {
+      _root.parentNode.removeChild(_root);
+    }
+
+    _ownerDocument = ownerDocument;
+
+    _root = ownerDocument.createElement('div');
+    _root.id = 'crosssearch';
+    _root.className = 'hidden';
+    _root.addEventListener('click', handleBackdropClick);
+
+    const panel = ownerDocument.createElement('div');
+    panel.id = 'crosssearch-panel';
+
+    _input = ownerDocument.createElement('input');
+    _input.type = 'text';
+    _input.id = 'crosssearch-input';
+    _input.setAttribute('placeholder', i18n.t('crosssearch.placeholder'));
+    _input.addEventListener('input', () => {
+      _selectedIndex = -1;
+      scheduleSearch();
+    });
+    _input.addEventListener('keydown', handleKeydown);
+
+    _list = ownerDocument.createElement('ul');
+    _list.id = 'crosssearch-list';
+
+    const footer = ownerDocument.createElement('div');
+    footer.className = 'crosssearch-footer';
+
+    const moveHint = ownerDocument.createElement('span');
+    moveHint.innerHTML = '↑↓ <span data-i18n="crosssearch.move"></span>';
+    footer.appendChild(moveHint);
+
+    const selectHint = ownerDocument.createElement('span');
+    selectHint.innerHTML = 'Enter <span data-i18n="crosssearch.select"></span>';
+    footer.appendChild(selectHint);
+
+    const dismissHint = ownerDocument.createElement('span');
+    dismissHint.innerHTML = 'Esc <span data-i18n="crosssearch.dismiss"></span>';
+    footer.appendChild(dismissHint);
+
+    panel.appendChild(_input);
+    panel.appendChild(_list);
+    panel.appendChild(footer);
+    _root.appendChild(panel);
+
+    if (typeof i18n.applyToDOM === 'function') {
+      i18n.applyToDOM(footer);
+    } else {
+      footer.querySelectorAll('[data-i18n]').forEach(el => {
+        el.textContent = i18n.t(el.getAttribute('data-i18n'));
+      });
+    }
+
+    const body = ownerDocument.body || ownerDocument.documentElement;
+    body.appendChild(_root);
+  }
+
+  /**
+   * Open the cross-search modal, anchored to the given element's document
+   * (defaults to the main window's document if none is provided/available).
+   * @param {{ anchor?: Element, initialQuery?: string }} [options]
+   */
+  function open(options) {
+    if (!_AppState || !_Directory) {
+      return;
+    }
+    const anchor = (options && options.anchor) || (global.document && global.document.body);
+    const ownerDocument = (anchor && anchor.ownerDocument) || global.document;
+    if (!ownerDocument) {
+      return;
+    }
+
+    ensureModal(ownerDocument);
+
+    _previouslyFocused = ownerDocument.activeElement;
+    _root.classList.remove('hidden');
+    // initialQuery (Quick Switcher "?" prefix fallback, Issue #193 round-3
+    // fix 2): search runs immediately, not debounced, so the fallback path
+    // shows results right away instead of waiting out SEARCH_DEBOUNCE.
+    const initialQuery = (options && typeof options.initialQuery === 'string') ? options.initialQuery : '';
+    _input.value = initialQuery;
+    _selectedIndex = -1;
+    if (initialQuery) {
+      runSearch();
+    } else {
+      _results = [];
+      renderResults();
+    }
+    _input.focus();
+    if (initialQuery) {
+      _input.setSelectionRange(initialQuery.length, initialQuery.length);
+    }
+  }
+
+  function close() {
+    if (!_root || _root.classList.contains('hidden')) {
+      return;
+    }
+    if (_debounceTimer) {
+      clearTimeout(_debounceTimer);
+      _debounceTimer = null;
+    }
+    _root.classList.add('hidden');
+    if (_previouslyFocused && typeof _previouslyFocused.focus === 'function') {
+      _previouslyFocused.focus();
+    }
+    _previouslyFocused = null;
+  }
+
+  /**
+   * Wire the cross-search modal to AppState/Directory.
+   * @param {{ AppState: object, Directory: object }} deps
+   */
+  function init(deps) {
+    _AppState = deps.AppState;
+    _Directory = deps.Directory;
+  }
+
+  // Expose internals for testing.
+  global.__crosssearchTest = {
+    findMatches,
+    buildSnippets,
+    searchAllDocuments: query => searchAllDocuments(query)
+  };
+
+  global.CrossSearch = {
+    init,
+    open,
+    close,
+    searchAllDocuments
+  };
+})(typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : this);
