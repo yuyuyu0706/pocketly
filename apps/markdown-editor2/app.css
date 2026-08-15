@@ -724,24 +724,6 @@ main {
   min-width: 0;
 }
 
-#file-tree .file-tree-more-btn {
-  pointer-events: auto;
-  flex: none;
-  border: none;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-  border-radius: 4px;
-  padding: 0 0.25rem;
-  opacity: 0;
-  transition: opacity 0.1s ease;
-}
-
-#file-tree .file-tree-row:hover .file-tree-more-btn,
-#file-tree .file-tree-more-btn:focus {
-  opacity: 1;
-}
-
 #file-tree .file-tree-create-input,
 #file-tree .file-tree-rename-input {
   pointer-events: auto;
@@ -753,9 +735,12 @@ main {
   padding: 0.1rem 0.3rem;
 }
 
-#file-tree .file-tree-menu {
+/* Appended to <body> (see filetree.js openMenuFor()), not scoped under
+   #file-tree, so it escapes #toc's sticky-positioning stacking context and
+   always draws above siblings like #toc-divider regardless of z-index. */
+.file-tree-menu {
   pointer-events: auto;
-  position: absolute;
+  position: fixed;
   z-index: 20;
   list-style: none;
   margin: 0;
@@ -767,7 +752,7 @@ main {
   min-width: 8rem;
 }
 
-#file-tree .file-tree-menu button {
+.file-tree-menu button {
   display: block;
   width: 100%;
   text-align: left;
@@ -778,7 +763,7 @@ main {
   font: inherit;
 }
 
-#file-tree .file-tree-menu button:hover {
+.file-tree-menu button:hover {
   background-color: rgba(140, 170, 220, 0.12);
 }
 

@@ -133,11 +133,17 @@
       menu.appendChild(li);
     });
 
-    const containerRect = _container.getBoundingClientRect();
+    // Appended to <body> (viewport-fixed), not _container: #file-tree lives
+    // inside #toc, a position:sticky element that forms its own stacking
+    // context, so a z-index set on a menu appended there only wins against
+    // other #toc descendants — #toc-divider (a sibling of #toc) still drew
+    // on top regardless of z-index. Escaping to <body> avoids that stacking
+    // context entirely.
     const anchorRect = anchorEl.getBoundingClientRect();
-    menu.style.left = `${anchorRect.left - containerRect.left}px`;
-    menu.style.top = `${anchorRect.bottom - containerRect.top}px`;
-    _container.appendChild(menu);
+    menu.style.position = 'fixed';
+    menu.style.left = `${anchorRect.left}px`;
+    menu.style.top = `${anchorRect.bottom}px`;
+    ownerDocument.body.appendChild(menu);
     _activeMenu = menu;
 
     const win = ownerDocument.defaultView;
@@ -149,7 +155,7 @@
     };
     // Deferred so the click that opened the menu doesn't immediately close it.
     // Registered on the capture phase: most file-tree click handlers (label,
-    // moreBtn, inputs) call stopPropagation() during the bubble phase, which
+    // inputs) call stopPropagation() during the bubble phase, which
     // would otherwise prevent this listener from ever seeing clicks inside
     // the tree/TOC area. Capture fires on the way down, before those bubble-
     // phase stopPropagation() calls run, so the menu still closes.
@@ -275,16 +281,6 @@
           }
         });
 
-        const moreBtn = ownerDocument.createElement('button');
-        moreBtn.type = 'button';
-        moreBtn.className = 'file-tree-more-btn';
-        moreBtn.setAttribute('aria-label', i18n.t('filetree.moreActions'));
-        moreBtn.textContent = '…';
-        moreBtn.addEventListener('click', event => {
-          event.stopPropagation();
-          ctx.openFolderMenu(node, moreBtn);
-        });
-
         li.addEventListener('contextmenu', event => {
           event.preventDefault();
           event.stopPropagation();
@@ -292,7 +288,6 @@
         });
 
         row.appendChild(label);
-        row.appendChild(moreBtn);
         li.appendChild(row);
         if (isOpen && (node.children.length || ctx.pendingCreateFolder === node.path)) {
           li.appendChild(renderNodeList(node.children, ownerDocument, ctx, node.path));
@@ -334,16 +329,6 @@
           }
         });
 
-        const moreBtn = ownerDocument.createElement('button');
-        moreBtn.type = 'button';
-        moreBtn.className = 'file-tree-more-btn';
-        moreBtn.setAttribute('aria-label', i18n.t('filetree.moreActions'));
-        moreBtn.textContent = '…';
-        moreBtn.addEventListener('click', event => {
-          event.stopPropagation();
-          ctx.openFileMenu(node, moreBtn);
-        });
-
         li.addEventListener('contextmenu', event => {
           event.preventDefault();
           event.stopPropagation();
@@ -351,7 +336,6 @@
         });
 
         row.appendChild(label);
-        row.appendChild(moreBtn);
         li.appendChild(row);
       }
 

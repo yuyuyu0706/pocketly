@@ -112,7 +112,7 @@ test.describe('Single file operations (Issue #196 / MEW-011 Lv3-1)', () => {
     const fileTree = page.locator('#file-tree');
     const activeId = await page.evaluate(() => window.AppState.getActiveDocumentId());
     const activeFile = fileTree.locator(`.file-tree-file[data-id="${activeId}"]`);
-    await activeFile.locator('.file-tree-more-btn').click({ force: true });
+    await activeFile.click({ button: 'right' });
     await page.locator('.file-tree-menu button', { hasText: 'Delete' }).click();
 
     await page.waitForFunction(
@@ -133,7 +133,7 @@ test.describe('Single file operations (Issue #196 / MEW-011 Lv3-1)', () => {
     await fileTree.locator('.file-tree-file', { hasText: 'a.md' }).locator('.file-tree-label').click();
 
     const aFile = fileTree.locator('.file-tree-file', { hasText: 'a.md' });
-    await aFile.locator('.file-tree-more-btn').click({ force: true });
+    await aFile.click({ button: 'right' });
     await page.locator('.file-tree-menu button', { hasText: 'Rename' }).click();
 
     const renameInput = fileTree.locator('.file-tree-rename-input');
@@ -152,7 +152,7 @@ test.describe('Single file operations (Issue #196 / MEW-011 Lv3-1)', () => {
 
     const fileTree = page.locator('#file-tree');
     const aFile = fileTree.locator('.file-tree-file', { hasText: 'a.md' });
-    await aFile.locator('.file-tree-more-btn').click({ force: true });
+    await aFile.click({ button: 'right' });
     await page.locator('.file-tree-menu button', { hasText: 'Rename' }).click();
 
     const renameInput = fileTree.locator('.file-tree-rename-input');
@@ -164,7 +164,7 @@ test.describe('Single file operations (Issue #196 / MEW-011 Lv3-1)', () => {
     await expect(fileTree.locator('.file-tree-file', { hasText: 'a.md' })).toBeVisible();
 
     // Same for blur (used by the input's own blur handler to commit).
-    await aFile.locator('.file-tree-more-btn').click({ force: true });
+    await aFile.click({ button: 'right' });
     await page.locator('.file-tree-menu button', { hasText: 'Rename' }).click();
     await fileTree.locator('.file-tree-rename-input').blur();
     await expect(fileTree.locator('.file-tree-rename-input')).toHaveCount(0);
@@ -178,7 +178,7 @@ test.describe('Single file operations (Issue #196 / MEW-011 Lv3-1)', () => {
 
     const fileTree = page.locator('#file-tree');
     const aFile = fileTree.locator('.file-tree-file', { hasText: 'a.md' });
-    await aFile.locator('.file-tree-more-btn').click({ force: true });
+    await aFile.click({ button: 'right' });
     await expect(page.locator('.file-tree-menu')).toBeVisible();
 
     // Clicking another file-tree label (a click handler that calls
@@ -199,7 +199,7 @@ test.describe('Single file operations (Issue #196 / MEW-011 Lv3-1)', () => {
 
     const fileTree = page.locator('#file-tree');
     const innerFile = fileTree.locator('.file-tree-file', { hasText: 'inner.md' });
-    await innerFile.locator('.file-tree-more-btn').click({ force: true });
+    await innerFile.click({ button: 'right' });
     await page.locator('.file-tree-menu button', { hasText: 'Rename' }).click();
 
     const renameInput = fileTree.locator('.file-tree-rename-input');
@@ -226,7 +226,7 @@ test.describe('Single file operations (Issue #196 / MEW-011 Lv3-1)', () => {
 
     // Rename b.md -> renamed-b.md.
     const bFile = fileTree.locator('.file-tree-file', { hasText: 'b.md' });
-    await bFile.locator('.file-tree-more-btn').click({ force: true });
+    await bFile.click({ button: 'right' });
     await page.locator('.file-tree-menu button', { hasText: 'Rename' }).click();
     const renameInput = fileTree.locator('.file-tree-rename-input');
     await renameInput.fill('renamed-b.md');
@@ -236,7 +236,7 @@ test.describe('Single file operations (Issue #196 / MEW-011 Lv3-1)', () => {
     // Delete a.md.
     page.on('dialog', dialog => dialog.accept());
     const aFile = fileTree.locator('.file-tree-file', { hasText: 'a.md' });
-    await aFile.locator('.file-tree-more-btn').click({ force: true });
+    await aFile.click({ button: 'right' });
     await page.locator('.file-tree-menu button', { hasText: 'Delete' }).click();
     await expect(fileTree.locator('.file-tree-file', { hasText: 'a.md' })).toHaveCount(0);
 
