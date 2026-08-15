@@ -61,6 +61,33 @@ body {
   }
 }
 
+/* Cross-search string-level match highlight (Issue #193 round-3 fix 1):
+   applied to just the matched substring, independent of the heading-flash
+   styling/timing above. */
+#preview mark.crosssearch-flash {
+  background-color: var(--heading-flash-bg, #fff8b3);
+  box-shadow: 0 0 0 2px var(--heading-flash-ring, rgba(255, 248, 179, 0.6));
+  color: inherit;
+  border-radius: 2px;
+}
+
+#preview mark.crosssearch-flash.crosssearch-flash-fade-out {
+  animation: crosssearch-flash-fade-out var(--search-match-flash-fade-duration, 600ms)
+    ease-out forwards;
+}
+
+@keyframes crosssearch-flash-fade-out {
+  0% {
+    background-color: var(--heading-flash-bg, #fff8b3);
+    box-shadow: 0 0 0 2px var(--heading-flash-ring, rgba(255, 248, 179, 0.6));
+  }
+
+  100% {
+    background-color: transparent;
+    box-shadow: 0 0 0 0 rgba(255, 248, 179, 0);
+  }
+}
+
 #preview table {
   display: block;
   overflow-x: auto;

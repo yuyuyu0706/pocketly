@@ -249,7 +249,7 @@ test.describe('Cross-document search (Issue #193 / MEW-014)', () => {
     await expect(page.locator('#crosssearch')).not.toHaveClass(/hidden/);
   });
 
-  test('jumping to a result temporarily highlights the matched heading in the preview, then removes it', async ({ page }) => {
+  test('jumping to a result highlights only the matched substring, then removes it after its own (longer) duration', async ({ page }) => {
     const folder = await buildFixtureFolder();
     await page.setInputFiles('#folder-input', folder);
     await page.waitForFunction(() => window.Directory.getTree().length >= 3);
@@ -263,12 +263,59 @@ test.describe('Cross-document search (Issue #193 / MEW-014)', () => {
     await page.waitForTimeout(300);
     await page.click('.crosssearch-item');
 
-    // Reuses Preview.highlightHeadingById()'s own flash class/timing
-    // (js/preview.js's HEADING_FLASH_DURATION/HEADING_FLASH_FADE_DURATION),
-    // so the same class must appear promptly and clear itself without any
-    // caller-side timeout management.
-    await expect(page.locator('#preview .preview-heading-flash')).toHaveCount(1, { timeout: 1000 });
-    await expect(page.locator('#preview .preview-heading-flash')).toHaveCount(0, { timeout: 3500 });
+    // String-level highlight (Issue #193 round-3 fix 1): a <mark> wraps
+    // only the matched substring, not the whole line/element.
+    const mark = page.locator('#preview mark.crosssearch-flash');
+    await expect(mark).toHaveCount(1, { timeout: 1000 });
+    await expect(mark).toHaveText(/^banana$/i);
+    // The parent element (the line/block) itself must NOT get the
+    // whole-element heading-flash class -- this is a separate highlight
+    // mechanism scoped to the match text only.
+    await expect(page.locator('#preview .preview-heading-flash')).toHaveCount(0);
+
+    // Duration constant is independent of HEADING_FLASH_DURATION (used by
+    // TOC heading-jump highlighting) -- confirm the two differ, and that
+    // the mark survives past HEADING_FLASH_DURATION before eventually
+    // clearing on its own (SEARCH_MATCH_FLASH_DURATION).
+    const durations = await page.evaluate(() => ({
+      heading: window.__previewTest.HEADING_FLASH_DURATION,
+      searchMatch: window.__previewTest.SEARCH_MATCH_FLASH_DURATION
+    }));
+    expect(durations.searchMatch).not.toBe(durations.heading);
+    expect(durations.searchMatch).toBeGreaterThan(durations.heading);
+
+    await page.waitForTimeout(durations.heading + 200);
+    await expect(mark).toHaveCount(1);
+
+    await expect(mark).toHaveCount(0, { timeout: durations.searchMatch });
+  });
+
+  test('DOM stays clean after a highlight is removed: a later search still finds and highlights matches correctly', async ({ page }) => {
+    const folder = await buildFixtureFolder();
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.Directory.getTree().length >= 3);
+
+    if (await page.evaluate(() => document.body.dataset.mode !== 'edit')) {
+      await page.click('#toggle-mode');
+    }
+
+    await page.keyboard.press('Control+Shift+F');
+    await page.fill('#crosssearch-input', 'banana');
+    await page.waitForTimeout(300);
+    await page.click('.crosssearch-item');
+    await expect(page.locator('#preview mark.crosssearch-flash')).toHaveCount(1, { timeout: 1000 });
+
+    // Force-clear the highlight (equivalent to it timing out) via the
+    // exposed unwrap helper, then assert the previously-wrapped text node
+    // is intact (no stray empty text nodes, single merged text node) and a
+    // fresh search+jump on the SAME document still finds+wraps the match.
+    await page.evaluate(() => window.Preview.clearSearchMatchHighlight());
+    await expect(page.locator('#preview mark.crosssearch-flash')).toHaveCount(0);
+
+    const found = await page.evaluate(() => window.Preview.scrollToTextMatch('banana'));
+    expect(found).toBe(true);
+    await expect(page.locator('#preview mark.crosssearch-flash')).toHaveCount(1);
+    await expect(page.locator('#preview mark.crosssearch-flash')).toHaveText(/^banana$/i);
   });
 
   test('jumping to a result updates the TOC active-heading highlight (Issue #193 follow-up)', async ({ page }) => {
@@ -320,5 +367,25 @@ test.describe('Cross-document search (Issue #193 / MEW-014)', () => {
 
     const scrollTop = await page.evaluate(() => document.getElementById('editor').scrollTop);
     expect(scrollTop).toBeGreaterThan(0);
+  });
+
+  test('Quick Switcher "?" prefix opens cross-search with the remaining text as the initial query (Issue #193 round-3 fallback)', async ({ page }) => {
+    const folder = await buildFixtureFolder();
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.Directory.getTree().length >= 3);
+
+    await page.keyboard.press('Control+p');
+    await expect(page.locator('#quickswitcher')).not.toHaveClass(/hidden/);
+
+    await page.fill('#quickswitcher-input', '?banana');
+
+    // Quick switcher closes, cross-search opens with results already shown
+    // (no debounce wait needed for the fallback path).
+    await expect(page.locator('#quickswitcher')).toHaveClass(/hidden/);
+    await expect(page.locator('#crosssearch')).not.toHaveClass(/hidden/);
+    await expect(page.locator('#crosssearch-input')).toHaveValue('banana');
+
+    const items = page.locator('.crosssearch-item');
+    await expect(items).toHaveCount(2);
   });
 });

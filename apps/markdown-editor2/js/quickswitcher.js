@@ -18,6 +18,19 @@
   let _ownerDocument = null;
   let _previouslyFocused = null;
 
+  // Cross-search fallback entry point (Issue #193 round-3 fix 2): typing
+  // this prefix as the FIRST character of the quick-switcher query hands
+  // off to CrossSearch, carrying the remainder of the typed text along as
+  // its initial query. This exists because Ctrl+Shift+F doesn't reliably
+  // reach the app on some real browsers (see crosssearch.js's top comment),
+  // while Ctrl+P->Quick Switcher is unaffected. "?" was picked because
+  // computeResults()/fuzzyMatch() treat the query as a plain literal
+  // string with no reserved characters today (unlike e.g. VSCode's "#"/">"
+  // prefixes), so any character is free to claim -- "?" reads naturally as
+  // "search" and is unlikely to be the leading character of a real
+  // filename/doc title.
+  const CROSSSEARCH_TRIGGER_PREFIX = '?';
+
   function labelFor(doc) {
     const name = doc && doc.meta && doc.meta.name;
     return typeof name === 'string' && name ? name : i18n.t('tabs.untitled');
@@ -217,6 +230,15 @@
     _input.id = 'quickswitcher-input';
     _input.setAttribute('placeholder', i18n.t('quickswitcher.placeholder'));
     _input.addEventListener('input', () => {
+      const value = _input.value;
+      if (value.startsWith(CROSSSEARCH_TRIGGER_PREFIX)) {
+        const initialQuery = value.slice(CROSSSEARCH_TRIGGER_PREFIX.length);
+        close();
+        if (global.CrossSearch && typeof global.CrossSearch.open === 'function') {
+          global.CrossSearch.open({ anchor: _input, initialQuery });
+        }
+        return;
+      }
       _selectedIndex = -1;
       updateResults();
     });

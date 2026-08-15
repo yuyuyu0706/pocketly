@@ -1,6 +1,21 @@
 (function (global) {
   'use strict';
 
+  // KNOWN ISSUE (round-3 investigation, Issue #193): on some real browsers,
+  // Ctrl+Shift+F does not fire while the editor <textarea> has focus -- a
+  // capture-phase keydown listener on `document` never logs anything, so
+  // the event is being swallowed before it reaches the DOM at all. Repros
+  // in Incognito with extensions disabled too (not an extension). No
+  // code-level cause was found: no listener between the textarea and
+  // document calls stopPropagation/stopImmediatePropagation on keydown
+  // (checked formatting.js's capture-phase doc listener, toc.js's capture
+  // -phase doc listener, and script.js's editor keydown handler -- none
+  // stop propagation), and a Playwright test does not reproduce it. Most
+  // likely an OS/browser-native shortcut interception (e.g. IME-switch or
+  // system-search binding) that never surfaces to JS; this can't be fully
+  // verified from a headless/Playwright sandbox. See the fallback entry
+  // point below (Quick Switcher's "?" prefix) as a reliable alternative.
+  //
   // Cross-document search (Issue #193 / MEW-014): a Ctrl+Shift+F modal that
   // searches the cached text of every directory-backed document
   // (Directory.getSearchableDocuments()) plus the active document when it
@@ -350,7 +365,7 @@
   /**
    * Open the cross-search modal, anchored to the given element's document
    * (defaults to the main window's document if none is provided/available).
-   * @param {{ anchor?: Element }} [options]
+   * @param {{ anchor?: Element, initialQuery?: string }} [options]
    */
   function open(options) {
     if (!_AppState || !_Directory) {
@@ -366,11 +381,22 @@
 
     _previouslyFocused = ownerDocument.activeElement;
     _root.classList.remove('hidden');
-    _input.value = '';
+    // initialQuery (Quick Switcher "?" prefix fallback, Issue #193 round-3
+    // fix 2): search runs immediately, not debounced, so the fallback path
+    // shows results right away instead of waiting out SEARCH_DEBOUNCE.
+    const initialQuery = (options && typeof options.initialQuery === 'string') ? options.initialQuery : '';
+    _input.value = initialQuery;
     _selectedIndex = -1;
-    _results = [];
-    renderResults();
+    if (initialQuery) {
+      runSearch();
+    } else {
+      _results = [];
+      renderResults();
+    }
     _input.focus();
+    if (initialQuery) {
+      _input.setSelectionRange(initialQuery.length, initialQuery.length);
+    }
   }
 
   function close() {

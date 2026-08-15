@@ -12,6 +12,13 @@
   const MANUAL_SCROLL_INTENT_DURATION = 1200;
   const HEADING_FLASH_DURATION = 2000;
   const HEADING_FLASH_FADE_DURATION = 600;
+  // Cross-search match highlight (Issue #193 round-3 fix): deliberately a
+  // SEPARATE constant from HEADING_FLASH_DURATION above. That constant is
+  // also used by TOC heading-jump highlighting (flashPreviewHeading() via
+  // Toc's own call path) and must keep its existing 2s timing untouched.
+  // Only scrollToTextMatch()'s string-level <mark> highlight uses these.
+  const SEARCH_MATCH_FLASH_DURATION = 4000;
+  const SEARCH_MATCH_FLASH_FADE_DURATION = 600;
 
   let previewEl = null;
   let toolbarEl = null;
@@ -59,6 +66,13 @@
   let previewHeadingFlashTimeout = null;
   let previewHeadingFadeTimeout = null;
   let activePreviewHeading = null;
+
+  // Cross-search string-level match highlight state (separate from the
+  // heading-flash state above -- see SEARCH_MATCH_FLASH_DURATION comment).
+  let searchMatchFlashTimeout = null;
+  let searchMatchFadeTimeout = null;
+  let searchMatchFlashWindow = null;
+  let activeSearchMatchMark = null;
 
   if (typeof global.__lastPreviewScrollTarget === 'undefined') {
     global.__lastPreviewScrollTarget = null;
@@ -1047,6 +1061,110 @@
   }
 
   /**
+   * Remove the currently-active cross-search <mark> wrapper (if any),
+   * restoring the original text node structure. Uses normalize() on the
+   * parent so any adjacent text nodes left by the unwrap merge back
+   * together -- otherwise a later scrollToTextMatch() TreeWalker pass (or a
+   * re-render) could see a fragmented, out-of-sync text node.
+   * @returns {void}
+   */
+  function unwrapSearchMatchMark() {
+    const mark = activeSearchMatchMark;
+    activeSearchMatchMark = null;
+    if (!mark) {
+      return;
+    }
+    const parent = mark.parentNode;
+    if (!parent) {
+      return;
+    }
+    while (mark.firstChild) {
+      parent.insertBefore(mark.firstChild, mark);
+    }
+    parent.removeChild(mark);
+    if (typeof parent.normalize === 'function') {
+      parent.normalize();
+    }
+  }
+
+  /**
+   * Clear any pending cross-search highlight timers and unwrap its mark.
+   * @returns {void}
+   */
+  function resetSearchMatchFlash() {
+    const win = searchMatchFlashWindow || global;
+    if (searchMatchFlashTimeout) {
+      win.clearTimeout(searchMatchFlashTimeout);
+      searchMatchFlashTimeout = null;
+    }
+    if (searchMatchFadeTimeout) {
+      win.clearTimeout(searchMatchFadeTimeout);
+      searchMatchFadeTimeout = null;
+    }
+    unwrapSearchMatchMark();
+  }
+
+  /**
+   * Wrap ONLY the matched substring within `textNode` (from `offset` for
+   * `length` characters) in a <mark class="crosssearch-flash">, using the
+   * Range API so the highlight is string-level rather than the whole
+   * line/block (Issue #193 round-3 fix 1). Times out after
+   * SEARCH_MATCH_FLASH_DURATION + fade, independent of the TOC heading-jump
+   * flash timing (HEADING_FLASH_DURATION), and cleanly unwraps itself so
+   * subsequent edits/re-renders/searches see a normal DOM.
+   * @param {Text} textNode
+   * @param {number} offset
+   * @param {number} length
+   * @param {Document} ownerDocument
+   * @returns {void}
+   */
+  function flashSearchMatchRange(textNode, offset, length, ownerDocument) {
+    if (!textNode || length <= 0) {
+      return;
+    }
+    // Multi-window/PiP convention (window-and-multi-window.md): resolve the
+    // timer-owning window from the text node's own document rather than a
+    // hardcoded global window, since the preview pane may live in a PiP
+    // popout with its own setTimeout/clearTimeout.
+    const win = (ownerDocument && ownerDocument.defaultView) || global;
+    resetSearchMatchFlash();
+    searchMatchFlashWindow = win;
+
+    let range;
+    try {
+      range = ownerDocument.createRange();
+      range.setStart(textNode, offset);
+      range.setEnd(textNode, offset + length);
+    } catch (error) {
+      return;
+    }
+
+    const mark = ownerDocument.createElement('mark');
+    mark.className = 'crosssearch-flash';
+    try {
+      range.surroundContents(mark);
+    } catch (error) {
+      // Range spans a non-text boundary in some unexpected DOM shape; skip
+      // the highlight rather than corrupt the tree.
+      return;
+    }
+    activeSearchMatchMark = mark;
+
+    searchMatchFlashTimeout = win.setTimeout(() => {
+      searchMatchFlashTimeout = null;
+      if (shouldReduceMotion()) {
+        unwrapSearchMatchMark();
+        return;
+      }
+      mark.classList.add('crosssearch-flash-fade-out');
+      searchMatchFadeTimeout = win.setTimeout(() => {
+        searchMatchFadeTimeout = null;
+        unwrapSearchMatchMark();
+      }, SEARCH_MATCH_FLASH_FADE_DURATION);
+    }, SEARCH_MATCH_FLASH_DURATION);
+  }
+
+  /**
    * Scroll the preview to the first (topmost) text node containing `query`
    * as a case-insensitive substring (Issue #193 §2-4-1: cross-search result
    * selection jumps both editor and preview to the first match). Plain
@@ -1077,7 +1195,10 @@
         const { top } = computeScrollTarget(target);
         invalidatePreviewScrollRestoration();
         restorePreviewScrollPosition(top);
-        flashPreviewHeading(target);
+        // String-level highlight only (not the whole target element/line):
+        // wrap just the matched substring, using its own duration constant
+        // independent of TOC's heading-flash timing (see flashSearchMatchRange).
+        flashSearchMatchRange(node, idx, query.length, ownerDocument);
         return true;
       }
     }
@@ -1135,8 +1256,17 @@
     highlightHeading: highlightHeadingById,
     getCurrentScrollInfo,
     computeScrollTarget,
-    scrollToTextMatch
+    scrollToTextMatch,
+    clearSearchMatchHighlight: resetSearchMatchFlash
   };
+
+  // Expose internals for testing (duration constants used by
+  // tests/crosssearch.spec.js to assert independence from HEADING_FLASH_DURATION).
+  global.__previewTest = Object.assign(global.__previewTest || {}, {
+    HEADING_FLASH_DURATION,
+    SEARCH_MATCH_FLASH_DURATION,
+    SEARCH_MATCH_FLASH_FADE_DURATION
+  });
 
   global.Preview = Preview;
 })(window);
