@@ -80,7 +80,7 @@ test.describe('File tree (Issue #165 / MEW-011)', () => {
 
     const fileTree = page.locator('#file-tree');
     const rootNames = await fileTree
-      .locator(':scope > .file-tree-list > .file-tree-item > .file-tree-label')
+      .locator(':scope > .file-tree-list > .file-tree-item > .file-tree-row > .file-tree-label')
       .allTextContents();
 
     const fileNamesOnly = rootNames.filter(name => name === 'index.md' || name === 'b.md');
@@ -94,7 +94,7 @@ test.describe('File tree (Issue #165 / MEW-011)', () => {
 
     const fileTree = page.locator('#file-tree');
     const rootNames = await fileTree
-      .locator(':scope > .file-tree-list > .file-tree-item > .file-tree-label')
+      .locator(':scope > .file-tree-list > .file-tree-item > .file-tree-row > .file-tree-label')
       .allTextContents();
 
     expect(rootNames).toEqual(['notes', 'zeta', 'index.md', 'b.md']);
@@ -136,7 +136,7 @@ test.describe('File tree (Issue #165 / MEW-011)', () => {
     await expect(zetaFolder).toHaveClass(/open/);
     await expect(zetaFolder.locator('.file-tree-file', { hasText: 'z.md' })).toBeVisible();
 
-    await zetaFolder.locator(':scope > .file-tree-label').click();
+    await zetaFolder.locator(':scope > .file-tree-row > .file-tree-label').click();
     await expect(zetaFolder).not.toHaveClass(/open/);
     await expect(zetaFolder.locator('.file-tree-file', { hasText: 'z.md' })).toBeHidden();
 

@@ -652,6 +652,13 @@ main {
   margin: 0.1rem 0;
 }
 
+#file-tree .file-tree-row {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+
 #file-tree .file-tree-label {
   cursor: pointer;
   display: block;
@@ -712,14 +719,7 @@ main {
   background-color: rgba(140, 170, 220, 0.12);
 }
 
-#file-tree .file-tree-item {
-  pointer-events: auto;
-  display: flex;
-  align-items: center;
-  gap: 0.15rem;
-}
-
-#file-tree .file-tree-item > .file-tree-label {
+#file-tree .file-tree-row > .file-tree-label {
   flex: 1;
   min-width: 0;
 }
@@ -737,7 +737,7 @@ main {
   transition: opacity 0.1s ease;
 }
 
-#file-tree .file-tree-item:hover .file-tree-more-btn,
+#file-tree .file-tree-row:hover .file-tree-more-btn,
 #file-tree .file-tree-more-btn:focus {
   opacity: 1;
 }

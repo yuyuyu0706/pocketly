@@ -197,7 +197,10 @@
     });
     input.addEventListener('blur', () => ctx.cancelCreate());
 
-    li.appendChild(input);
+    const row = ownerDocument.createElement('div');
+    row.className = 'file-tree-row';
+    row.appendChild(input);
+    li.appendChild(row);
     return li;
   }
 
@@ -236,6 +239,9 @@
         li.classList.add('file-tree-folder');
         const isOpen = ctx.openFolders.has(node.path);
         li.classList.toggle('open', isOpen);
+
+        const row = ownerDocument.createElement('div');
+        row.className = 'file-tree-row';
 
         const label = ownerDocument.createElement('span');
         label.className = 'file-tree-label';
@@ -280,8 +286,9 @@
           ctx.openFolderMenu(node, li);
         });
 
-        li.appendChild(label);
-        li.appendChild(moreBtn);
+        row.appendChild(label);
+        row.appendChild(moreBtn);
+        li.appendChild(row);
         if (isOpen && (node.children.length || ctx.pendingCreateFolder === node.path)) {
           li.appendChild(renderNodeList(node.children, ownerDocument, ctx, node.path));
         }
@@ -290,10 +297,16 @@
         li.dataset.id = node.id;
 
         if (ctx.pendingRenameId === node.id) {
-          li.appendChild(renderRenameInput(ownerDocument, ctx, node));
+          const renameRow = ownerDocument.createElement('div');
+          renameRow.className = 'file-tree-row';
+          renameRow.appendChild(renderRenameInput(ownerDocument, ctx, node));
+          li.appendChild(renameRow);
           ul.appendChild(li);
           return;
         }
+
+        const row = ownerDocument.createElement('div');
+        row.className = 'file-tree-row';
 
         const label = ownerDocument.createElement('span');
         label.className = 'file-tree-label';
@@ -332,8 +345,9 @@
           ctx.openFileMenu(node, li);
         });
 
-        li.appendChild(label);
-        li.appendChild(moreBtn);
+        row.appendChild(label);
+        row.appendChild(moreBtn);
+        li.appendChild(row);
       }
 
       ul.appendChild(li);
