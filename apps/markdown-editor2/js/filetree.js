@@ -148,13 +148,18 @@
       }
     };
     // Deferred so the click that opened the menu doesn't immediately close it.
+    // Registered on the capture phase: most file-tree click handlers (label,
+    // moreBtn, inputs) call stopPropagation() during the bubble phase, which
+    // would otherwise prevent this listener from ever seeing clicks inside
+    // the tree/TOC area. Capture fires on the way down, before those bubble-
+    // phase stopPropagation() calls run, so the menu still closes.
     const timerId = win.setTimeout(() => {
-      ownerDocument.addEventListener('click', onDocClick);
+      ownerDocument.addEventListener('click', onDocClick, true);
       ownerDocument.addEventListener('keydown', onKeydown);
     }, 0);
     _menuCleanup = () => {
       win.clearTimeout(timerId);
-      ownerDocument.removeEventListener('click', onDocClick);
+      ownerDocument.removeEventListener('click', onDocClick, true);
       ownerDocument.removeEventListener('keydown', onKeydown);
     };
   }
@@ -415,8 +420,12 @@
 
   function submitRename(id, rawValue) {
     const trimmed = typeof rawValue === 'string' ? rawValue.trim() : '';
+    const currentEntry = _Directory.getTree().find(entry => entry.id === id);
+    const currentName = currentEntry ? currentEntry.path.split('/').pop() : null;
     pendingRenameId = null;
-    if (!trimmed) {
+    if (!trimmed || trimmed === currentName) {
+      // No change: treat like cancelRename() rather than calling renameFile(),
+      // avoiding an unnecessary persist/directory:changed emission.
       rerender();
       return;
     }

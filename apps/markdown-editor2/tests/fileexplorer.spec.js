@@ -145,6 +145,49 @@ test.describe('Single file operations (Issue #196 / MEW-011 Lv3-1)', () => {
     await expect(tabBar.locator('.tab-bar-item', { hasText: 'renamed.md' })).toBeVisible();
   });
 
+  test('rename with unchanged filename closes the input without calling renameFile()', async ({ page }) => {
+    const folder = await buildFixtureFolder();
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 2);
+
+    const fileTree = page.locator('#file-tree');
+    const aFile = fileTree.locator('.file-tree-file', { hasText: 'a.md' });
+    await aFile.locator('.file-tree-more-btn').click({ force: true });
+    await page.locator('.file-tree-menu button', { hasText: 'Rename' }).click();
+
+    const renameInput = fileTree.locator('.file-tree-rename-input');
+    await renameInput.press('Enter');
+
+    // Input closes and the file is shown normally again (renameFile() was
+    // never called, so no duplicate/invalid-extension alert either).
+    await expect(fileTree.locator('.file-tree-rename-input')).toHaveCount(0);
+    await expect(fileTree.locator('.file-tree-file', { hasText: 'a.md' })).toBeVisible();
+
+    // Same for blur (used by the input's own blur handler to commit).
+    await aFile.locator('.file-tree-more-btn').click({ force: true });
+    await page.locator('.file-tree-menu button', { hasText: 'Rename' }).click();
+    await fileTree.locator('.file-tree-rename-input').blur();
+    await expect(fileTree.locator('.file-tree-rename-input')).toHaveCount(0);
+    await expect(fileTree.locator('.file-tree-file', { hasText: 'a.md' })).toBeVisible();
+  });
+
+  test('context menu closes when clicking elsewhere inside the file tree', async ({ page }) => {
+    const folder = await buildFixtureFolder();
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 2);
+
+    const fileTree = page.locator('#file-tree');
+    const aFile = fileTree.locator('.file-tree-file', { hasText: 'a.md' });
+    await aFile.locator('.file-tree-more-btn').click({ force: true });
+    await expect(page.locator('.file-tree-menu')).toBeVisible();
+
+    // Clicking another file-tree label (a click handler that calls
+    // stopPropagation()) must still close the menu, since onDocClick is
+    // registered on the capture phase.
+    await fileTree.locator('.file-tree-file', { hasText: 'b.md' }).locator('.file-tree-label').click();
+    await expect(page.locator('.file-tree-menu')).toHaveCount(0);
+  });
+
   test('rename only changes filename, not folder portion', async ({ page }) => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), 'mew-fileexplorer-nested-'));
     const folder = path.join(root, 'my-folder');
