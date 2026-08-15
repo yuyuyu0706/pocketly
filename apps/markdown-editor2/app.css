@@ -676,7 +676,6 @@ main {
 }
 
 #file-tree .file-tree-folder > .file-tree-row > .file-tree-label {
-  font-weight: 600;
   color: #3d7bd6;
 }
 
