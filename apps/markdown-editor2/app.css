@@ -529,7 +529,8 @@ main {
   background-color: #f6faff;
   border-right: 1px solid #aac8ff;
   color: #88b4ff;
-  font-size: 1.05rem;
+  font-size: 0.95rem;
+  text-shadow: 0 0 1px rgba(0, 0, 0, 0.12);
   position: sticky;
   top: var(--header-offset, 0);
   height: calc(100vh - var(--header-offset, 0));
@@ -592,7 +593,6 @@ main {
 
 #toc .toc-item.active > .toc-label {
   color: #0055aa;
-  font-weight: bold;
 }
 
 #toc .toc-item[data-level="3"] > ul {
@@ -693,7 +693,6 @@ main {
 
 #file-tree .file-tree-file.active > .file-tree-row > .file-tree-label {
   color: #0055aa;
-  font-weight: bold;
   background-color: rgba(140, 170, 220, 0.16);
 }
 
