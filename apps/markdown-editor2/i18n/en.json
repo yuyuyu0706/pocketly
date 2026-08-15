@@ -86,10 +86,17 @@
     "close": "Close",
     "title": "Keyboard Shortcuts",
     "quickSwitcher": "Quick switcher",
-    "save": "Save"
+    "save": "Save",
+    "crossSearch": "Cross search"
   },
   "quickswitcher": {
     "placeholder": "Search documents...",
+    "move": "move",
+    "select": "open",
+    "dismiss": "close"
+  },
+  "crosssearch": {
+    "placeholder": "Search across all documents...",
     "move": "move",
     "select": "open",
     "dismiss": "close"
