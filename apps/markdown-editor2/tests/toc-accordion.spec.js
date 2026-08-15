@@ -178,3 +178,45 @@ test('fold state does not change when scrolling (active highlight changes withou
   // Level 4 item should still be hidden (no auto-expand from highlight)
   await expect(item4A1).not.toBeVisible();
 });
+
+test('clicking a TOC item scrolls the editor so the heading is no longer off-screen (regression)', async ({ page }) => {
+  const longText = Array.from({ length: 60 }, (_, i) =>
+    `# Heading ${i}\n\n` + 'Lorem ipsum dolor sit amet. '.repeat(15) + '\n\n'
+  ).join('');
+  await setEditorContent(page, longText);
+
+  const items = page.locator('#toc .toc-item[data-level="1"]');
+  const targetItem = items.nth(30);
+  const targetId = await targetItem.getAttribute('data-target');
+
+  const before = await page.evaluate(() => document.getElementById('editor').scrollTop);
+  expect(before).toBe(0);
+
+  await targetItem.click();
+  await page.waitForTimeout(300);
+
+  const result = await page.evaluate(id => {
+    const editor = document.getElementById('editor');
+    const idx = editor.value.indexOf(`# Heading 30`);
+    // Roughly translate the character offset to a fraction of scrollHeight
+    // using the same value the app already trusts for other headings, just
+    // as a sanity check that scrollTop moved into the right ballpark (not
+    // stuck at 0, not clamped to the very end for a mid-document heading).
+    return {
+      scrollTop: editor.scrollTop,
+      scrollHeight: editor.scrollHeight,
+      clientHeight: editor.clientHeight,
+      selectionStart: editor.selectionStart,
+      idx,
+    };
+  }, targetId);
+
+  // The heading is roughly halfway through the document (heading 30 of 60),
+  // so the editor should have scrolled to roughly the halfway point — not
+  // stayed at 0 (the bug: scroll math landing wildly short) and not jumped
+  // to the very end.
+  const maxScroll = result.scrollHeight - result.clientHeight;
+  expect(result.scrollTop).toBeGreaterThan(maxScroll * 0.3);
+  expect(result.scrollTop).toBeLessThan(maxScroll * 0.7);
+  expect(result.selectionStart).toBe(result.idx);
+});

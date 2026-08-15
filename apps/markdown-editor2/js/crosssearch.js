@@ -217,6 +217,20 @@
     if (editor && typeof editor.setSelectionRange === 'function') {
       editor.setSelectionRange(matchIndex, matchIndex + query.length);
       editor.focus();
+      // editor.focus() + setSelectionRange() alone does NOT reliably
+      // auto-scroll a <textarea> to a programmatically-set selection
+      // (confirmed: for a match far down a long document, editor.scrollTop
+      // stayed at 0). Reuse Toc's explicit scroll-math helper (the same one
+      // powering TOC heading jumps) instead of relying on native behavior.
+      if (global.Toc && typeof global.Toc.scrollEditorToPosition === 'function') {
+        global.Toc.scrollEditorToPosition(matchIndex);
+      }
+      // Programmatic setSelectionRange() doesn't fire the editor's keyup/click
+      // events that Toc.updateTOCHighlight() is normally wired to, so the TOC
+      // highlight would otherwise stay stuck on the previously active heading.
+      if (global.Toc && typeof global.Toc.updateTOCHighlight === 'function') {
+        global.Toc.updateTOCHighlight();
+      }
     }
     if (global.Preview && typeof global.Preview.scrollToTextMatch === 'function') {
       global.Preview.scrollToTextMatch(query);

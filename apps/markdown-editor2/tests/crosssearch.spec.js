@@ -236,4 +236,89 @@ test.describe('Cross-document search (Issue #193 / MEW-014)', () => {
     await expect(shortcutsWindow).toContainText('Shift');
     await expect(shortcutsWindow).toContainText('F');
   });
+
+  test('Ctrl+Shift+F opens the modal even while the editor textarea has focus', async ({ page }) => {
+    if (await page.evaluate(() => document.body.dataset.mode !== 'edit')) {
+      await page.click('#toggle-mode');
+    }
+    await page.click('#editor');
+    await expect(page.locator('#editor')).toBeFocused();
+
+    await page.keyboard.press('Control+Shift+F');
+
+    await expect(page.locator('#crosssearch')).not.toHaveClass(/hidden/);
+  });
+
+  test('jumping to a result temporarily highlights the matched heading in the preview, then removes it', async ({ page }) => {
+    const folder = await buildFixtureFolder();
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.Directory.getTree().length >= 3);
+
+    if (await page.evaluate(() => document.body.dataset.mode !== 'edit')) {
+      await page.click('#toggle-mode');
+    }
+
+    await page.keyboard.press('Control+Shift+F');
+    await page.fill('#crosssearch-input', 'banana');
+    await page.waitForTimeout(300);
+    await page.click('.crosssearch-item');
+
+    // Reuses Preview.highlightHeadingById()'s own flash class/timing
+    // (js/preview.js's HEADING_FLASH_DURATION/HEADING_FLASH_FADE_DURATION),
+    // so the same class must appear promptly and clear itself without any
+    // caller-side timeout management.
+    await expect(page.locator('#preview .preview-heading-flash')).toHaveCount(1, { timeout: 1000 });
+    await expect(page.locator('#preview .preview-heading-flash')).toHaveCount(0, { timeout: 3500 });
+  });
+
+  test('jumping to a result updates the TOC active-heading highlight (Issue #193 follow-up)', async ({ page }) => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'mew-crosssearch-toc-'));
+    const folder = path.join(root, 'my-folder');
+    await fs.mkdir(folder, { recursive: true });
+    await fs.writeFile(
+      path.join(folder, 'doc.md'),
+      '# First\n\nintro text\n\n# Second\n\nbananapatch is here\n\n# Third\n\nmore text'
+    );
+
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.Directory.getTree().length >= 1);
+    if (await page.evaluate(() => document.body.dataset.mode !== 'edit')) {
+      await page.click('#toggle-mode');
+    }
+
+    await page.keyboard.press('Control+Shift+F');
+    await page.fill('#crosssearch-input', 'bananapatch');
+    await page.waitForTimeout(300);
+    await page.click('.crosssearch-item');
+    await page.waitForTimeout(200);
+
+    const activeText = await page.evaluate(() => {
+      const active = document.querySelector('.toc-item.active');
+      return active ? active.textContent.trim() : null;
+    });
+    expect(activeText).toBe('Second');
+  });
+
+  test("jumping to a match far down a long document scrolls the editor to it (setSelectionRange alone doesn't auto-scroll a textarea)", async ({ page }) => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'mew-crosssearch-scroll-'));
+    const folder = path.join(root, 'my-folder');
+    await fs.mkdir(folder, { recursive: true });
+    const filler = 'Lorem ipsum dolor sit amet. '.repeat(400);
+    await fs.writeFile(path.join(folder, 'a.md'), `${filler}\n\nNEEDLEWORD\n\n${filler}`);
+
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.Directory.getTree().length >= 1);
+    if (await page.evaluate(() => document.body.dataset.mode !== 'edit')) {
+      await page.click('#toggle-mode');
+    }
+
+    await page.keyboard.press('Control+Shift+F');
+    await page.fill('#crosssearch-input', 'NEEDLEWORD');
+    await page.waitForTimeout(300);
+    await page.click('.crosssearch-item');
+    await page.waitForTimeout(300);
+
+    const scrollTop = await page.evaluate(() => document.getElementById('editor').scrollTop);
+    expect(scrollTop).toBeGreaterThan(0);
+  });
 });

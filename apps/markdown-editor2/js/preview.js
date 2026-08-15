@@ -1077,6 +1077,7 @@
         const { top } = computeScrollTarget(target);
         invalidatePreviewScrollRestoration();
         restorePreviewScrollPosition(top);
+        flashPreviewHeading(target);
         return true;
       }
     }
