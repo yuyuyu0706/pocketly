@@ -1047,6 +1047,43 @@
   }
 
   /**
+   * Scroll the preview to the first (topmost) text node containing `query`
+   * as a case-insensitive substring (Issue #193 §2-4-1: cross-search result
+   * selection jumps both editor and preview to the first match). Plain
+   * substring matching only, against the already-rendered preview DOM — no
+   * Markdown-syntax normalisation against the raw editor text (accepted
+   * per spec; minor mismatch near stripped syntax like `**bold**` is not a
+   * bug here). Reuses computeScrollTarget/restorePreviewScrollPosition
+   * as-is (same functions the TOC heading-jump feature uses); no new
+   * scroll-calculation logic is introduced.
+   * @param {string} query
+   * @returns {boolean} true if a match was found and scrolled to.
+   */
+  function scrollToTextMatch(query) {
+    if (!previewEl || !query) {
+      return false;
+    }
+    const ownerDocument = previewEl.ownerDocument || global.document;
+    const needle = query.toLowerCase();
+    const walker = ownerDocument.createTreeWalker(previewEl, NodeFilter.SHOW_TEXT);
+    let node;
+    while ((node = walker.nextNode())) {
+      const idx = node.textContent.toLowerCase().indexOf(needle);
+      if (idx !== -1) {
+        const target = node.parentElement;
+        if (!target) {
+          continue;
+        }
+        const { top } = computeScrollTarget(target);
+        invalidatePreviewScrollRestoration();
+        restorePreviewScrollPosition(top);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
    * Retrieve the current preview scroll position and content height.
    * @returns {{ top: number, height: number }}
    */
@@ -1096,7 +1133,8 @@
     clearHeadingHighlight: resetPreviewHeadingFlash,
     highlightHeading: highlightHeadingById,
     getCurrentScrollInfo,
-    computeScrollTarget
+    computeScrollTarget,
+    scrollToTextMatch
   };
 
   global.Preview = Preview;

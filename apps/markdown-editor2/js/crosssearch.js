@@ -82,7 +82,14 @@
     searchable.forEach(entry => {
       const matches = findMatches(entry.text, query);
       if (matches.length) {
-        results.push({ id: entry.id, path: entry.path, snippets: buildSnippets(entry.text, matches, query.length) });
+        results.push({
+          id: entry.id,
+          path: entry.path,
+          snippets: buildSnippets(entry.text, matches, query.length),
+          // First (topmost) match offset, carried through to the click handler so it
+          // can jump the editor/preview straight to it (Issue #193 §2-4-1 addition).
+          matchIndex: matches[0]
+        });
       }
     });
 
@@ -92,7 +99,12 @@
       const text = _AppState.getText();
       const matches = findMatches(text, query);
       if (matches.length) {
-        results.push({ id: activeId, path: i18n.t('tabs.untitled'), snippets: buildSnippets(text, matches, query.length) });
+        results.push({
+          id: activeId,
+          path: i18n.t('tabs.untitled'),
+          snippets: buildSnippets(text, matches, query.length),
+          matchIndex: matches[0]
+        });
       }
     }
     return results;
@@ -178,13 +190,48 @@
     _debounceTimer = setTimeout(runSearch, SEARCH_DEBOUNCE);
   }
 
+  /**
+   * Jump the editor selection and preview scroll to the first (topmost) match
+   * of `query` in the just-activated document (Issue #193 §2-4-1 addition):
+   * "edit mode keeps editor and preview in sync" also applies to cross-search
+   * result selection.
+   *
+   * Directory.activateDocument() -> AppState.switchActiveDocument() ->
+   * Bus.emit('text:changed') -> script.js's handleTextStateChange (source
+   * !== 'editor', so no RENDER_DEBOUNCE) -> Preview.render() all run
+   * synchronously on this same call stack (Bus dispatches handlers inline,
+   * not via microtask/setTimeout — see js/bus.js), so by the time
+   * activateDocument() returns, editor.value and the preview DOM already
+   * reflect the newly-activated document. No render-complete event is
+   * needed here; mermaid SVG conversion (the one async part of render()) is
+   * irrelevant to plain-text match scrolling.
+   * @param {string} query
+   * @param {number} matchIndex
+   */
+  function jumpToMatch(query, matchIndex) {
+    if (!query || typeof matchIndex !== 'number' || matchIndex < 0) {
+      return;
+    }
+    const ownerDocument = _ownerDocument || global.document;
+    const editor = ownerDocument && ownerDocument.getElementById('editor');
+    if (editor && typeof editor.setSelectionRange === 'function') {
+      editor.setSelectionRange(matchIndex, matchIndex + query.length);
+      editor.focus();
+    }
+    if (global.Preview && typeof global.Preview.scrollToTextMatch === 'function') {
+      global.Preview.scrollToTextMatch(query);
+    }
+  }
+
   function confirmSelection(index) {
     const result = _results[index];
     if (!result) {
       return;
     }
+    const query = _input ? _input.value : '';
     _Directory.activateDocument(result.id);
     close();
+    jumpToMatch(query, result.matchIndex);
   }
 
   function moveSelection(delta) {

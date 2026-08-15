@@ -143,6 +143,92 @@ test.describe('Cross-document search (Issue #193 / MEW-014)', () => {
     expect(elapsedMs).toBeLessThan(1000);
   });
 
+  test('selecting a result selects the matched text in the editor and scrolls the preview to it (Issue #193 §2-4-1)', async ({ page }) => {
+    const folder = await buildFixtureFolder();
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.Directory.getTree().length >= 3);
+
+    // Editor/preview split (edit mode) is required for the editor pane to be
+    // visible/focusable at all; body[data-mode="read"] hides #editor-pane.
+    if (await page.evaluate(() => document.body.dataset.mode !== 'edit')) {
+      await page.click('#toggle-mode');
+    }
+
+    await page.keyboard.press('Control+Shift+F');
+    await page.fill('#crosssearch-input', 'banana bread');
+    await page.waitForTimeout(300);
+
+    const item = page.locator('.crosssearch-item', { hasText: 'b.md' });
+    await expect(item).toBeVisible();
+    await item.click();
+
+    await expect(page.locator('#crosssearch')).toHaveClass(/hidden/);
+
+    // Editor: the selection must be exactly the matched text, and the
+    // editor must hold focus (so the browser's own auto-scroll-to-selection
+    // behaviour applies).
+    const selection = await page.evaluate(() => {
+      const editor = document.getElementById('editor');
+      return {
+        text: editor.value.slice(editor.selectionStart, editor.selectionEnd),
+        focused: document.activeElement === editor
+      };
+    });
+    expect(selection.text.toLowerCase()).toBe('banana bread');
+    expect(selection.focused).toBe(true);
+
+    // Preview: scrolled so the matched element is within the visible
+    // viewport bounds of the preview pane.
+    const inView = await page.evaluate(() => {
+      const previewEl = document.querySelector('#preview');
+      const previewRect = previewEl.getBoundingClientRect();
+      const walker = document.createTreeWalker(previewEl, NodeFilter.SHOW_TEXT);
+      let node;
+      while ((node = walker.nextNode())) {
+        if (node.textContent.toLowerCase().includes('banana bread')) {
+          const rect = node.parentElement.getBoundingClientRect();
+          return rect.top >= previewRect.top - 1 && rect.bottom <= previewRect.bottom + 1;
+        }
+      }
+      return false;
+    });
+    expect(inView).toBe(true);
+  });
+
+  test('when a document has multiple matches, the jump targets only the first/topmost occurrence', async ({ page }) => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'mew-crosssearch-multi-'));
+    const folder = path.join(root, 'my-folder');
+    await fs.mkdir(folder, { recursive: true });
+    // Second "needle" occurrence is far below the first, past the preview fold.
+    const filler = 'Filler paragraph text that pads out the document. '.repeat(80);
+    await fs.writeFile(
+      path.join(folder, 'multi.md'),
+      `First needle occurs right here at the top.\n\n${filler}\n\nSecond needle occurs way down here at the bottom.`
+    );
+
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.Directory.getTree().length >= 1);
+
+    if (await page.evaluate(() => document.body.dataset.mode !== 'edit')) {
+      await page.click('#toggle-mode');
+    }
+
+    await page.keyboard.press('Control+Shift+F');
+    await page.fill('#crosssearch-input', 'needle');
+    await page.waitForTimeout(300);
+
+    const item = page.locator('.crosssearch-item', { hasText: 'multi.md' });
+    await expect(item).toBeVisible();
+    await item.click();
+
+    const editorSelectionStart = await page.evaluate(() => document.getElementById('editor').selectionStart);
+    const fullText = await page.evaluate(() => document.getElementById('editor').value);
+    const firstIndex = fullText.toLowerCase().indexOf('needle');
+    const secondIndex = fullText.toLowerCase().indexOf('needle', firstIndex + 1);
+    expect(editorSelectionStart).toBe(firstIndex);
+    expect(editorSelectionStart).toBeLessThan(secondIndex);
+  });
+
   test('clicking #shortcuts-btn shows the Ctrl+Shift+F entry', async ({ page }) => {
     await page.click('#shortcuts-btn');
     const shortcutsWindow = page.locator('#shortcuts-window');
