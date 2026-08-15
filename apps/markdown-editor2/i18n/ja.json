@@ -82,6 +82,17 @@
     "untitled": "無題",
     "close": "タブを閉じる"
   },
+  "filetree": {
+    "newFile": "新規ファイル",
+    "newFilePlaceholder": "filename.md",
+    "newFileHere": "ここに新規ファイル",
+    "moreActions": "その他の操作",
+    "rename": "名前を変更",
+    "delete": "削除",
+    "confirmDelete": "このファイルを削除しますか？元に戻せません。",
+    "errorInvalidExtension": "ファイル名は .md または .markdown で終わる必要があります。",
+    "errorDuplicate": "同じパスのファイルが既に存在します。"
+  },
   "shortcuts": {
     "close": "閉じる",
     "title": "キーボードショートカット",

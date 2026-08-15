@@ -117,6 +117,7 @@
     }
 
     _Bus.on('text:changed', handleTextChanged);
+    _Bus.on('directory:changed', handleTextChanged);
     handleTextChanged();
   }
 

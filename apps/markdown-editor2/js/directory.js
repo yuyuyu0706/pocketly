@@ -192,6 +192,48 @@
     }
   }
 
+  /**
+   * Normalize a new file's filename segment (no folder separators): trims
+   * whitespace, auto-appends ".md" when no extension is present, and rejects
+   * anything whose extension isn't in ALLOWED_EXTENSIONS. Returns null for
+   * empty or extension-invalid input; callers decide the reason to report.
+   * @param {string} name
+   * @returns {string|null}
+   */
+  function normalizeNewFilename(name) {
+    const trimmed = typeof name === 'string' ? name.trim() : '';
+    if (!trimmed) {
+      return null;
+    }
+    if (!trimmed.includes('.')) {
+      return `${trimmed}.md`;
+    }
+    return ALLOWED_EXTENSIONS.test(trimmed) ? trimmed : null;
+  }
+
+  /**
+   * Normalize a new file's full path (may include "/" folder segments): only
+   * the final filename segment is validated/normalized via
+   * normalizeNewFilename(); folder segments are left untouched. Returns null
+   * for empty or extension-invalid input.
+   * @param {string} path
+   * @returns {string|null}
+   */
+  function normalizeNewFilePath(path) {
+    const trimmed = typeof path === 'string' ? path.trim() : '';
+    if (!trimmed) {
+      return null;
+    }
+    const lastSlash = trimmed.lastIndexOf('/');
+    const folderPrefix = lastSlash === -1 ? '' : trimmed.slice(0, lastSlash + 1);
+    const filename = lastSlash === -1 ? trimmed : trimmed.slice(lastSlash + 1);
+    const normalizedName = normalizeNewFilename(filename);
+    if (!normalizedName) {
+      return null;
+    }
+    return `${folderPrefix}${normalizedName}`;
+  }
+
   function isExcludedPath(relativePath) {
     const segments = relativePath.split('/');
     return segments.some(seg => seg.startsWith('.') || EXCLUDED_SEGMENTS.includes(seg));
@@ -584,6 +626,90 @@
       }
       scheduleWorkspacePersist();
       return { imported: true, id };
+    },
+
+    /**
+     * Create a new empty (or seeded) file at the given folder-relative path
+     * (Issue #196 / MEW-011 Lv3-1). If `path` has no extension, ".md" is
+     * appended; an explicit extension outside ALLOWED_EXTENSIONS is rejected.
+     * Path may contain "/" segments to implicitly create nested folders (the
+     * tree in filetree.js already builds folders from paths).
+     * @param {string} path
+     * @param {string} [initialText='']
+     * @returns {{ created: boolean, id?: string, path?: string, reason?: 'invalid-extension'|'duplicate' }}
+     */
+    createFile(path, initialText = '') {
+      const normalizedPath = normalizeNewFilePath(path);
+      if (!normalizedPath) {
+        return { created: false, reason: 'invalid-extension' };
+      }
+      if (pathIndex.has(normalizedPath)) {
+        return { created: false, reason: 'duplicate' };
+      }
+      const name = normalizedPath.split('/').pop();
+      const text = typeof initialText === 'string' ? initialText : '';
+      const id = AppState.openDocument(text, { path: normalizedPath, name });
+      fileRegistry.set(id, { path: normalizedPath, name, loaded: true, text });
+      pathIndex.set(normalizedPath, id);
+      if (currentImportedAt === null) {
+        currentImportedAt = Date.now();
+      }
+      scheduleWorkspacePersist();
+      Bus.emit('directory:changed', { type: 'create', id, path: normalizedPath });
+      return { created: true, id, path: normalizedPath };
+    },
+
+    /**
+     * Delete a directory-backed file by id (Issue #196 / MEW-011 Lv3-1).
+     * Closes it in AppState, letting the existing active-document fallback
+     * logic handle the tab transition if it was active.
+     * @param {string} id
+     * @returns {{ deleted: boolean }}
+     */
+    deleteFile(id) {
+      const entry = fileRegistry.get(id);
+      if (!entry) {
+        return { deleted: false };
+      }
+      fileRegistry.delete(id);
+      pathIndex.delete(entry.path);
+      AppState.closeDocument(id);
+      scheduleWorkspacePersist();
+      Bus.emit('directory:changed', { type: 'delete', id });
+      return { deleted: true };
+    },
+
+    /**
+     * Rename a directory-backed file's filename, preserving its folder
+     * (Issue #196 / MEW-011 Lv3-1). `newFilename` is just the filename, not a
+     * path; the folder portion of the existing path cannot be changed here.
+     * @param {string} id
+     * @param {string} newFilename
+     * @returns {{ renamed: boolean, path?: string, reason?: 'invalid-extension'|'duplicate'|'not-found' }}
+     */
+    renameFile(id, newFilename) {
+      const entry = fileRegistry.get(id);
+      if (!entry) {
+        return { renamed: false, reason: 'not-found' };
+      }
+      const normalizedName = normalizeNewFilename(newFilename);
+      if (!normalizedName) {
+        return { renamed: false, reason: 'invalid-extension' };
+      }
+      const lastSlash = entry.path.lastIndexOf('/');
+      const folderPrefix = lastSlash === -1 ? '' : entry.path.slice(0, lastSlash + 1);
+      const newPath = `${folderPrefix}${normalizedName}`;
+      if (newPath !== entry.path && pathIndex.has(newPath)) {
+        return { renamed: false, reason: 'duplicate' };
+      }
+      pathIndex.delete(entry.path);
+      pathIndex.set(newPath, id);
+      entry.path = newPath;
+      entry.name = normalizedName;
+      AppState.updateDocumentMeta(id, { path: newPath, name: normalizedName });
+      scheduleWorkspacePersist();
+      Bus.emit('directory:changed', { type: 'rename', id, path: newPath });
+      return { renamed: true, path: newPath };
     },
 
     /**
