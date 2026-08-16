@@ -417,6 +417,12 @@
   let _Bus = null;
   let _AppState = null;
   const openFolders = new Set();
+  // Every folder path ever seen in the tree, distinct from openFolders (the
+  // subset currently expanded). Used to auto-expand only genuinely new
+  // folders on a tree-structure change, without re-forcing open a folder the
+  // user had deliberately collapsed (Issue #199 / MEW-041 Lv4-1: a rename,
+  // for instance, changes the signature and must not reset collapse state).
+  const knownFolderPaths = new Set();
   let lastSignature = null;
 
   function computeSignature(entries) {
@@ -656,11 +662,52 @@
   }
 
   /**
-   * Migrate openFolders' Set keys (the folder-path membership used to track
-   * expand/collapse state) when a folder is renamed or deleted, so a
-   * renamed folder doesn't appear unexpectedly collapsed, or collide with
-   * another folder's open state at the same new path (Issue #199 / MEW-041
-   * Lv4-1 §2-3). No-ops for any other directory:changed type.
+   * Re-key every folder-path entry in `set` that falls under `oldPath` (the
+   * folder itself or any of its descendants) onto `newPath`.
+   * @param {Set<string>} set
+   * @param {string} oldPath
+   * @param {string} newPath
+   * @returns {void}
+   */
+  function rekeyFolderPathSet(set, oldPath, newPath) {
+    const oldPrefix = `${oldPath}/`;
+    const toMigrate = [];
+    set.forEach(path => {
+      if (path === oldPath || path.startsWith(oldPrefix)) {
+        toMigrate.push(path);
+      }
+    });
+    toMigrate.forEach(path => {
+      set.delete(path);
+      set.add(path === oldPath ? newPath : newPath + path.slice(oldPath.length));
+    });
+  }
+
+  /**
+   * Remove every folder-path entry in `set` that falls under `folderPath`
+   * (the folder itself or any of its descendants).
+   * @param {Set<string>} set
+   * @param {string} folderPath
+   * @returns {void}
+   */
+  function pruneFolderPathSet(set, folderPath) {
+    const prefix = `${folderPath}/`;
+    const toRemove = [];
+    set.forEach(path => {
+      if (path === folderPath || path.startsWith(prefix)) {
+        toRemove.push(path);
+      }
+    });
+    toRemove.forEach(path => set.delete(path));
+  }
+
+  /**
+   * Migrate openFolders/knownFolderPaths (expand/collapse state and the
+   * "already seen" bookkeeping that gates auto-expand-on-discovery) when a
+   * folder is renamed or deleted, so a renamed folder doesn't appear
+   * unexpectedly collapsed or re-expanded, and doesn't collide with another
+   * folder's state at the same new path (Issue #199 / MEW-041 Lv4-1 §2-3).
+   * No-ops for any other directory:changed type.
    * @param {{ type?: string, oldPath?: string, newPath?: string, path?: string }} event
    */
   function migrateOpenFoldersOnDirectoryChange(event) {
@@ -668,27 +715,11 @@
       return;
     }
     if (event.type === 'rename-folder' && event.oldPath && event.newPath) {
-      const oldPrefix = `${event.oldPath}/`;
-      const toMigrate = [];
-      openFolders.forEach(path => {
-        if (path === event.oldPath || path.startsWith(oldPrefix)) {
-          toMigrate.push(path);
-        }
-      });
-      toMigrate.forEach(path => {
-        openFolders.delete(path);
-        const newPath = path === event.oldPath ? event.newPath : event.newPath + path.slice(event.oldPath.length);
-        openFolders.add(newPath);
-      });
+      rekeyFolderPathSet(openFolders, event.oldPath, event.newPath);
+      rekeyFolderPathSet(knownFolderPaths, event.oldPath, event.newPath);
     } else if (event.type === 'delete-folder' && event.path) {
-      const prefix = `${event.path}/`;
-      const toRemove = [];
-      openFolders.forEach(path => {
-        if (path === event.path || path.startsWith(prefix)) {
-          toRemove.push(path);
-        }
-      });
-      toRemove.forEach(path => openFolders.delete(path));
+      pruneFolderPathSet(openFolders, event.path);
+      pruneFolderPathSet(knownFolderPaths, event.path);
     }
   }
 
@@ -706,8 +737,19 @@
     if (signature !== lastSignature) {
       lastSignature = signature;
       const treeNodes = buildTreeStructure(entries);
-      // Newly discovered folders (folder just opened / reopened) start expanded.
-      collectFolderPaths(treeNodes, openFolders);
+      // Newly discovered folders start expanded; a folder already seen
+      // before (via knownFolderPaths) keeps whatever expand/collapse state
+      // it currently has in openFolders, rather than being forced back open
+      // on every unrelated tree-structure change (Issue #199 / MEW-041
+      // Lv4-1 §2-3).
+      const currentFolderPaths = new Set();
+      collectFolderPaths(treeNodes, currentFolderPaths);
+      currentFolderPaths.forEach(path => {
+        if (!knownFolderPaths.has(path)) {
+          knownFolderPaths.add(path);
+          openFolders.add(path);
+        }
+      });
       render(treeNodes);
     }
     updateActiveHighlight();

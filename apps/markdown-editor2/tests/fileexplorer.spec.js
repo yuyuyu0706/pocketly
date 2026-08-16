@@ -267,6 +267,33 @@ async function buildNestedFixtureFolder() {
   return folder;
 }
 
+// A folder <li> nests its children's markup as DOM descendants (unlike a file
+// <li>, which is a leaf), so `hasText` substring matching against the <li>
+// itself returns false positives (e.g. a "docs" folder containing a "sub"
+// subfolder also textually "contains" the string "sub"). Each folder's own
+// label span, in contrast, holds exactly its own name (no concatenation), so
+// locating the unique label first and walking up to its immediate parent
+// <li> avoids the ambiguity.
+function folderLabel(fileTree, name) {
+  return fileTree.locator('.file-tree-folder > .file-tree-row > .file-tree-label', {
+    hasText: new RegExp(`^${name}$`)
+  });
+}
+
+function folderLocator(fileTree, name) {
+  return folderLabel(fileTree, name).locator(
+    'xpath=ancestor::li[contains(concat(" ", normalize-space(@class), " "), " file-tree-folder ")][1]'
+  );
+}
+
+// Right-clicking a folder <li> at its default (center) position can land on
+// nested content rather than the folder's own header, since the <li>'s
+// bounding box spans its entire (open) subtree. Scope the click to the
+// folder's own header row instead.
+function folderRow(fileTree, name) {
+  return folderLocator(fileTree, name).locator(':scope > .file-tree-row');
+}
+
 test.describe('Folder rename/delete (Issue #199 / MEW-041 Lv4-1)', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
@@ -279,15 +306,14 @@ test.describe('Folder rename/delete (Issue #199 / MEW-041 Lv4-1)', () => {
     await page.waitForFunction(() => window.AppState.listDocuments().length >= 3);
 
     const fileTree = page.locator('#file-tree');
-    const docsFolder = fileTree.locator('.file-tree-folder', { hasText: 'docs' }).first();
-    await docsFolder.click({ button: 'right' });
+    await folderRow(fileTree, 'docs').click({ button: 'right' });
     await page.locator('.file-tree-menu button', { hasText: 'Rename' }).click();
 
     const renameInput = fileTree.locator('.file-tree-rename-input');
     await renameInput.fill('renamed-docs');
     await renameInput.press('Enter');
 
-    await expect(fileTree.locator('.file-tree-folder', { hasText: 'renamed-docs' })).toBeVisible();
+    await expect(folderLocator(fileTree, 'renamed-docs')).toBeVisible();
     const paths = await page.evaluate(() => window.Directory.getTree().map(d => d.path));
     expect(paths).toContain('renamed-docs/a.md');
     expect(paths).toContain('renamed-docs/sub/b.md');
@@ -306,8 +332,7 @@ test.describe('Folder rename/delete (Issue #199 / MEW-041 Lv4-1)', () => {
     page.on('dialog', dialog => dialog.accept());
 
     const fileTree = page.locator('#file-tree');
-    const docsFolder = fileTree.locator('.file-tree-folder', { hasText: 'docs' }).first();
-    await docsFolder.click({ button: 'right' });
+    await folderRow(fileTree, 'docs').click({ button: 'right' });
     await page.locator('.file-tree-menu button', { hasText: 'Rename' }).click();
 
     const renameInput = fileTree.locator('.file-tree-rename-input');
@@ -327,8 +352,9 @@ test.describe('Folder rename/delete (Issue #199 / MEW-041 Lv4-1)', () => {
     await page.waitForFunction(() => window.AppState.listDocuments().length >= 3);
 
     const fileTree = page.locator('#file-tree');
-    const subFolder = fileTree.locator('.file-tree-folder', { hasText: 'sub' }).first();
-    await subFolder.click({ button: 'right' });
+    // Every discovered folder auto-expands on initial import, so "sub" is
+    // already visible/open without needing to open its "docs" parent first.
+    await folderRow(fileTree, 'sub').click({ button: 'right' });
     await page.locator('.file-tree-menu button', { hasText: 'Rename' }).click();
 
     const renameInput = fileTree.locator('.file-tree-rename-input');
@@ -351,8 +377,7 @@ test.describe('Folder rename/delete (Issue #199 / MEW-041 Lv4-1)', () => {
     page.on('dialog', dialog => dialog.accept());
 
     const fileTree = page.locator('#file-tree');
-    const docsFolder = fileTree.locator('.file-tree-folder', { hasText: 'docs' }).first();
-    await docsFolder.click({ button: 'right' });
+    await folderRow(fileTree, 'docs').click({ button: 'right' });
     await page.locator('.file-tree-menu button', { hasText: 'Delete' }).click();
 
     await page.waitForFunction(() => window.AppState.listDocuments().length === 1);
@@ -374,8 +399,7 @@ test.describe('Folder rename/delete (Issue #199 / MEW-041 Lv4-1)', () => {
     });
 
     const fileTree = page.locator('#file-tree');
-    const docsFolder = fileTree.locator('.file-tree-folder', { hasText: 'docs' }).first();
-    await docsFolder.click({ button: 'right' });
+    await folderRow(fileTree, 'docs').click({ button: 'right' });
     await page.locator('.file-tree-menu button', { hasText: 'Delete' }).click();
 
     await expect.poll(() => dialogMessage).not.toBeNull();
@@ -388,21 +412,21 @@ test.describe('Folder rename/delete (Issue #199 / MEW-041 Lv4-1)', () => {
     await page.waitForFunction(() => window.AppState.listDocuments().length >= 3);
 
     const fileTree = page.locator('#file-tree');
-    const docsFolder = fileTree.locator('.file-tree-folder', { hasText: 'docs' }).first();
-    // "docs" starts open (newly discovered folders auto-expand); its child
-    // "sub" starts closed by default. Open "sub" explicitly before renaming.
-    const subFolderLabel = fileTree.locator('.file-tree-folder', { hasText: 'sub' }).first().locator('.file-tree-label');
-    await subFolderLabel.click();
-    await expect(fileTree.locator('.file-tree-folder', { hasText: 'sub' }).first()).toHaveClass(/open/);
+    // Every discovered folder auto-expands on initial import, so close "sub"
+    // explicitly first, to verify the *closed* state (not just the default
+    // open one) survives its parent's rename.
+    await folderLabel(fileTree, 'sub').click();
+    await expect(folderLocator(fileTree, 'sub')).not.toHaveClass(/open/);
 
-    await docsFolder.click({ button: 'right' });
+    await folderRow(fileTree, 'docs').click({ button: 'right' });
     await page.locator('.file-tree-menu button', { hasText: 'Rename' }).click();
     const renameInput = fileTree.locator('.file-tree-rename-input');
     await renameInput.fill('renamed-docs');
     await renameInput.press('Enter');
 
-    const renamedSubFolder = fileTree.locator('.file-tree-folder', { hasText: 'sub' }).first();
-    await expect(renamedSubFolder).toHaveClass(/open/);
-    await expect(fileTree.locator('.file-tree-file', { hasText: 'b.md' })).toBeVisible();
+    // "sub" (now "renamed-docs/sub") stays closed rather than resetting to
+    // open: its b.md is not visible, but the collapsed folder itself is.
+    await expect(folderLocator(fileTree, 'sub')).not.toHaveClass(/open/);
+    await expect(fileTree.locator('.file-tree-file', { hasText: 'b.md' })).toHaveCount(0);
   });
 });
