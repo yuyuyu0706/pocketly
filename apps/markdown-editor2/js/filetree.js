@@ -437,6 +437,35 @@
         row.appendChild(renderTreeIcon(ownerDocument, 'file'));
         row.appendChild(label);
         li.appendChild(row);
+
+        // A file row is also a valid drop target: dropping onto a file
+        // moves the dragged item into that file's parent folder (Issue
+        // #206 follow-up). Reuses the same generic isValidDropTarget()/
+        // dropOn(folderPath) used by folder rows/root — a drop onto a file
+        // already inside the dragged folder is just the ordinary
+        // startsWith()-based circular check applied to its parent path.
+        const parentFolderPath = node.path.includes('/')
+          ? node.path.slice(0, node.path.lastIndexOf('/'))
+          : '';
+
+        row.addEventListener('dragover', event => {
+          if (!ctx.isValidDropTarget(parentFolderPath)) {
+            return;
+          }
+          event.preventDefault();
+          event.stopPropagation();
+          row.classList.add('file-tree-drop-target');
+        });
+        row.addEventListener('dragleave', event => {
+          event.stopPropagation();
+          row.classList.remove('file-tree-drop-target');
+        });
+        row.addEventListener('drop', event => {
+          event.preventDefault();
+          event.stopPropagation();
+          row.classList.remove('file-tree-drop-target');
+          ctx.dropOn(parentFolderPath);
+        });
       }
 
       ul.appendChild(li);
