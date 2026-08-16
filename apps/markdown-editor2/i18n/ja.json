@@ -91,7 +91,12 @@
     "confirmDelete": "このファイルを削除しますか？元に戻せません。",
     "errorInvalidExtension": "ファイル名は .md または .markdown で終わる必要があります。",
     "errorInvalidName": "ファイル名に「/」を含めることはできません。",
-    "errorDuplicate": "同じパスのファイルが既に存在します。"
+    "errorDuplicate": "同じパスのファイルが既に存在します。",
+    "renameFolder": "名前を変更",
+    "deleteFolder": "削除",
+    "confirmDeleteFolder": "このフォルダを削除しますか？{count}個のファイルが削除されます。元に戻せません。",
+    "errorInvalidFolderName": "フォルダ名を入力してください。",
+    "errorDuplicateFolder": "同じ名前のフォルダまたはファイルが既に存在します。"
   },
   "shortcuts": {
     "close": "閉じる",

@@ -314,3 +314,181 @@ test.describe('Single file operations (Issue #196 / MEW-011 Lv3-1)', () => {
     expect(paths).not.toContain('b.md');
   });
 });
+
+// Folder rename/delete (Issue #199 / MEW-041 Lv4-1): mirrors the single-file
+// operations above, but the target is a folder node in the tree, and the
+// operation must cascade to every file nested under it.
+async function buildNestedFixtureFolder() {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'mew-folderops-'));
+  const folder = path.join(root, 'my-folder');
+  await fs.mkdir(path.join(folder, 'docs', 'sub'), { recursive: true });
+  await fs.mkdir(path.join(folder, 'other'), { recursive: true });
+  await fs.writeFile(path.join(folder, 'docs', 'a.md'), '# A');
+  await fs.writeFile(path.join(folder, 'docs', 'sub', 'b.md'), '# B');
+  await fs.writeFile(path.join(folder, 'other', 'c.md'), '# C');
+  return folder;
+}
+
+// A folder <li> nests its children's markup as DOM descendants (unlike a file
+// <li>, which is a leaf), so `hasText` substring matching against the <li>
+// itself returns false positives (e.g. a "docs" folder containing a "sub"
+// subfolder also textually "contains" the string "sub"). Each folder's own
+// label span, in contrast, holds exactly its own name (no concatenation), so
+// locating the unique label first and walking up to its immediate parent
+// <li> avoids the ambiguity.
+function folderLabel(fileTree, name) {
+  return fileTree.locator('.file-tree-folder > .file-tree-row > .file-tree-label', {
+    hasText: new RegExp(`^${name}$`)
+  });
+}
+
+function folderLocator(fileTree, name) {
+  return folderLabel(fileTree, name).locator(
+    'xpath=ancestor::li[contains(concat(" ", normalize-space(@class), " "), " file-tree-folder ")][1]'
+  );
+}
+
+// Right-clicking a folder <li> at its default (center) position can land on
+// nested content rather than the folder's own header, since the <li>'s
+// bounding box spans its entire (open) subtree. Scope the click to the
+// folder's own header row instead.
+function folderRow(fileTree, name) {
+  return folderLocator(fileTree, name).locator(':scope > .file-tree-row');
+}
+
+test.describe('Folder rename/delete (Issue #199 / MEW-041 Lv4-1)', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+  });
+
+  test('renaming a folder updates the paths of all nested files', async ({ page }) => {
+    const folder = await buildNestedFixtureFolder();
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 3);
+
+    const fileTree = page.locator('#file-tree');
+    await folderRow(fileTree, 'docs').click({ button: 'right' });
+    await page.locator('.file-tree-menu button', { hasText: 'Rename' }).click();
+
+    const renameInput = fileTree.locator('.file-tree-rename-input');
+    await renameInput.fill('renamed-docs');
+    await renameInput.press('Enter');
+
+    await expect(folderLocator(fileTree, 'renamed-docs')).toBeVisible();
+    const paths = await page.evaluate(() => window.Directory.getTree().map(d => d.path));
+    expect(paths).toContain('renamed-docs/a.md');
+    expect(paths).toContain('renamed-docs/sub/b.md');
+    expect(paths).toContain('other/c.md');
+    expect(paths).not.toContain('docs/a.md');
+  });
+
+  test('rename aborts entirely when a nested file would collide', async ({ page }) => {
+    const folder = await buildNestedFixtureFolder();
+    // Add a colliding file so renaming "docs" -> "other" would collide on
+    // other/a.md, while other/c.md is unaffected (no swap involved).
+    await fs.writeFile(path.join(folder, 'other', 'a.md'), '# collide');
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 4);
+
+    page.on('dialog', dialog => dialog.accept());
+
+    const fileTree = page.locator('#file-tree');
+    await folderRow(fileTree, 'docs').click({ button: 'right' });
+    await page.locator('.file-tree-menu button', { hasText: 'Rename' }).click();
+
+    const renameInput = fileTree.locator('.file-tree-rename-input');
+    await renameInput.fill('other');
+    await renameInput.press('Enter');
+
+    const paths = await page.evaluate(() => window.Directory.getTree().map(d => d.path));
+    expect(paths).toContain('docs/a.md');
+    expect(paths).toContain('docs/sub/b.md');
+    expect(paths).toContain('other/a.md');
+    expect(paths).toContain('other/c.md');
+  });
+
+  test('folder rename cannot move the folder to a different parent', async ({ page }) => {
+    const folder = await buildNestedFixtureFolder();
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 3);
+
+    const fileTree = page.locator('#file-tree');
+    // Every discovered folder auto-expands on initial import, so "sub" is
+    // already visible/open without needing to open its "docs" parent first.
+    await folderRow(fileTree, 'sub').click({ button: 'right' });
+    await page.locator('.file-tree-menu button', { hasText: 'Rename' }).click();
+
+    const renameInput = fileTree.locator('.file-tree-rename-input');
+    await renameInput.fill('../escaped');
+    await renameInput.press('Enter');
+
+    // "/" in the new name is rejected outright (invalid-name), leaving the
+    // folder's path/parent untouched.
+    const paths = await page.evaluate(() => window.Directory.getTree().map(d => d.path));
+    expect(paths).toContain('docs/sub/b.md');
+    expect(paths).not.toContain('docs/escaped/b.md');
+    expect(paths).not.toContain('escaped/b.md');
+  });
+
+  test('deleting a folder removes all nested files and transitions the active tab', async ({ page }) => {
+    const folder = await buildNestedFixtureFolder();
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 3);
+
+    page.on('dialog', dialog => dialog.accept());
+
+    const fileTree = page.locator('#file-tree');
+    await folderRow(fileTree, 'docs').click({ button: 'right' });
+    await page.locator('.file-tree-menu button', { hasText: 'Delete' }).click();
+
+    await page.waitForFunction(() => window.AppState.listDocuments().length === 1);
+    const paths = await page.evaluate(() => window.Directory.getTree().map(d => d.path));
+    expect(paths).not.toContain('docs/a.md');
+    expect(paths).not.toContain('docs/sub/b.md');
+    expect(paths).toContain('other/c.md');
+  });
+
+  test('delete confirmation dialog mentions the affected file count', async ({ page }) => {
+    const folder = await buildNestedFixtureFolder();
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 3);
+
+    let dialogMessage = null;
+    page.on('dialog', dialog => {
+      dialogMessage = dialog.message();
+      dialog.dismiss();
+    });
+
+    const fileTree = page.locator('#file-tree');
+    await folderRow(fileTree, 'docs').click({ button: 'right' });
+    await page.locator('.file-tree-menu button', { hasText: 'Delete' }).click();
+
+    await expect.poll(() => dialogMessage).not.toBeNull();
+    expect(dialogMessage).toContain('2');
+  });
+
+  test('open/closed state survives a folder rename', async ({ page }) => {
+    const folder = await buildNestedFixtureFolder();
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 3);
+
+    const fileTree = page.locator('#file-tree');
+    // Every discovered folder auto-expands on initial import, so close "sub"
+    // explicitly first, to verify the *closed* state (not just the default
+    // open one) survives its parent's rename.
+    await folderLabel(fileTree, 'sub').click();
+    await expect(folderLocator(fileTree, 'sub')).not.toHaveClass(/open/);
+
+    await folderRow(fileTree, 'docs').click({ button: 'right' });
+    await page.locator('.file-tree-menu button', { hasText: 'Rename' }).click();
+    const renameInput = fileTree.locator('.file-tree-rename-input');
+    await renameInput.fill('renamed-docs');
+    await renameInput.press('Enter');
+
+    // "sub" (now "renamed-docs/sub") stays closed rather than resetting to
+    // open: its b.md is not visible, but the collapsed folder itself is.
+    await expect(folderLocator(fileTree, 'sub')).not.toHaveClass(/open/);
+    await expect(fileTree.locator('.file-tree-file', { hasText: 'b.md' })).toHaveCount(0);
+  });
+});

@@ -93,6 +93,7 @@
   // full-innerHTML re-renders triggered by text:changed/directory:changed.
   let pendingCreateFolder = null; // '' for root, a folder path, or null when inactive
   let pendingRenameId = null;
+  let pendingRenameFolderPath = null; // folder path currently being renamed, or null
   let _activeMenu = null;
   let _menuCleanup = null;
 
@@ -234,6 +235,25 @@
     return input;
   }
 
+  function renderRenameFolderInput(ownerDocument, ctx, node) {
+    const input = ownerDocument.createElement('input');
+    input.type = 'text';
+    input.className = 'file-tree-rename-input';
+    input.value = node.name;
+    input.addEventListener('click', event => event.stopPropagation());
+    input.addEventListener('keydown', event => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        ctx.submitRenameFolder(node.path, input.value);
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        ctx.cancelRenameFolder();
+      }
+    });
+    input.addEventListener('blur', () => ctx.submitRenameFolder(node.path, input.value));
+    return input;
+  }
+
   const SVG_NS = 'http://www.w3.org/2000/svg';
   // Heroicons v2 outline (MIT License, https://heroicons.com/): "folder" and
   // "document-text", copied verbatim from
@@ -285,6 +305,16 @@
         li.classList.add('file-tree-folder');
         const isOpen = ctx.openFolders.has(node.path);
         li.classList.toggle('open', isOpen);
+
+        if (ctx.pendingRenameFolderPath === node.path) {
+          const renameRow = ownerDocument.createElement('div');
+          renameRow.className = 'file-tree-row';
+          renameRow.appendChild(renderTreeIcon(ownerDocument, 'folder'));
+          renameRow.appendChild(renderRenameFolderInput(ownerDocument, ctx, node));
+          li.appendChild(renameRow);
+          ul.appendChild(li);
+          return;
+        }
 
         const row = ownerDocument.createElement('div');
         row.className = 'file-tree-row';
@@ -387,6 +417,12 @@
   let _Bus = null;
   let _AppState = null;
   const openFolders = new Set();
+  // Every folder path ever seen in the tree, distinct from openFolders (the
+  // subset currently expanded). Used to auto-expand only genuinely new
+  // folders on a tree-structure change, without re-forcing open a folder the
+  // user had deliberately collapsed (Issue #199 / MEW-041 Lv4-1: a rename,
+  // for instance, changes the signature and must not reset collapse state).
+  const knownFolderPaths = new Set();
   let lastSignature = null;
 
   function computeSignature(entries) {
@@ -410,6 +446,14 @@
       : reason === 'invalid-name'
         ? 'filetree.errorInvalidName'
         : 'filetree.errorInvalidExtension';
+    if (win && typeof win.alert === 'function') {
+      win.alert(i18n.t(key));
+    }
+  }
+
+  function alertFolderUser(reason) {
+    const win = _container.ownerDocument.defaultView;
+    const key = reason === 'duplicate' ? 'filetree.errorDuplicateFolder' : 'filetree.errorInvalidFolderName';
     if (win && typeof win.alert === 'function') {
       win.alert(i18n.t(key));
     }
@@ -481,6 +525,53 @@
     _Directory.deleteFile(id);
   }
 
+  function submitRenameFolder(folderPath, rawValue) {
+    const trimmed = typeof rawValue === 'string' ? rawValue.trim() : '';
+    const currentName = folderPath.includes('/') ? folderPath.slice(folderPath.lastIndexOf('/') + 1) : folderPath;
+    pendingRenameFolderPath = null;
+    if (!trimmed || trimmed === currentName) {
+      // No change: treat like cancelRenameFolder() rather than calling
+      // renameFolder(), avoiding an unnecessary persist/directory:changed emission.
+      rerender();
+      return;
+    }
+    const result = _Directory.renameFolder(folderPath, trimmed);
+    if (!result.renamed) {
+      alertFolderUser(result.reason === 'invalid-name' ? 'invalid-name' : result.reason);
+      rerender();
+      return;
+    }
+    // Directory.renameFolder() emits Bus 'directory:changed' synchronously,
+    // which triggers handleTextChanged() -> a fresh render() already; no
+    // further action needed here.
+  }
+
+  function cancelRenameFolder() {
+    if (pendingRenameFolderPath === null) {
+      return;
+    }
+    pendingRenameFolderPath = null;
+    rerender();
+  }
+
+  function requestDeleteFolder(folderPath) {
+    closeMenu();
+    const win = _container.ownerDocument.defaultView;
+    const affectedCount = _Directory
+      .getTree()
+      .filter(entry => entry.path.startsWith(`${folderPath}/`)).length;
+    if (!win.confirm(i18n.t('filetree.confirmDeleteFolder', { count: affectedCount }))) {
+      return;
+    }
+    _Directory.deleteFolder(folderPath);
+  }
+
+  function startRenameFolder(folderPath) {
+    pendingRenameFolderPath = folderPath;
+    closeMenu();
+    rerender();
+  }
+
   function startCreateAtRoot() {
     pendingCreateFolder = '';
     rerender();
@@ -506,6 +597,7 @@
       rerender,
       pendingCreateFolder,
       pendingRenameId,
+      pendingRenameFolderPath,
       startCreateAtRoot,
       startCreateHere,
       submitCreate,
@@ -514,6 +606,8 @@
       submitRename,
       cancelRename,
       requestDelete,
+      submitRenameFolder,
+      cancelRenameFolder,
       openFileMenu: (node, anchorEl) => {
         const ownerDocument = _container.ownerDocument || document;
         openMenuFor(anchorEl, ownerDocument, [
@@ -524,7 +618,9 @@
       openFolderMenu: (node, anchorEl) => {
         const ownerDocument = _container.ownerDocument || document;
         openMenuFor(anchorEl, ownerDocument, [
-          { label: i18n.t('filetree.newFileHere'), onSelect: () => startCreateHere(node.path) }
+          { label: i18n.t('filetree.newFileHere'), onSelect: () => startCreateHere(node.path) },
+          { label: i18n.t('filetree.renameFolder'), onSelect: () => startRenameFolder(node.path) },
+          { label: i18n.t('filetree.deleteFolder'), onSelect: () => requestDeleteFolder(node.path) }
         ]);
       }
     };
@@ -538,7 +634,7 @@
       }
       return;
     }
-    if (pendingRenameId !== null) {
+    if (pendingRenameId !== null || pendingRenameFolderPath !== null) {
       const input = _container.querySelector('.file-tree-rename-input');
       if (input) {
         input.focus();
@@ -569,6 +665,73 @@
     updateActiveHighlight();
   }
 
+  /**
+   * Re-key every folder-path entry in `set` that falls under `oldPath` (the
+   * folder itself or any of its descendants) onto `newPath`.
+   * @param {Set<string>} set
+   * @param {string} oldPath
+   * @param {string} newPath
+   * @returns {void}
+   */
+  function rekeyFolderPathSet(set, oldPath, newPath) {
+    const oldPrefix = `${oldPath}/`;
+    const toMigrate = [];
+    set.forEach(path => {
+      if (path === oldPath || path.startsWith(oldPrefix)) {
+        toMigrate.push(path);
+      }
+    });
+    toMigrate.forEach(path => {
+      set.delete(path);
+      set.add(path === oldPath ? newPath : newPath + path.slice(oldPath.length));
+    });
+  }
+
+  /**
+   * Remove every folder-path entry in `set` that falls under `folderPath`
+   * (the folder itself or any of its descendants).
+   * @param {Set<string>} set
+   * @param {string} folderPath
+   * @returns {void}
+   */
+  function pruneFolderPathSet(set, folderPath) {
+    const prefix = `${folderPath}/`;
+    const toRemove = [];
+    set.forEach(path => {
+      if (path === folderPath || path.startsWith(prefix)) {
+        toRemove.push(path);
+      }
+    });
+    toRemove.forEach(path => set.delete(path));
+  }
+
+  /**
+   * Migrate openFolders/knownFolderPaths (expand/collapse state and the
+   * "already seen" bookkeeping that gates auto-expand-on-discovery) when a
+   * folder is renamed or deleted, so a renamed folder doesn't appear
+   * unexpectedly collapsed or re-expanded, and doesn't collide with another
+   * folder's state at the same new path (Issue #199 / MEW-041 Lv4-1 §2-3).
+   * No-ops for any other directory:changed type.
+   * @param {{ type?: string, oldPath?: string, newPath?: string, path?: string }} event
+   */
+  function migrateOpenFoldersOnDirectoryChange(event) {
+    if (!event) {
+      return;
+    }
+    if (event.type === 'rename-folder' && event.oldPath && event.newPath) {
+      rekeyFolderPathSet(openFolders, event.oldPath, event.newPath);
+      rekeyFolderPathSet(knownFolderPaths, event.oldPath, event.newPath);
+    } else if (event.type === 'delete-folder' && event.path) {
+      pruneFolderPathSet(openFolders, event.path);
+      pruneFolderPathSet(knownFolderPaths, event.path);
+    }
+  }
+
+  function handleDirectoryChanged(event) {
+    migrateOpenFoldersOnDirectoryChange(event);
+    handleTextChanged();
+  }
+
   function handleTextChanged() {
     if (!_container) {
       return;
@@ -578,8 +741,19 @@
     if (signature !== lastSignature) {
       lastSignature = signature;
       const treeNodes = buildTreeStructure(entries);
-      // Newly discovered folders (folder just opened / reopened) start expanded.
-      collectFolderPaths(treeNodes, openFolders);
+      // Newly discovered folders start expanded; a folder already seen
+      // before (via knownFolderPaths) keeps whatever expand/collapse state
+      // it currently has in openFolders, rather than being forced back open
+      // on every unrelated tree-structure change (Issue #199 / MEW-041
+      // Lv4-1 §2-3).
+      const currentFolderPaths = new Set();
+      collectFolderPaths(treeNodes, currentFolderPaths);
+      currentFolderPaths.forEach(path => {
+        if (!knownFolderPaths.has(path)) {
+          knownFolderPaths.add(path);
+          openFolders.add(path);
+        }
+      });
       render(treeNodes);
     }
     updateActiveHighlight();
@@ -601,7 +775,7 @@
 
     _container.classList.add('hidden');
     _Bus.on('text:changed', handleTextChanged);
-    _Bus.on('directory:changed', handleTextChanged);
+    _Bus.on('directory:changed', handleDirectoryChanged);
     handleTextChanged();
   }
 

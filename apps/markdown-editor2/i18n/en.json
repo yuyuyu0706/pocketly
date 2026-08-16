@@ -91,7 +91,12 @@
     "confirmDelete": "Delete this file? This cannot be undone.",
     "errorInvalidExtension": "File names must end in .md or .markdown.",
     "errorInvalidName": "File names cannot contain \"/\".",
-    "errorDuplicate": "A file already exists at that path."
+    "errorDuplicate": "A file already exists at that path.",
+    "renameFolder": "Rename",
+    "deleteFolder": "Delete",
+    "confirmDeleteFolder": "Delete this folder? {count} file(s) will be deleted. This cannot be undone.",
+    "errorInvalidFolderName": "Please enter a folder name.",
+    "errorDuplicateFolder": "A folder or file with that name already exists."
   },
   "shortcuts": {
     "close": "Close",
