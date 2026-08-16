@@ -234,6 +234,21 @@
     return `${folderPrefix}${normalizedName}`;
   }
 
+  /**
+   * Normalize a folder's new name segment (no folder separators): trims
+   * whitespace and rejects empty input or input containing "/". Unlike
+   * normalizeNewFilename(), no extension handling applies to folder names.
+   * @param {string} name
+   * @returns {string|null}
+   */
+  function normalizeFolderName(name) {
+    const trimmed = typeof name === 'string' ? name.trim() : '';
+    if (!trimmed || trimmed.includes('/')) {
+      return null;
+    }
+    return trimmed;
+  }
+
   function isExcludedPath(relativePath) {
     const segments = relativePath.split('/');
     return segments.some(seg => seg.startsWith('.') || EXCLUDED_SEGMENTS.includes(seg));
@@ -710,6 +725,99 @@
       scheduleWorkspacePersist();
       Bus.emit('directory:changed', { type: 'rename', id, path: newPath });
       return { renamed: true, path: newPath };
+    },
+
+    /**
+     * Rename a folder, updating the folder-relative path of all files nested
+     * under it (Issue #199 / MEW-041 Lv4-1). Only the folder's final path
+     * segment may change; `newFolderName` is a plain name, not a path. The
+     * rename is applied as a single atomic operation: if any nested file's
+     * new path would collide with an existing path (that isn't itself being
+     * renamed), the whole operation is aborted and nothing changes.
+     * @param {string} folderPath
+     * @param {string} newFolderName
+     * @returns {{ renamed: boolean, path?: string, count?: number, reason?: 'invalid-name'|'unchanged'|'not-found'|'duplicate' }}
+     */
+    renameFolder(folderPath, newFolderName) {
+      const normalizedName = normalizeFolderName(newFolderName);
+      if (!normalizedName) {
+        return { renamed: false, reason: 'invalid-name' };
+      }
+
+      const parentPrefix = folderPath.includes('/')
+        ? folderPath.slice(0, folderPath.lastIndexOf('/') + 1)
+        : '';
+      const newFolderPath = `${parentPrefix}${normalizedName}`;
+      if (newFolderPath === folderPath) {
+        return { renamed: false, reason: 'unchanged' };
+      }
+
+      const oldPrefix = `${folderPath}/`;
+      const newPrefix = `${newFolderPath}/`;
+      const renames = [];
+      fileRegistry.forEach((entry, id) => {
+        if (entry.path.startsWith(oldPrefix)) {
+          renames.push({ id, oldPath: entry.path, newPath: newPrefix + entry.path.slice(oldPrefix.length) });
+        }
+      });
+      if (renames.length === 0) {
+        return { renamed: false, reason: 'not-found' };
+      }
+
+      const renamingOldPaths = new Set(renames.map(r => r.oldPath));
+      const hasCollision = renames.some(r => pathIndex.has(r.newPath) && !renamingOldPaths.has(r.newPath));
+      if (hasCollision) {
+        return { renamed: false, reason: 'duplicate' };
+      }
+
+      renames.forEach(({ oldPath }) => pathIndex.delete(oldPath));
+      renames.forEach(({ id, newPath }) => {
+        const entry = fileRegistry.get(id);
+        entry.path = newPath;
+        entry.name = newPath.split('/').pop();
+        pathIndex.set(newPath, id);
+        AppState.updateDocumentMeta(id, { path: newPath, name: entry.name });
+      });
+
+      scheduleWorkspacePersist();
+      Bus.emit('directory:changed', {
+        type: 'rename-folder',
+        oldPath: folderPath,
+        newPath: newFolderPath,
+        affectedIds: renames.map(r => r.id)
+      });
+      return { renamed: true, path: newFolderPath, count: renames.length };
+    },
+
+    /**
+     * Delete a folder and every file nested under it (Issue #199 / MEW-041
+     * Lv4-1). Each affected file is closed in AppState the same way
+     * deleteFile() closes a single file, letting the existing active-document
+     * fallback logic handle any tab transitions.
+     * @param {string} folderPath
+     * @returns {{ deleted: boolean, count?: number, reason?: 'not-found' }}
+     */
+    deleteFolder(folderPath) {
+      const prefix = `${folderPath}/`;
+      const affectedIds = [];
+      fileRegistry.forEach((entry, id) => {
+        if (entry.path.startsWith(prefix)) {
+          affectedIds.push(id);
+        }
+      });
+      if (affectedIds.length === 0) {
+        return { deleted: false, reason: 'not-found' };
+      }
+
+      affectedIds.forEach(id => {
+        const entry = fileRegistry.get(id);
+        fileRegistry.delete(id);
+        pathIndex.delete(entry.path);
+        AppState.closeDocument(id);
+      });
+      scheduleWorkspacePersist();
+      Bus.emit('directory:changed', { type: 'delete-folder', path: folderPath, affectedIds });
+      return { deleted: true, count: affectedIds.length };
     },
 
     /**
