@@ -90,6 +90,7 @@
     "delete": "Delete",
     "confirmDelete": "Delete this file? This cannot be undone.",
     "errorInvalidExtension": "File names must end in .md or .markdown.",
+    "errorInvalidName": "File names cannot contain \"/\".",
     "errorDuplicate": "A file already exists at that path."
   },
   "shortcuts": {
