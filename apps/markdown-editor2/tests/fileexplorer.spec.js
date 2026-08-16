@@ -529,6 +529,24 @@ test.describe('Drag & drop move (Issue #206 / MEW-041 Lv4-2)', () => {
     expect(paths).not.toContain('other/c.md');
   });
 
+  test('dropping a file onto another file in the same folder is a no-op', async ({ page }) => {
+    const folder = await buildNestedFixtureFolder();
+    await fs.writeFile(path.join(folder, 'docs', 'a2.md'), '# A2');
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 4);
+
+    let dialogFired = false;
+    page.on('dialog', () => { dialogFired = true; });
+
+    const fileTree = page.locator('#file-tree');
+    await fileRow(fileTree, 'a2.md').dragTo(fileRow(fileTree, 'a.md').first());
+
+    const paths = await page.evaluate(() => window.Directory.getTree().map(d => d.path));
+    expect(paths).toContain('docs/a.md');
+    expect(paths).toContain('docs/a2.md');
+    expect(dialogFired).toBe(false);
+  });
+
   test('dragging a folder onto a folder moves all nested files', async ({ page }) => {
     const folder = await buildNestedFixtureFolder();
     await page.setInputFiles('#folder-input', folder);
