@@ -84,7 +84,7 @@
   },
   "filetree": {
     "newFile": "New file",
-    "newFilePlaceholder": "filename.md",
+    "newFilePlaceholder": "note.md or folder/note.md",
     "newFileHere": "New file here",
     "rename": "Rename",
     "delete": "Delete",
@@ -98,7 +98,9 @@
     "title": "Keyboard Shortcuts",
     "quickSwitcher": "Quick switcher",
     "save": "Save",
-    "crossSearch": "Cross search"
+    "crossSearch": "Cross search",
+    "tipsTitle": "Tips",
+    "tipsCreateFolder": "To create a folder, include a \"/\" in the new file name, e.g. folder/note.md"
   },
   "quickswitcher": {
     "placeholder": "Search documents...",
