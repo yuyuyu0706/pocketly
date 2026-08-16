@@ -405,7 +405,11 @@
 
   function alertUser(reason) {
     const win = _container.ownerDocument.defaultView;
-    const key = reason === 'duplicate' ? 'filetree.errorDuplicate' : 'filetree.errorInvalidExtension';
+    const key = reason === 'duplicate'
+      ? 'filetree.errorDuplicate'
+      : reason === 'invalid-name'
+        ? 'filetree.errorInvalidName'
+        : 'filetree.errorInvalidExtension';
     if (win && typeof win.alert === 'function') {
       win.alert(i18n.t(key));
     }
@@ -452,7 +456,7 @@
     }
     const result = _Directory.renameFile(id, trimmed);
     if (!result.renamed) {
-      alertUser(result.reason === 'invalid-extension' ? 'invalid-extension' : result.reason);
+      alertUser(result.reason);
       rerender();
       return;
     }

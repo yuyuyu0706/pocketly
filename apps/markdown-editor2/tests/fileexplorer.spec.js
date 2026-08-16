@@ -210,6 +210,68 @@ test.describe('Single file operations (Issue #196 / MEW-011 Lv3-1)', () => {
     expect(paths).toContain('sub/renamed-inner.md');
   });
 
+  test('rename input containing "/" is rejected for a root-level file', async ({ page }) => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'mew-fileexplorer-rename-slash-'));
+    await fs.writeFile(path.join(root, 'a.md'), '# A');
+
+    await page.setInputFiles('#folder-input', root);
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 1);
+
+    const fileTree = page.locator('#file-tree');
+    const pathsBefore = await page.evaluate(() => window.Directory.getTree().map(d => d.path));
+
+    await fileTree.locator('.file-tree-file', { hasText: 'a.md' }).click({ button: 'right' });
+    await page.locator('.file-tree-menu button', { hasText: 'Rename' }).click();
+
+    let dialogMessage = null;
+    page.once('dialog', dialog => {
+      dialogMessage = dialog.message();
+      dialog.accept();
+    });
+
+    const renameInput = fileTree.locator('.file-tree-rename-input');
+    await renameInput.fill('実行基盤選定/xxx.md');
+    await renameInput.press('Enter');
+
+    await expect.poll(() => dialogMessage).not.toBeNull();
+
+    const pathsAfter = await page.evaluate(() => window.Directory.getTree().map(d => d.path));
+    expect(pathsAfter).toEqual(pathsBefore);
+    expect(pathsAfter).not.toContain('実行基盤選定/xxx.md');
+  });
+
+  test('rename input containing "/" is rejected for a file inside a folder', async ({ page }) => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'mew-fileexplorer-rename-slash-nested-'));
+    const folder = path.join(root, 'my-folder');
+    await fs.mkdir(path.join(folder, 'sub'), { recursive: true });
+    await fs.writeFile(path.join(folder, 'sub', 'inner.md'), '# Inner');
+
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 1);
+
+    const fileTree = page.locator('#file-tree');
+    const pathsBefore = await page.evaluate(() => window.Directory.getTree().map(d => d.path));
+
+    await fileTree.locator('.file-tree-file', { hasText: 'inner.md' }).click({ button: 'right' });
+    await page.locator('.file-tree-menu button', { hasText: 'Rename' }).click();
+
+    let dialogMessage = null;
+    page.once('dialog', dialog => {
+      dialogMessage = dialog.message();
+      dialog.accept();
+    });
+
+    const renameInput = fileTree.locator('.file-tree-rename-input');
+    await renameInput.fill('other/inner.md');
+    await renameInput.press('Enter');
+
+    await expect.poll(() => dialogMessage).not.toBeNull();
+
+    const pathsAfter = await page.evaluate(() => window.Directory.getTree().map(d => d.path));
+    expect(pathsAfter).toEqual(pathsBefore);
+    expect(pathsAfter).not.toContain('other/inner.md');
+  });
+
   test('create/delete/rename persist to IndexedDB across reload', async ({ page }) => {
     const folder = await buildFixtureFolder();
     await page.setInputFiles('#folder-input', folder);

@@ -90,6 +90,7 @@
     "delete": "削除",
     "confirmDelete": "このファイルを削除しますか？元に戻せません。",
     "errorInvalidExtension": "ファイル名は .md または .markdown で終わる必要があります。",
+    "errorInvalidName": "ファイル名に「/」を含めることはできません。",
     "errorDuplicate": "同じパスのファイルが既に存在します。"
   },
   "shortcuts": {
