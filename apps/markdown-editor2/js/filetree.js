@@ -96,6 +96,9 @@
   let pendingRenameFolderPath = null; // folder path currently being renamed, or null
   let _activeMenu = null;
   let _menuCleanup = null;
+  // Drag & drop move state (Issue #206 / MEW-041 Lv4-2). Module-scoped since
+  // dataTransfer serialization is unnecessary for same-window drag/drop.
+  let draggedItem = null; // { path, type: 'file'|'folder' } or null when idle
 
   function closeMenu() {
     if (_activeMenu && _activeMenu.parentNode) {
@@ -301,6 +304,16 @@
       const li = ownerDocument.createElement('li');
       li.className = 'file-tree-item';
 
+      li.draggable = true;
+      li.addEventListener('dragstart', event => {
+        event.stopPropagation();
+        ctx.startDrag(node);
+      });
+      li.addEventListener('dragend', event => {
+        event.stopPropagation();
+        ctx.endDrag();
+      });
+
       if (node.type === 'folder') {
         li.classList.add('file-tree-folder');
         const isOpen = ctx.openFolders.has(node.path);
@@ -355,6 +368,26 @@
         row.appendChild(renderTreeIcon(ownerDocument, 'folder'));
         row.appendChild(label);
         li.appendChild(row);
+
+        row.addEventListener('dragover', event => {
+          if (!ctx.isValidDropTarget(node.path)) {
+            return;
+          }
+          event.preventDefault();
+          event.stopPropagation();
+          row.classList.add('file-tree-drop-target');
+        });
+        row.addEventListener('dragleave', event => {
+          event.stopPropagation();
+          row.classList.remove('file-tree-drop-target');
+        });
+        row.addEventListener('drop', event => {
+          event.preventDefault();
+          event.stopPropagation();
+          row.classList.remove('file-tree-drop-target');
+          ctx.dropOn(node.path);
+        });
+
         if (isOpen && (node.children.length || ctx.pendingCreateFolder === node.path)) {
           li.appendChild(renderNodeList(node.children, ownerDocument, ctx, node.path));
         }
@@ -590,6 +623,56 @@
     rerender();
   }
 
+  function startDrag(node) {
+    draggedItem = { path: node.path, type: node.type };
+  }
+
+  function endDrag() {
+    draggedItem = null;
+  }
+
+  /**
+   * Whether `targetPath` ('' for the workspace root) is a valid drop
+   * destination for the item currently being dragged. Moving a folder into
+   * itself or one of its own descendants is invalid (Issue #206 / MEW-041
+   * Lv4-2 circular-move guard); everything else is valid, including a
+   * no-op drop back into the item's current folder (handled as an
+   * unchanged/duplicate no-op by moveFile/moveFolder).
+   * @param {string} targetPath
+   * @returns {boolean}
+   */
+  function isValidDropTarget(targetPath) {
+    if (!draggedItem) {
+      return false;
+    }
+    if (draggedItem.type === 'folder') {
+      return targetPath !== draggedItem.path && !targetPath.startsWith(`${draggedItem.path}/`);
+    }
+    return true;
+  }
+
+  function dropOn(targetFolderPath) {
+    if (!draggedItem || !isValidDropTarget(targetFolderPath)) {
+      draggedItem = null;
+      return;
+    }
+    const { path, type } = draggedItem;
+    draggedItem = null;
+    const result = type === 'folder'
+      ? _Directory.moveFolder(path, targetFolderPath)
+      : _Directory.moveFile(path, targetFolderPath);
+    if (!result.moved && result.reason === 'duplicate') {
+      if (type === 'folder') {
+        alertFolderUser('duplicate');
+      } else {
+        alertUser('duplicate');
+      }
+    }
+    // A successful move emits Bus 'directory:changed' synchronously, which
+    // triggers a fresh render() already; 'unchanged'/'circular'/'not-found'
+    // are silently ignored (Issue #206 §2-4).
+  }
+
   function makeCtx() {
     return {
       openFolders,
@@ -608,6 +691,10 @@
       requestDelete,
       submitRenameFolder,
       cancelRenameFolder,
+      startDrag,
+      endDrag,
+      isValidDropTarget,
+      dropOn,
       openFileMenu: (node, anchorEl) => {
         const ownerDocument = _container.ownerDocument || document;
         openMenuFor(anchorEl, ownerDocument, [
@@ -718,7 +805,7 @@
     if (!event) {
       return;
     }
-    if (event.type === 'rename-folder' && event.oldPath && event.newPath) {
+    if ((event.type === 'rename-folder' || event.type === 'move-folder') && event.oldPath && event.newPath) {
       rekeyFolderPathSet(openFolders, event.oldPath, event.newPath);
       rekeyFolderPathSet(knownFolderPaths, event.oldPath, event.newPath);
     } else if (event.type === 'delete-folder' && event.path) {
@@ -776,6 +863,28 @@
     _container.classList.add('hidden');
     _Bus.on('text:changed', handleTextChanged);
     _Bus.on('directory:changed', handleDirectoryChanged);
+
+    // Root drop target: any drop that isn't caught (and stopPropagation'd)
+    // by a folder row bubbles here, moving the dragged item to the
+    // workspace root (Issue #206 / MEW-041 Lv4-2 §2-4). Attached once here,
+    // not in render(), since _container itself survives every re-render
+    // (only its children are replaced via innerHTML = '').
+    _container.addEventListener('dragover', event => {
+      if (!isValidDropTarget('')) {
+        return;
+      }
+      event.preventDefault();
+      _container.classList.add('file-tree-drop-target');
+    });
+    _container.addEventListener('dragleave', () => {
+      _container.classList.remove('file-tree-drop-target');
+    });
+    _container.addEventListener('drop', event => {
+      event.preventDefault();
+      _container.classList.remove('file-tree-drop-target');
+      dropOn('');
+    });
+
     handleTextChanged();
   }
 

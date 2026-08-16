@@ -674,6 +674,17 @@ main {
   background-color: rgba(140, 170, 220, 0.12);
 }
 
+#file-tree .file-tree-row.file-tree-drop-target {
+  outline: 2px dashed #3d7bd6;
+  outline-offset: -2px;
+  border-radius: 4px;
+}
+
+#file-tree.file-tree-drop-target {
+  outline: 2px dashed #3d7bd6;
+  outline-offset: -2px;
+}
+
 #file-tree .file-tree-folder > .file-tree-row > .file-tree-label {
   color: #3d7bd6;
   text-shadow: 0 0 1px rgba(0, 0, 0, 0.12);

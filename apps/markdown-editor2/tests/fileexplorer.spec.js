@@ -492,3 +492,101 @@ test.describe('Folder rename/delete (Issue #199 / MEW-041 Lv4-1)', () => {
     await expect(fileTree.locator('.file-tree-file', { hasText: 'b.md' })).toHaveCount(0);
   });
 });
+
+function fileRow(fileTree, name) {
+  return fileTree.locator('.file-tree-file', { hasText: new RegExp(`^${name}$`) });
+}
+
+test.describe('Drag & drop move (Issue #206 / MEW-041 Lv4-2)', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+  });
+
+  test('dragging a file onto a folder moves it there', async ({ page }) => {
+    const folder = await buildNestedFixtureFolder();
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 3);
+
+    const fileTree = page.locator('#file-tree');
+    await fileRow(fileTree, 'c.md').dragTo(folderRow(fileTree, 'docs'));
+
+    const paths = await page.evaluate(() => window.Directory.getTree().map(d => d.path));
+    expect(paths).toContain('docs/c.md');
+    expect(paths).not.toContain('other/c.md');
+  });
+
+  test('dragging a folder onto a folder moves all nested files', async ({ page }) => {
+    const folder = await buildNestedFixtureFolder();
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 3);
+
+    const fileTree = page.locator('#file-tree');
+    await folderRow(fileTree, 'sub').dragTo(folderRow(fileTree, 'other'));
+
+    const paths = await page.evaluate(() => window.Directory.getTree().map(d => d.path));
+    expect(paths).toContain('other/sub/b.md');
+    expect(paths).not.toContain('docs/sub/b.md');
+  });
+
+  test('drop is aborted when the destination already has a same-name file', async ({ page }) => {
+    const folder = await buildNestedFixtureFolder();
+    await fs.writeFile(path.join(folder, 'other', 'a.md'), '# collide');
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 4);
+
+    page.on('dialog', dialog => dialog.accept());
+
+    const fileTree = page.locator('#file-tree');
+    await fileRow(fileTree, 'a.md').first().dragTo(folderRow(fileTree, 'other'));
+
+    const paths = await page.evaluate(() => window.Directory.getTree().map(d => d.path));
+    expect(paths).toContain('docs/a.md');
+    expect(paths).toContain('other/a.md');
+  });
+
+  test('dragging a folder onto itself or a descendant is silently ignored', async ({ page }) => {
+    const folder = await buildNestedFixtureFolder();
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 3);
+
+    let dialogFired = false;
+    page.on('dialog', () => { dialogFired = true; });
+
+    const fileTree = page.locator('#file-tree');
+    await folderRow(fileTree, 'docs').dragTo(folderRow(fileTree, 'sub'));
+
+    const paths = await page.evaluate(() => window.Directory.getTree().map(d => d.path));
+    expect(paths).toContain('docs/a.md');
+    expect(paths).toContain('docs/sub/b.md');
+    expect(dialogFired).toBe(false);
+  });
+
+  test('dropping on the root area moves an item to the workspace root', async ({ page }) => {
+    const folder = await buildNestedFixtureFolder();
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 3);
+
+    const fileTree = page.locator('#file-tree');
+    await fileRow(fileTree, 'c.md').dragTo(fileTree.locator('.file-tree-header'));
+
+    const paths = await page.evaluate(() => window.Directory.getTree().map(d => d.path));
+    expect(paths).toContain('c.md');
+    expect(paths).not.toContain('other/c.md');
+  });
+
+  test('openFolders state is carried over after a folder move', async ({ page }) => {
+    const folder = await buildNestedFixtureFolder();
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 3);
+
+    const fileTree = page.locator('#file-tree');
+    await folderLabel(fileTree, 'sub').click();
+    await expect(folderLocator(fileTree, 'sub')).not.toHaveClass(/open/);
+
+    await folderRow(fileTree, 'docs').dragTo(folderRow(fileTree, 'other'));
+
+    await expect(folderLocator(fileTree, 'sub')).not.toHaveClass(/open/);
+    await expect(fileTree.locator('.file-tree-file', { hasText: 'b.md' })).toHaveCount(0);
+  });
+});
