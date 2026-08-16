@@ -250,6 +250,46 @@
     return trimmed;
   }
 
+  /**
+   * Recompute the path of every fileRegistry entry nested under `oldPrefix`
+   * to sit under `newPrefix` instead, applied atomically: if any resulting
+   * path would collide with an existing (non-renamed) path, nothing is
+   * changed. Shared by renameFolder() and moveFolder() (Issue #206 / MEW-041
+   * Lv4-2), both of which are "rewrite everything under this folder path"
+   * operations differing only in how the new prefix is derived.
+   * @param {string} oldPrefix
+   * @param {string} newPrefix
+   * @returns {{ applied: boolean, count?: number, affectedIds?: string[], reason?: 'not-found'|'duplicate' }}
+   */
+  function applyBulkPathRewrite(oldPrefix, newPrefix) {
+    const renames = [];
+    fileRegistry.forEach((entry, id) => {
+      if (entry.path.startsWith(oldPrefix)) {
+        renames.push({ id, oldPath: entry.path, newPath: newPrefix + entry.path.slice(oldPrefix.length) });
+      }
+    });
+    if (renames.length === 0) {
+      return { applied: false, reason: 'not-found' };
+    }
+
+    const renamingOldPaths = new Set(renames.map(r => r.oldPath));
+    const hasCollision = renames.some(r => pathIndex.has(r.newPath) && !renamingOldPaths.has(r.newPath));
+    if (hasCollision) {
+      return { applied: false, reason: 'duplicate' };
+    }
+
+    renames.forEach(({ oldPath }) => pathIndex.delete(oldPath));
+    renames.forEach(({ id, newPath }) => {
+      const entry = fileRegistry.get(id);
+      entry.path = newPath;
+      entry.name = newPath.split('/').pop();
+      pathIndex.set(newPath, id);
+      AppState.updateDocumentMeta(id, { path: newPath, name: entry.name });
+    });
+
+    return { applied: true, count: renames.length, affectedIds: renames.map(r => r.id) };
+  }
+
   function isExcludedPath(relativePath) {
     const segments = relativePath.split('/');
     return segments.some(seg => seg.startsWith('.') || EXCLUDED_SEGMENTS.includes(seg));
@@ -754,41 +794,90 @@
         return { renamed: false, reason: 'unchanged' };
       }
 
-      const oldPrefix = `${folderPath}/`;
-      const newPrefix = `${newFolderPath}/`;
-      const renames = [];
-      fileRegistry.forEach((entry, id) => {
-        if (entry.path.startsWith(oldPrefix)) {
-          renames.push({ id, oldPath: entry.path, newPath: newPrefix + entry.path.slice(oldPrefix.length) });
-        }
-      });
-      if (renames.length === 0) {
-        return { renamed: false, reason: 'not-found' };
+      const result = applyBulkPathRewrite(`${folderPath}/`, `${newFolderPath}/`);
+      if (!result.applied) {
+        return { renamed: false, reason: result.reason };
       }
-
-      const renamingOldPaths = new Set(renames.map(r => r.oldPath));
-      const hasCollision = renames.some(r => pathIndex.has(r.newPath) && !renamingOldPaths.has(r.newPath));
-      if (hasCollision) {
-        return { renamed: false, reason: 'duplicate' };
-      }
-
-      renames.forEach(({ oldPath }) => pathIndex.delete(oldPath));
-      renames.forEach(({ id, newPath }) => {
-        const entry = fileRegistry.get(id);
-        entry.path = newPath;
-        entry.name = newPath.split('/').pop();
-        pathIndex.set(newPath, id);
-        AppState.updateDocumentMeta(id, { path: newPath, name: entry.name });
-      });
 
       scheduleWorkspacePersist();
       Bus.emit('directory:changed', {
         type: 'rename-folder',
         oldPath: folderPath,
         newPath: newFolderPath,
-        affectedIds: renames.map(r => r.id)
+        affectedIds: result.affectedIds
       });
-      return { renamed: true, path: newFolderPath, count: renames.length };
+      return { renamed: true, path: newFolderPath, count: result.count };
+    },
+
+    /**
+     * Move a single directory-backed file into a different folder (Issue
+     * #206 / MEW-041 Lv4-2 drag & drop). `targetFolderPath` is the
+     * destination folder's path, or a falsy value to move the file to the
+     * workspace root.
+     * @param {string} sourcePath
+     * @param {string} [targetFolderPath]
+     * @returns {{ moved: boolean, path?: string, reason?: 'not-found'|'unchanged'|'duplicate' }}
+     */
+    moveFile(sourcePath, targetFolderPath) {
+      const id = pathIndex.get(sourcePath);
+      if (!id) {
+        return { moved: false, reason: 'not-found' };
+      }
+      const name = sourcePath.includes('/') ? sourcePath.slice(sourcePath.lastIndexOf('/') + 1) : sourcePath;
+      const newPath = targetFolderPath ? `${targetFolderPath}/${name}` : name;
+      if (newPath === sourcePath) {
+        return { moved: false, reason: 'unchanged' };
+      }
+      if (pathIndex.has(newPath)) {
+        return { moved: false, reason: 'duplicate' };
+      }
+
+      const entry = fileRegistry.get(id);
+      pathIndex.delete(sourcePath);
+      entry.path = newPath;
+      entry.name = name;
+      pathIndex.set(newPath, id);
+      AppState.updateDocumentMeta(id, { path: newPath, name });
+
+      scheduleWorkspacePersist();
+      Bus.emit('directory:changed', { type: 'move-file', oldPath: sourcePath, newPath, affectedIds: [id] });
+      return { moved: true, path: newPath };
+    },
+
+    /**
+     * Move a folder (and everything nested under it) into a different
+     * parent folder (Issue #206 / MEW-041 Lv4-2 drag & drop). Moving a
+     * folder into itself or into one of its own descendants is silently
+     * ignored (no error, no change) to avoid an unrepresentable circular
+     * path. `targetFolderPath` is the destination folder's path, or a
+     * falsy value to move the folder to the workspace root.
+     * @param {string} sourcePath
+     * @param {string} [targetFolderPath]
+     * @returns {{ moved: boolean, path?: string, count?: number, reason?: 'circular'|'unchanged'|'not-found'|'duplicate' }}
+     */
+    moveFolder(sourcePath, targetFolderPath) {
+      if (targetFolderPath === sourcePath || (targetFolderPath && targetFolderPath.startsWith(`${sourcePath}/`))) {
+        return { moved: false, reason: 'circular' };
+      }
+      const name = sourcePath.includes('/') ? sourcePath.slice(sourcePath.lastIndexOf('/') + 1) : sourcePath;
+      const newPath = targetFolderPath ? `${targetFolderPath}/${name}` : name;
+      if (newPath === sourcePath) {
+        return { moved: false, reason: 'unchanged' };
+      }
+
+      const result = applyBulkPathRewrite(`${sourcePath}/`, `${newPath}/`);
+      if (!result.applied) {
+        return { moved: false, reason: result.reason };
+      }
+
+      scheduleWorkspacePersist();
+      Bus.emit('directory:changed', {
+        type: 'move-folder',
+        oldPath: sourcePath,
+        newPath,
+        affectedIds: result.affectedIds
+      });
+      return { moved: true, path: newPath, count: result.count };
     },
 
     /**
