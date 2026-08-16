@@ -84,7 +84,7 @@
   },
   "filetree": {
     "newFile": "新規ファイル",
-    "newFilePlaceholder": "filename.md",
+    "newFilePlaceholder": "note.md または folder/note.md",
     "newFileHere": "ここに新規ファイル",
     "rename": "名前を変更",
     "delete": "削除",
@@ -103,7 +103,9 @@
     "title": "キーボードショートカット",
     "quickSwitcher": "クイックスイッチャー",
     "save": "保存",
-    "crossSearch": "横断検索"
+    "crossSearch": "横断検索",
+    "tipsTitle": "ヒント",
+    "tipsCreateFolder": "フォルダを作成するには、新規ファイル名に「/」を含めてください（例: folder/note.md）"
   },
   "quickswitcher": {
     "placeholder": "文書を検索...",
