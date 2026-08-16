@@ -196,13 +196,14 @@
    * Normalize a new file's filename segment (no folder separators): trims
    * whitespace, auto-appends ".md" when no extension is present, and rejects
    * anything whose extension isn't in ALLOWED_EXTENSIONS. Returns null for
-   * empty or extension-invalid input; callers decide the reason to report.
+   * empty, "/"-containing, or extension-invalid input; callers decide the
+   * reason to report.
    * @param {string} name
    * @returns {string|null}
    */
   function normalizeNewFilename(name) {
     const trimmed = typeof name === 'string' ? name.trim() : '';
-    if (!trimmed) {
+    if (!trimmed || trimmed.includes('/')) {
       return null;
     }
     if (!trimmed.includes('.')) {
@@ -700,16 +701,17 @@
      * path; the folder portion of the existing path cannot be changed here.
      * @param {string} id
      * @param {string} newFilename
-     * @returns {{ renamed: boolean, path?: string, reason?: 'invalid-extension'|'duplicate'|'not-found' }}
+     * @returns {{ renamed: boolean, path?: string, reason?: 'invalid-extension'|'invalid-name'|'duplicate'|'not-found' }}
      */
     renameFile(id, newFilename) {
       const entry = fileRegistry.get(id);
       if (!entry) {
         return { renamed: false, reason: 'not-found' };
       }
+      const trimmedName = typeof newFilename === 'string' ? newFilename.trim() : '';
       const normalizedName = normalizeNewFilename(newFilename);
       if (!normalizedName) {
-        return { renamed: false, reason: 'invalid-extension' };
+        return { renamed: false, reason: trimmedName.includes('/') ? 'invalid-name' : 'invalid-extension' };
       }
       const lastSlash = entry.path.lastIndexOf('/');
       const folderPrefix = lastSlash === -1 ? '' : entry.path.slice(0, lastSlash + 1);
