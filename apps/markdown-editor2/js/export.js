@@ -204,9 +204,11 @@ body {
       : () => Promise.resolve();
 
     if (global.Bus && typeof global.Bus.on === 'function') {
-      global.Bus.on('directory:changed', ({ type, id } = {}) => {
+      global.Bus.on('directory:changed', ({ type, id, affectedIds } = {}) => {
         if (type === 'delete' && id) {
           _fileHandles.delete(id);
+        } else if (type === 'delete-folder' && Array.isArray(affectedIds)) {
+          affectedIds.forEach(affectedId => _fileHandles.delete(affectedId));
         }
       });
     }
@@ -356,6 +358,11 @@ body {
       });
     }
   }
+
+  // Expose internals for unit testing via window.__exportTest
+  global.__exportTest = {
+    hasFileHandle: docId => _fileHandles.has(docId)
+  };
 
   global.Export = { init, setFileHandle };
 })(typeof window !== 'undefined' ? window : this);

@@ -416,4 +416,34 @@ test.describe('File System Access API: per-tab file handle (Issue #208 / MEW-043
     expect(await page.evaluate(() => window.__pickerCalls)).toBe(1);
     expect(await page.evaluate(() => window.__written)).toBe('second save');
   });
+
+  test('deleting a folder clears file handles of its nested documents', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.__mockHandle = {
+        createWritable() { return Promise.resolve({ write: () => Promise.resolve(), close: () => Promise.resolve() }); },
+      };
+    });
+
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+
+    const docId = await page.evaluate(() => {
+      const result = window.Directory.createFile('folder/nested.md', 'nested text');
+      return result.id;
+    });
+
+    // Give this document a handle without going through the save picker
+    // (simulates it having been opened via showOpenFilePicker).
+    await page.evaluate(id => {
+      Export.setFileHandle(id, window.__mockHandle);
+    }, docId);
+
+    expect(await page.evaluate(id => window.__exportTest.hasFileHandle(id), docId)).toBe(true);
+
+    await page.evaluate(() => {
+      window.Directory.deleteFolder('folder');
+    });
+
+    expect(await page.evaluate(id => window.__exportTest.hasFileHandle(id), docId)).toBe(false);
+  });
 });
