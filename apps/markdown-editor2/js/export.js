@@ -191,16 +191,27 @@ body {
     return parts.join('\n');
   }
 
-  let _fileHandle = null;
+  const _fileHandles = new Map(); // docId -> FileSystemFileHandle
 
-  function setFileHandle(handle) {
-    _fileHandle = handle;
+  function setFileHandle(docId, handle) {
+    if (!docId) return;
+    _fileHandles.set(docId, handle);
   }
 
   function init({ preview, i18n, triggerDownloadFromBlob, AppState, exportPdfBtn, exportHtmlBtn, saveMdBtn, closePiPBeforeNativeAction, onSaveSuccess }) {
     const closePiP = typeof closePiPBeforeNativeAction === 'function'
       ? closePiPBeforeNativeAction
       : () => Promise.resolve();
+
+    if (global.Bus && typeof global.Bus.on === 'function') {
+      global.Bus.on('directory:changed', ({ type, id, affectedIds } = {}) => {
+        if (type === 'delete' && id) {
+          _fileHandles.delete(id);
+        } else if (type === 'delete-folder' && Array.isArray(affectedIds)) {
+          affectedIds.forEach(affectedId => _fileHandles.delete(affectedId));
+        }
+      });
+    }
 
     async function performSave() {
       const content = AppState.getText();
@@ -209,30 +220,37 @@ body {
         ? defaultName.trim() : 'document.md';
       const filename = trimmedName.endsWith('.md') ? trimmedName : `${trimmedName}.md`;
 
+      const docId = typeof AppState.getActiveDocumentId === 'function' ? AppState.getActiveDocumentId() : null;
+
       const fsApi = typeof window !== 'undefined' && typeof window.showSaveFilePicker === 'function';
       if (fsApi) {
         try {
-          if (!_fileHandle) {
-            _fileHandle = await window.showSaveFilePicker({
+          let handle = docId ? _fileHandles.get(docId) : null;
+          if (!handle) {
+            handle = await window.showSaveFilePicker({
               suggestedName: filename,
               types: [{ description: 'Markdown', accept: { 'text/markdown': ['.md'] } }],
             });
+            if (docId) {
+              _fileHandles.set(docId, handle);
+            }
           }
-          const writable = await _fileHandle.createWritable();
+          const writable = await handle.createWritable();
           await writable.write(content);
           await writable.close();
           if (typeof onSaveSuccess === 'function') onSaveSuccess();
           return;
         } catch (err) {
-          if (err && err.name === 'AbortError' && !_fileHandle) {
+          const hadHandle = docId ? _fileHandles.has(docId) : false;
+          if (err && err.name === 'AbortError' && !hadHandle) {
             return;
           }
-          if (err && err.name === 'AbortError' && _fileHandle) {
+          if (err && err.name === 'AbortError' && hadHandle) {
             console.warn('[Export] Write aborted on existing file handle, will retry via file picker.', err);
-            _fileHandle = null;
+            if (docId) _fileHandles.delete(docId);
           } else {
             console.warn('[Export] File System Access API write failed, falling back.', err);
-            _fileHandle = null;
+            if (docId) _fileHandles.delete(docId);
           }
         }
       }
@@ -340,6 +358,11 @@ body {
       });
     }
   }
+
+  // Expose internals for unit testing via window.__exportTest
+  global.__exportTest = {
+    hasFileHandle: docId => _fileHandles.has(docId)
+  };
 
   global.Export = { init, setFileHandle };
 })(typeof window !== 'undefined' ? window : this);

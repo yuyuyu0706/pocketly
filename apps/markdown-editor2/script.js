@@ -155,9 +155,11 @@ function startApp() {
           const [fileHandle] = await window.showOpenFilePicker({
             types: [{ description: 'Markdown', accept: { 'text/markdown': ['.md'], 'text/plain': ['.md', '.txt'] } }],
           });
-          Export.setFileHandle(fileHandle);
           const file = await fileHandle.getFile();
-          await Directory.importSingleFile(file);
+          const result = await Directory.importSingleFile(file);
+          if (result && result.id) {
+            Export.setFileHandle(result.id, fileHandle);
+          }
           _isDirty = false;
           updateSaveBtnLabel();
           return;
