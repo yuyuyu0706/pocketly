@@ -19,6 +19,12 @@ test.describe('Single file operations (Issue #196 / MEW-011 Lv3-1)', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
+    // Issue #210: startup now always seeds+persists welcome.md, so importFolder()
+    // always finds an existing workspace and asks for confirmation before replacing it.
+    await page.evaluate(() => {
+      window.__nativeConfirm = window.confirm.bind(window);
+      window.confirm = () => true;
+    });
   });
 
   test('header "+" creates a file at root', async ({ page }) => {
@@ -360,6 +366,12 @@ test.describe('Folder rename/delete (Issue #199 / MEW-041 Lv4-1)', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
+    // Issue #210: startup now always seeds+persists welcome.md, so importFolder()
+    // always finds an existing workspace and asks for confirmation before replacing it.
+    await page.evaluate(() => {
+      window.__nativeConfirm = window.confirm.bind(window);
+      window.confirm = () => true;
+    });
   });
 
   test('renaming a folder updates the paths of all nested files', async ({ page }) => {
@@ -453,6 +465,11 @@ test.describe('Folder rename/delete (Issue #199 / MEW-041 Lv4-1)', () => {
     const folder = await buildNestedFixtureFolder();
     await page.setInputFiles('#folder-input', folder);
     await page.waitForFunction(() => window.AppState.listDocuments().length >= 3);
+    // Restore native window.confirm (stubbed in beforeEach for the folder
+    // import above) so the Delete action below raises a real dialog to inspect.
+    await page.evaluate(() => {
+      window.confirm = window.__nativeConfirm;
+    });
 
     let dialogMessage = null;
     page.on('dialog', dialog => {
@@ -501,6 +518,12 @@ test.describe('Drag & drop move (Issue #206 / MEW-041 Lv4-2)', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
+    // Issue #210: startup now always seeds+persists welcome.md, so importFolder()
+    // always finds an existing workspace and asks for confirmation before replacing it.
+    await page.evaluate(() => {
+      window.__nativeConfirm = window.confirm.bind(window);
+      window.confirm = () => true;
+    });
   });
 
   test('dragging a file onto a folder moves it there', async ({ page }) => {

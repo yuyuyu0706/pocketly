@@ -506,7 +506,14 @@
         !Array.isArray(workspace.documents) ||
         workspace.documents.length === 0
       ) {
-        return { restored: false };
+        // True first launch, or a workspace that was previously cleared:
+        // seed welcome.md so the file tree is never empty (Issue #210).
+        const initialActiveId = AppState.getActiveDocumentId();
+        Directory.createFile('welcome.md', AppState.getFallbackText());
+        if (initialActiveId) {
+          AppState.closeDocument(initialActiveId);
+        }
+        return { restored: false, seeded: true };
       }
       currentImportedAt = workspace.importedAt;
       registerAssets(workspace.assets || []);
@@ -647,12 +654,12 @@
       assetRegistry.clear();
       pathIndex.clear();
       currentImportedAt = null;
-      await saveWorkspace({ documents: [], assets: [], importedAt: null });
-      allIds.forEach(id => AppState.closeDocument(id));
 
-      const activeId = AppState.getActiveDocumentId();
-      if (activeId) {
-        AppState.setText(AppState.getFallbackText(), 'init');
+      const initialActiveId = AppState.getActiveDocumentId();
+      Directory.createFile('welcome.md', AppState.getFallbackText());
+      allIds.forEach(id => AppState.closeDocument(id));
+      if (initialActiveId) {
+        AppState.closeDocument(initialActiveId);
       }
       return { cleared: true };
     },
