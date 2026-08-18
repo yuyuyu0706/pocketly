@@ -181,7 +181,8 @@ test.describe('File System Access API: save', () => {
 
     await page.evaluate(() => {
       window.AppState.setText('from open file', 'editor');
-      Export.setFileHandle(window.__externalHandle);
+      const docId = window.AppState.getActiveDocumentId();
+      Export.setFileHandle(docId, window.__externalHandle);
     });
 
     await page.evaluate(() => Export.performSave());
@@ -313,5 +314,106 @@ test.describe('File System Access API: save', () => {
 
     const btnStillDirty = await page.locator('#save-md').textContent();
     expect(btnStillDirty).toMatch(/unsaved|未保存/);
+  });
+});
+
+test.describe('File System Access API: per-tab file handle (Issue #208 / MEW-043)', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.setViewportSize(VIEWPORT);
+  });
+
+  test('saving after switching tabs writes to the newly active tab, not the previously opened file', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.__writtenA = null;
+      window.__writtenB = null;
+      window.__savePickerCalls = 0;
+      window.__mockWritableA = {
+        write(c) { window.__writtenA = c; return Promise.resolve(); },
+        close() { return Promise.resolve(); },
+      };
+      window.__mockHandleA = {
+        createWritable() { return Promise.resolve(window.__mockWritableA); },
+      };
+      window.__mockWritableB = {
+        write(c) { window.__writtenB = c; return Promise.resolve(); },
+        close() { return Promise.resolve(); },
+      };
+      window.__mockHandleB = {
+        createWritable() { return Promise.resolve(window.__mockWritableB); },
+      };
+      window.showOpenFilePicker = async () => {
+        return [{
+          getFile: async () => ({
+            name: 'report.md',
+            text: async () => '# Report',
+          }),
+          createWritable: window.__mockHandleA.createWritable,
+        }];
+      };
+      window.showSaveFilePicker = async () => {
+        window.__savePickerCalls++;
+        return window.__mockHandleB;
+      };
+    });
+
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+
+    // Open report.md via the File System Access API (tab A gets a handle).
+    await page.evaluate(() => document.getElementById('open-md').click());
+    await page.waitForFunction(() => window.AppState.getText() === '# Report');
+
+    // Save tab A once: should reuse the handle from showOpenFilePicker, no save picker.
+    await page.evaluate(() => Export.performSave());
+    await page.waitForTimeout(100);
+    expect(await page.evaluate(() => window.__writtenA)).toBe('# Report');
+    expect(await page.evaluate(() => window.__savePickerCalls)).toBe(0);
+
+    // Create and switch to a second, handle-less tab (e.g. folder-imported doc).
+    await page.evaluate(() => {
+      const result = window.Directory.createFile('notes.md', 'tab B text');
+      window.AppState.switchActiveDocument(result.id);
+    });
+    await page.waitForFunction(() => window.AppState.getText() === 'tab B text');
+
+    // Saving tab B must not write to tab A's handle.
+    await page.evaluate(() => Export.performSave());
+    await page.waitForTimeout(100);
+
+    expect(await page.evaluate(() => window.__writtenB)).toBe('tab B text');
+    expect(await page.evaluate(() => window.__writtenA)).toBe('# Report');
+    expect(await page.evaluate(() => window.__savePickerCalls)).toBe(1);
+  });
+
+  test('saving the same tab twice reuses its own handle without a picker', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.__pickerCalls = 0;
+      window.__written = null;
+      window.__mockWritable = {
+        write(c) { window.__written = c; return Promise.resolve(); },
+        close() { return Promise.resolve(); },
+      };
+      window.__mockHandle = {
+        createWritable() { return Promise.resolve(window.__mockWritable); },
+      };
+      window.showSaveFilePicker = async () => {
+        window.__pickerCalls++;
+        return window.__mockHandle;
+      };
+    });
+
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+
+    await page.evaluate(() => window.AppState.setText('first save', 'editor'));
+    await page.evaluate(() => Export.performSave());
+    await page.waitForTimeout(100);
+
+    await page.evaluate(() => window.AppState.setText('second save', 'editor'));
+    await page.evaluate(() => Export.performSave());
+    await page.waitForTimeout(100);
+
+    expect(await page.evaluate(() => window.__pickerCalls)).toBe(1);
+    expect(await page.evaluate(() => window.__written)).toBe('second save');
   });
 });
