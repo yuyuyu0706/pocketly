@@ -17,8 +17,13 @@ async function buildFixtureFolder() {
 async function importAndActivate(page, folder) {
   await page.goto('/');
   await page.waitForLoadState('networkidle');
+  // Issue #210: startup now always seeds+persists welcome.md, so importFolder()
+  // always finds an existing workspace and asks for confirmation before replacing it.
+  await page.evaluate(() => {
+    window.confirm = () => true;
+  });
   await page.setInputFiles('#folder-input', folder);
-  await page.waitForFunction(() => window.AppState.listDocuments().length >= 1);
+  await page.waitForFunction(() => window.Directory.getTree().some(d => d.path === 'a.md'));
   await page.evaluate(() => {
     const target = window.Directory.getTree().find(d => d.path === 'a.md');
     window.Directory.activateDocument(target.id);
@@ -47,12 +52,13 @@ test.describe('Workspace edit persistence and pasted-asset integration (Issue #1
     expect(text).toBe('# Root doc\n\nedited content');
   });
 
-  test('editing a non-directory-backed document does not write to IndexedDB', async ({ page }) => {
+  test('editing the seeded welcome.md on a fresh launch does write to IndexedDB (Issue #210)', async ({ page }) => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 1);
 
     await page.evaluate(() => {
-      window.AppState.setText('untracked edit', 'editor');
+      window.AppState.setText('# welcome edit', 'editor');
     });
     await page.waitForTimeout(500);
 
@@ -71,7 +77,8 @@ test.describe('Workspace edit persistence and pasted-asset integration (Issue #1
       db.close();
       return result;
     });
-    expect(workspace).toBeNull();
+    expect(workspace).not.toBeNull();
+    expect(workspace.documents).toEqual([{ path: 'welcome.md', text: '# welcome edit' }]);
   });
 
   test('pasted image on a directory-backed document inserts standard Markdown image syntax and survives reload', async ({ page }) => {
@@ -108,7 +115,7 @@ test.describe('Workspace edit persistence and pasted-asset integration (Issue #1
     expect(src.startsWith('blob:')).toBe(true);
   });
 
-  test('restoreOnStartup() ignores an empty-documents workspace record left by clearWorkspace() (Issue #181)', async ({ page }) => {
+  test('restoreOnStartup() seeds welcome.md for an empty-documents workspace record left by clearWorkspace() (Issue #181 / #210)', async ({ page }) => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
 
@@ -140,26 +147,41 @@ test.describe('Workspace edit persistence and pasted-asset integration (Issue #1
 
     const result = await page.evaluate(() => ({
       docCount: window.AppState.listDocuments().length,
-      activeText: window.AppState.getText()
+      activeText: window.AppState.getText(),
+      tree: window.Directory.getTree().map(entry => entry.path),
+      activePath: window.Directory.getActivePath()
     }));
 
     expect(result.docCount).toBe(1);
     expect(result.activeText).toBe(fallbackText);
+    expect(result.tree).toEqual(['welcome.md']);
+    expect(result.activePath).toBe('welcome.md');
   });
 
-  test('pasted image on a non-directory-backed document still uses imageMap/base64 syntax', async ({ page }) => {
+  test('true first launch (no IndexedDB record) seeds welcome.md, shows it in the tree, and keeps the "+" (new file) entry point available (Issue #210)', async ({ page }) => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 1);
 
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'mew-workspace-persist-nondir-'));
-    const filePath = path.join(root, 'pasted.png');
-    await fs.writeFile(filePath, Buffer.from(PNG_BASE64, 'base64'));
+    const fallbackText = await page.evaluate(() => window.AppState.getFallbackText());
 
-    await page.setInputFiles('#imageInput', filePath);
-    await page.waitForFunction(() => window.AppState.getText().includes('pasted.png'));
+    const result = await page.evaluate(() => ({
+      tree: window.Directory.getTree().map(entry => entry.path),
+      activePath: window.Directory.getActivePath(),
+      activeText: window.AppState.getText()
+    }));
 
-    const text = await page.evaluate(() => window.AppState.getText());
-    expect(text).toContain('<!-- image:pasted.png -->');
-    expect(text).not.toContain('](assets/pasted.png)');
+    expect(result.tree).toEqual(['welcome.md']);
+    expect(result.activePath).toBe('welcome.md');
+    expect(result.activeText).toBe(fallbackText);
+
+    await expect(page.locator('#file-tree')).not.toHaveClass(/hidden/);
+    await expect(page.locator('.file-tree-add-btn')).toBeVisible();
   });
+
+  // Note (Issue #210): restoreOnStartup() now always seeds+persists welcome.md,
+  // so currentImportedAt is never null after startup and every session is
+  // directory-backed from the first paint. The non-directory-backed
+  // imageMap/base64 paste path is no longer reachable via a plain page load;
+  // this scenario is intentionally no longer covered here.
 });

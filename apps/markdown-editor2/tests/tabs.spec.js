@@ -19,12 +19,17 @@ test.describe('Multi-tab (Issue #181 / MEW-012)', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
+    // Issue #210: startup now always seeds+persists welcome.md, so importFolder()
+    // always finds an existing workspace and asks for confirmation before replacing it.
+    await page.evaluate(() => {
+      window.confirm = () => true;
+    });
   });
 
-  test('the initial Welcome document is shown as a tab with the untitled label', async ({ page }) => {
+  test('the initial Welcome document is shown as a tab with its real filename (Issue #210)', async ({ page }) => {
     const tabBar = page.locator('#tab-bar');
     await expect(tabBar.locator('.tab-bar-item')).toHaveCount(1);
-    await expect(tabBar.locator('.tab-bar-item')).toContainText('Untitled');
+    await expect(tabBar.locator('.tab-bar-item')).toContainText('welcome.md');
   });
 
   // Folder import's fallback-active document is not deterministically the

@@ -29,6 +29,11 @@ async function buildFixtureFolder() {
 async function importAndActivate(page, folder) {
   await page.goto('/');
   await page.waitForLoadState('networkidle');
+  // Issue #210: startup now always seeds+persists welcome.md, so importFolder()
+  // always finds an existing workspace and asks for confirmation before replacing it.
+  await page.evaluate(() => {
+    window.confirm = () => true;
+  });
   await page.setInputFiles('#folder-input', folder);
   await page.waitForFunction(() => window.AppState.listDocuments().length >= 2);
 

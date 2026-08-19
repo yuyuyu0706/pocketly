@@ -38,6 +38,11 @@ test.describe('Cross-document search (Issue #193 / MEW-014)', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
+    // Issue #210: startup now always seeds+persists welcome.md, so importFolder()
+    // always finds an existing workspace and asks for confirmation before replacing it.
+    await page.evaluate(() => {
+      window.confirm = () => true;
+    });
   });
 
   test('Ctrl+Shift+F opens the modal', async ({ page }) => {
@@ -109,7 +114,7 @@ test.describe('Cross-document search (Issue #193 / MEW-014)', () => {
     await expect(page.locator('#crosssearch')).toHaveClass(/hidden/);
   });
 
-  test('Welcome document (not in fileRegistry) is included in results when it contains the query', async ({ page }) => {
+  test('seeded welcome.md is included in results when it contains the query (Issue #210)', async ({ page }) => {
     const activeText = await page.evaluate(() => window.AppState.getText());
     const word = activeText.trim().split(/\s+/).find(token => token.length > 3);
     test.skip(!word, 'Welcome document text has no usable search token');

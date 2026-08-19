@@ -20,6 +20,11 @@ test.describe('Quick switcher (Issue #191 / MEW-013)', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
+    // Issue #210: startup now always seeds+persists welcome.md, so importFolder()
+    // always finds an existing workspace and asks for confirmation before replacing it.
+    await page.evaluate(() => {
+      window.confirm = () => true;
+    });
   });
 
   test('Ctrl+P opens the modal without triggering the browser print dialog', async ({ page }) => {

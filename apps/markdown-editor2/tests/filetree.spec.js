@@ -35,11 +35,17 @@ test.describe('File tree (Issue #165 / MEW-011)', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
     await page.waitForLoadState('networkidle');
+    // Issue #210: startup now always seeds+persists welcome.md, so importFolder()
+    // always finds an existing workspace and asks for confirmation before replacing it.
+    await page.evaluate(() => {
+      window.confirm = () => true;
+    });
   });
 
-  test('file tree is hidden before a folder is imported', async ({ page }) => {
+  test('file tree shows the seeded welcome.md before any folder is imported (Issue #210)', async ({ page }) => {
     const fileTree = page.locator('#file-tree');
-    await expect(fileTree).toHaveClass(/hidden/);
+    await expect(fileTree).not.toHaveClass(/hidden/);
+    await expect(fileTree.locator('.file-tree-file', { hasText: 'welcome.md' })).toBeVisible();
     await expect(page.locator('#toc-headings')).toBeVisible();
   });
 
@@ -160,11 +166,16 @@ test.describe('File tree (Issue #165 / MEW-011)', () => {
   });
 
   test('does not regress the existing heading TOC when no folder is imported', async ({ page }) => {
+    // Issue #210: welcome.md is now the seeded active document and opens in
+    // read/preview mode, so the editor textarea must be switched to first.
+    await page.click('#toggle-mode');
     await page.fill('#editor', '# Heading A\n\nBody text.\n\n## Heading B\n');
     await page.dispatchEvent('#editor', 'input');
 
     const tocHeadings = page.locator('#toc-headings');
     await expect(tocHeadings.locator('.toc-item')).toHaveCount(2);
-    await expect(page.locator('#file-tree')).toHaveClass(/hidden/);
+    // Issue #210: the file tree is never hidden anymore (welcome.md keeps it
+    // non-empty), but it coexists with the heading TOC without regressing it.
+    await expect(page.locator('#file-tree')).not.toHaveClass(/hidden/);
   });
 });
