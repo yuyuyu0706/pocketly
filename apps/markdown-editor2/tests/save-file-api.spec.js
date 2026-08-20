@@ -317,6 +317,151 @@ test.describe('File System Access API: save', () => {
   });
 });
 
+test.describe('Export Markdown / Export Markdown As (Issue #212)', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.setViewportSize(VIEWPORT);
+  });
+
+  test('performSaveAs always opens the picker even when a handle already exists', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.__pickerCallCount = 0;
+      window.__mockWritable = {
+        write() { return Promise.resolve(); },
+        close() { return Promise.resolve(); },
+      };
+      window.__mockFileHandle = {
+        createWritable() { return Promise.resolve(window.__mockWritable); },
+      };
+      window.showSaveFilePicker = async () => {
+        window.__pickerCallCount++;
+        return window.__mockFileHandle;
+      };
+    });
+
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+
+    await page.evaluate(() => Export.performSave());
+    await page.waitForTimeout(100);
+    await page.evaluate(() => Export.performSaveAs());
+    await page.waitForTimeout(100);
+
+    const count = await page.evaluate(() => window.__pickerCallCount);
+    expect(count).toBe(2);
+  });
+
+  test('performSaveAs updates the stored handle so the next Export Markdown reuses the new location', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.__pickerCallCount = 0;
+      window.__writtenA = null;
+      window.__writtenB = null;
+      window.__mockWritableA = {
+        write(c) { window.__writtenA = c; return Promise.resolve(); },
+        close() { return Promise.resolve(); },
+      };
+      window.__mockHandleA = {
+        createWritable() { return Promise.resolve(window.__mockWritableA); },
+      };
+      window.__mockWritableB = {
+        write(c) { window.__writtenB = c; return Promise.resolve(); },
+        close() { return Promise.resolve(); },
+      };
+      window.__mockHandleB = {
+        createWritable() { return Promise.resolve(window.__mockWritableB); },
+      };
+      window.showSaveFilePicker = async () => {
+        window.__pickerCallCount++;
+        return window.__pickerCallCount === 1 ? window.__mockHandleA : window.__mockHandleB;
+      };
+    });
+
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+
+    await page.evaluate(() => window.AppState.setText('first location', 'editor'));
+    await page.evaluate(() => Export.performSave());
+    await page.waitForTimeout(100);
+    expect(await page.evaluate(() => window.__writtenA)).toBe('first location');
+
+    await page.evaluate(() => window.AppState.setText('new location', 'editor'));
+    await page.evaluate(() => Export.performSaveAs());
+    await page.waitForTimeout(100);
+    expect(await page.evaluate(() => window.__writtenB)).toBe('new location');
+
+    await page.evaluate(() => window.AppState.setText('subsequent save', 'editor'));
+    await page.evaluate(() => Export.performSave());
+    await page.waitForTimeout(100);
+
+    expect(await page.evaluate(() => window.__pickerCallCount)).toBe(2);
+    expect(await page.evaluate(() => window.__writtenB)).toBe('subsequent save');
+  });
+
+  test('Ctrl+S still triggers Export Markdown (performSave), not performSaveAs', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.__performSaveCalled = false;
+      window.__performSaveAsCalled = false;
+      window.__mockWritable = {
+        write() { return Promise.resolve(); },
+        close() { return Promise.resolve(); },
+      };
+      window.__mockFileHandle = {
+        createWritable() { return Promise.resolve(window.__mockWritable); },
+      };
+      window.showSaveFilePicker = async () => window.__mockFileHandle;
+    });
+
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+
+    await page.evaluate(() => {
+      const origSave = Export.performSave;
+      Export.performSave = function() { window.__performSaveCalled = true; return origSave(); };
+      const origSaveAs = Export.performSaveAs;
+      Export.performSaveAs = function() { window.__performSaveAsCalled = true; return origSaveAs(); };
+    });
+
+    await page.keyboard.press('Control+s');
+    await page.waitForTimeout(100);
+
+    expect(await page.evaluate(() => window.__performSaveCalled)).toBe(true);
+    expect(await page.evaluate(() => window.__performSaveAsCalled)).toBe(false);
+  });
+
+  test('Export Markdown As button click triggers performSaveAs via the picker', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.__pickerCalled = false;
+      window.__mockWritable = {
+        write() { return Promise.resolve(); },
+        close() { return Promise.resolve(); },
+      };
+      window.__mockFileHandle = {
+        createWritable() { return Promise.resolve(window.__mockWritable); },
+      };
+      window.showSaveFilePicker = async () => {
+        window.__pickerCalled = true;
+        return window.__mockFileHandle;
+      };
+    });
+
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+
+    await page.locator('#export-btn').click();
+    await page.locator('#export-markdown-as').click();
+    await page.waitForTimeout(100);
+
+    expect(await page.evaluate(() => window.__pickerCalled)).toBe(true);
+  });
+
+  test('Export Markdown label reflects the renamed toolbar button', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+
+    const label = await page.locator('#save-md').textContent();
+    expect(label).toMatch(/Export Markdown/);
+  });
+});
+
 test.describe('File System Access API: per-tab file handle (Issue #208 / MEW-043)', () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize(VIEWPORT);

@@ -26,6 +26,7 @@ function startApp() {
   const exportPdfBtn = document.getElementById('export-pdf');
   const exportHtmlBtn = document.getElementById('export-html');
   const saveMdBtn = document.getElementById('save-md');
+  const exportMarkdownAsBtn = document.getElementById('export-markdown-as');
   const openBtn = document.getElementById('open-btn');
   const openOptions = document.getElementById('open-options');
   const openMdBtn = document.getElementById('open-md');
@@ -143,7 +144,7 @@ function startApp() {
 
   function updateSaveBtnLabel() {
     if (!saveMdBtn) return;
-    const base = i18n.t('toolbar.save');
+    const base = i18n.t('toolbar.exportMarkdown');
     saveMdBtn.textContent = _isDirty ? base + i18n.t('toolbar.saveUnsaved') : base;
   }
 
@@ -653,7 +654,7 @@ function startApp() {
     reader.readAsDataURL(file);
   });
 
-  Export.init({ preview, i18n, triggerDownloadFromBlob, AppState, exportPdfBtn, exportHtmlBtn, saveMdBtn, closePiPBeforeNativeAction, onSaveSuccess: () => { _isDirty = false; updateSaveBtnLabel(); } });
+  Export.init({ preview, i18n, triggerDownloadFromBlob, AppState, exportPdfBtn, exportHtmlBtn, saveMdBtn, exportMarkdownAsBtn, closePiPBeforeNativeAction, onSaveSuccess: () => { _isDirty = false; updateSaveBtnLabel(); } });
 
   if (window.Directory) {
     Directory.init({ triggerDownloadFromBlob });

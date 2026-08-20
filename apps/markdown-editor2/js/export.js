@@ -198,7 +198,7 @@ body {
     _fileHandles.set(docId, handle);
   }
 
-  function init({ preview, i18n, triggerDownloadFromBlob, AppState, exportPdfBtn, exportHtmlBtn, saveMdBtn, closePiPBeforeNativeAction, onSaveSuccess }) {
+  function init({ preview, i18n, triggerDownloadFromBlob, AppState, exportPdfBtn, exportHtmlBtn, saveMdBtn, exportMarkdownAsBtn, closePiPBeforeNativeAction, onSaveSuccess }) {
     const closePiP = typeof closePiPBeforeNativeAction === 'function'
       ? closePiPBeforeNativeAction
       : () => Promise.resolve();
@@ -213,13 +213,22 @@ body {
       });
     }
 
-    async function performSave() {
-      const content = AppState.getText();
+    function getMarkdownFilename() {
       const defaultName = i18n.t('dialogs.defaultFileName');
       const trimmedName = typeof defaultName === 'string' && defaultName.trim()
         ? defaultName.trim() : 'document.md';
-      const filename = trimmedName.endsWith('.md') ? trimmedName : `${trimmedName}.md`;
+      return trimmedName.endsWith('.md') ? trimmedName : `${trimmedName}.md`;
+    }
 
+    async function writeToHandle(handle, content) {
+      const writable = await handle.createWritable();
+      await writable.write(content);
+      await writable.close();
+    }
+
+    async function performSave() {
+      const content = AppState.getText();
+      const filename = getMarkdownFilename();
       const docId = typeof AppState.getActiveDocumentId === 'function' ? AppState.getActiveDocumentId() : null;
 
       const fsApi = typeof window !== 'undefined' && typeof window.showSaveFilePicker === 'function';
@@ -235,9 +244,7 @@ body {
               _fileHandles.set(docId, handle);
             }
           }
-          const writable = await handle.createWritable();
-          await writable.write(content);
-          await writable.close();
+          await writeToHandle(handle, content);
           if (typeof onSaveSuccess === 'function') onSaveSuccess();
           return;
         } catch (err) {
@@ -266,7 +273,45 @@ body {
       }
     }
 
+    async function performSaveAs() {
+      const content = AppState.getText();
+      const filename = getMarkdownFilename();
+      const docId = typeof AppState.getActiveDocumentId === 'function' ? AppState.getActiveDocumentId() : null;
+
+      const fsApi = typeof window !== 'undefined' && typeof window.showSaveFilePicker === 'function';
+      if (fsApi) {
+        try {
+          const handle = await window.showSaveFilePicker({
+            suggestedName: filename,
+            types: [{ description: 'Markdown', accept: { 'text/markdown': ['.md'] } }],
+          });
+          if (docId) {
+            _fileHandles.set(docId, handle);
+          }
+          await writeToHandle(handle, content);
+          if (typeof onSaveSuccess === 'function') onSaveSuccess();
+          return;
+        } catch (err) {
+          if (err && err.name === 'AbortError') {
+            return;
+          }
+          console.warn('[Export] File System Access API write failed, falling back.', err);
+        }
+      }
+
+      try {
+        triggerDownloadFromBlob(
+          new Blob([content], { type: 'text/markdown;charset=utf-8' }),
+          filename
+        );
+        if (typeof onSaveSuccess === 'function') onSaveSuccess();
+      } catch (error) {
+        console.error('[Export] Failed to download Markdown file.', error);
+      }
+    }
+
     global.Export.performSave = performSave;
+    global.Export.performSaveAs = performSaveAs;
 
     if (exportPdfBtn) {
       exportPdfBtn.addEventListener('click', async () => {
@@ -355,6 +400,13 @@ body {
       saveMdBtn.addEventListener('click', async () => {
         await closePiP();
         await performSave();
+      });
+    }
+
+    if (exportMarkdownAsBtn) {
+      exportMarkdownAsBtn.addEventListener('click', async () => {
+        await closePiP();
+        await performSaveAs();
       });
     }
   }
