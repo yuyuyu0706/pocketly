@@ -351,6 +351,59 @@
     }
   }
 
+  function applyCodeBlockFormatting() {
+    if (!_editor) {
+      return;
+    }
+
+    const start = _editor.selectionStart;
+    const end = _editor.selectionEnd;
+    if (typeof start !== 'number' || typeof end !== 'number') {
+      return;
+    }
+
+    const selectionStart = Math.min(start, end);
+    const selectionEnd = Math.max(start, end);
+    const previousValue = _editor.value || '';
+    const selectedText = previousValue.slice(selectionStart, selectionEnd);
+    const prevScrollTop = _editor.scrollTop;
+
+    let nextSelectionStart = selectionStart;
+    let nextSelectionEnd = selectionEnd;
+    let replacement = '';
+
+    if (selectionStart === selectionEnd) {
+      replacement = '```\n\n```';
+      nextSelectionStart = selectionStart + 4;
+      nextSelectionEnd = nextSelectionStart;
+    } else if (
+      selectedText.startsWith('```\n') &&
+      selectedText.endsWith('\n```') &&
+      selectedText.length >= 8
+    ) {
+      replacement = selectedText.slice(4, -4);
+      nextSelectionEnd = nextSelectionStart + replacement.length;
+    } else {
+      replacement = `\`\`\`\n${selectedText}\n\`\`\``;
+      nextSelectionEnd = nextSelectionStart + replacement.length;
+    }
+
+    replaceEditorRange(selectionStart, selectionEnd, replacement);
+    _editor.scrollTop = prevScrollTop;
+    _editor.selectionStart = nextSelectionStart;
+    _editor.selectionEnd = nextSelectionEnd;
+
+    _Layout.updateEditorHighlight(_editor.value);
+    _AppState.setText(_editor.value, 'editor');
+    _Layout.updateLineNumbers();
+
+    try {
+      _editor.focus({ preventScroll: true });
+    } catch (error) {
+      _editor.focus();
+    }
+  }
+
   function applyExternalLinkFormatting() {
     if (!_editor) {
       return;
@@ -851,6 +904,18 @@
       hideFormattingMenu();
     });
 
+    const codeBlockButton = ownerDoc.createElement('button');
+    codeBlockButton.type = 'button';
+    codeBlockButton.className = 'formatting-menu-button';
+    codeBlockButton.dataset.action = 'code-block';
+    codeBlockButton.dataset.i18n = 'formatting.codeBlock';
+    codeBlockButton.setAttribute('role', 'menuitem');
+    codeBlockButton.textContent = _i18n.t('formatting.codeBlock');
+    codeBlockButton.addEventListener('click', () => {
+      applyCodeBlockFormatting();
+      hideFormattingMenu();
+    });
+
     const externalLinkButton = ownerDoc.createElement('button');
     externalLinkButton.type = 'button';
     externalLinkButton.className = 'formatting-menu-button';
@@ -902,6 +967,7 @@
 
     menu.appendChild(boldButton);
     menu.appendChild(inlineCodeButton);
+    menu.appendChild(codeBlockButton);
     menu.appendChild(externalLinkButton);
     menu.appendChild(copyButton);
     menu.appendChild(cutButton);

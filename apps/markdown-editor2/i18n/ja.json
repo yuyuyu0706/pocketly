@@ -62,6 +62,7 @@
   "formatting": {
     "bold": "太字",
     "inlineCode": "</> コード",
+    "codeBlock": "```コードブロック",
     "externalLink": "🔗 外部リンクを追加",
     "copy": "📋 コピー",
     "cut": "✂️ 切り取り",
