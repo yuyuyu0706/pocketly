@@ -83,7 +83,8 @@
   },
   "tabs": {
     "untitled": "Untitled",
-    "close": "Close tab"
+    "close": "Close tab",
+    "newFile": "New file"
   },
   "filetree": {
     "newFile": "New file",

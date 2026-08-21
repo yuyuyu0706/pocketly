@@ -492,6 +492,22 @@ main {
   background: rgba(0, 51, 102, 0.12);
 }
 
+.tab-bar-add-btn {
+  border: none;
+  background: transparent;
+  color: #3d7bd6;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 0.35rem 0.5rem;
+  align-self: center;
+}
+
+.tab-bar-add-btn:hover {
+  background-color: rgba(140, 170, 220, 0.12);
+}
+
 /* Shell constraints for #preview (layout/overflow); document appearance is in preview.css.
    flex:1/height:100% now live on the #preview-pane wrapper above; #preview itself
    only needs flex:1 + min-height:0 to fill the remaining column space below #tab-bar. */

@@ -19,6 +19,37 @@
     return typeof name === 'string' && name ? name : i18n.t('tabs.untitled');
   }
 
+  /**
+   * Compute a collision-free "newfile.md" / "newfile-N.md" path against the
+   * current directory tree (Issue #216).
+   * @returns {string}
+   */
+  function generateNewFileName() {
+    const existingPaths = new Set(_Directory.getTree().map(entry => entry.path));
+    if (!existingPaths.has('newfile.md')) {
+      return 'newfile.md';
+    }
+    let counter = 2;
+    while (existingPaths.has(`newfile-${counter}.md`)) {
+      counter += 1;
+    }
+    return `newfile-${counter}.md`;
+  }
+
+  /**
+   * Create a new file with an auto-generated name and activate it. Tab-bar
+   * addition is handled by the existing handleTextChanged() flow once the
+   * new document becomes active.
+   * @returns {void}
+   */
+  function handleNewTabClick() {
+    const name = generateNewFileName();
+    const result = _Directory.createFile(name);
+    if (result && result.created) {
+      _Directory.activateDocument(result.id);
+    }
+  }
+
   function render() {
     if (!_container) {
       return;
@@ -65,6 +96,17 @@
 
       _container.appendChild(tab);
     });
+
+    const newTabBtn = ownerDocument.createElement('button');
+    newTabBtn.type = 'button';
+    newTabBtn.className = 'tab-bar-add-btn';
+    newTabBtn.setAttribute('aria-label', i18n.t('tabs.newFile'));
+    newTabBtn.title = i18n.t('tabs.newFile');
+    newTabBtn.textContent = '+';
+    newTabBtn.addEventListener('click', () => {
+      handleNewTabClick();
+    });
+    _container.appendChild(newTabBtn);
   }
 
   /**

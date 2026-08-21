@@ -83,7 +83,8 @@
   },
   "tabs": {
     "untitled": "無題",
-    "close": "タブを閉じる"
+    "close": "タブを閉じる",
+    "newFile": "新規ファイル"
   },
   "filetree": {
     "newFile": "新規ファイル",
