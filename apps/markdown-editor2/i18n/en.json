@@ -62,6 +62,7 @@
   "formatting": {
     "bold": "𝐁 Bold",
     "inlineCode": "</> Code",
+    "codeBlock": "```Code Block",
     "externalLink": "🔗 Add External Link",
     "copy": "📋 Copy",
     "cut": "✂️ Cut",
