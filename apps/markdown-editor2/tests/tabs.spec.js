@@ -155,3 +155,41 @@ test.describe('Multi-tab (Issue #181 / MEW-012)', () => {
     expect(new Set([firstTabContent, secondTabContent])).toEqual(new Set(['# Notes A', '# Notes B']));
   });
 });
+
+test.describe('New-tab button (Issue #216)', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+    await page.evaluate(() => {
+      window.confirm = () => true;
+    });
+  });
+
+  test('the "+" button is always the last child of the tab bar', async ({ page }) => {
+    const tabBar = page.locator('#tab-bar');
+    await expect(tabBar.locator(':scope > *').last()).toHaveClass('tab-bar-add-btn');
+  });
+
+  test('clicking "+" creates newfile.md as a new, active tab', async ({ page }) => {
+    const tabBar = page.locator('#tab-bar');
+    await tabBar.locator('.tab-bar-add-btn').click();
+
+    await expect(tabBar.locator('.tab-bar-item', { hasText: 'newfile.md' })).toBeVisible();
+    await expect(tabBar.locator('.tab-bar-item', { hasText: 'newfile.md' })).toHaveClass(/active/);
+    await expect(page.locator('#editor')).toHaveValue('');
+  });
+
+  test('clicking "+" again avoids the name collision with a numeric suffix', async ({ page }) => {
+    const tabBar = page.locator('#tab-bar');
+    await tabBar.locator('.tab-bar-add-btn').click();
+    await expect(tabBar.locator('.tab-bar-item', { hasText: 'newfile.md' })).toBeVisible();
+
+    await tabBar.locator('.tab-bar-add-btn').click();
+    await expect(tabBar.locator('.tab-bar-item', { hasText: 'newfile-2.md' })).toBeVisible();
+
+    await tabBar.locator('.tab-bar-add-btn').click();
+    await expect(tabBar.locator('.tab-bar-item', { hasText: 'newfile-3.md' })).toBeVisible();
+
+    await expect(tabBar.locator('.tab-bar-item')).toHaveCount(4);
+  });
+});
