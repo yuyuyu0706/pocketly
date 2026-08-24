@@ -644,3 +644,118 @@ test.describe('Drag & drop move (Issue #206 / MEW-041 Lv4-2)', () => {
     await expect(fileTree.locator('.file-tree-file', { hasText: 'b.md' })).toHaveCount(0);
   });
 });
+
+test.describe('F2/Delete keyboard shortcuts (Issue #219 / Lv3-1)', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+    // Issue #210: startup now always seeds+persists welcome.md, so importFolder()
+    // always finds an existing workspace and asks for confirmation before replacing it.
+    await page.evaluate(() => {
+      window.__nativeConfirm = window.confirm.bind(window);
+      window.confirm = () => true;
+    });
+  });
+
+  test('F2 on a focused file opens the inline rename input', async ({ page }) => {
+    const folder = await buildFixtureFolder();
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 2);
+
+    const fileTree = page.locator('#file-tree');
+    await fileTree.locator('.file-tree-file', { hasText: 'a.md' }).locator('.file-tree-label').focus();
+    await page.keyboard.press('F2');
+
+    const renameInput = fileTree.locator('.file-tree-rename-input');
+    await expect(renameInput).toBeVisible();
+    await renameInput.fill('renamed.md');
+    await renameInput.press('Enter');
+
+    await expect(fileTree.locator('.file-tree-file', { hasText: 'renamed.md' })).toBeVisible();
+  });
+
+  test('Delete on a focused file shows a confirm dialog and deletes on accept', async ({ page }) => {
+    const folder = await buildFixtureFolder();
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 2);
+
+    await page.evaluate(() => {
+      window.__confirmCalls = 0;
+      window.confirm = () => {
+        window.__confirmCalls += 1;
+        return true;
+      };
+    });
+
+    const fileTree = page.locator('#file-tree');
+    await fileTree.locator('.file-tree-file', { hasText: 'a.md' }).locator('.file-tree-label').focus();
+    await page.keyboard.press('Delete');
+
+    await expect(fileTree.locator('.file-tree-file', { hasText: 'a.md' })).toHaveCount(0);
+    expect(await page.evaluate(() => window.__confirmCalls)).toBe(1);
+  });
+
+  test('F2 on a focused folder opens the inline folder rename input', async ({ page }) => {
+    const folder = await buildNestedFixtureFolder();
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 3);
+
+    const fileTree = page.locator('#file-tree');
+    await folderLabel(fileTree, 'docs').focus();
+    await page.keyboard.press('F2');
+
+    const renameInput = fileTree.locator('.file-tree-rename-input');
+    await expect(renameInput).toBeVisible();
+    await renameInput.fill('renamed-docs');
+    await renameInput.press('Enter');
+
+    await expect(folderLocator(fileTree, 'renamed-docs')).toBeVisible();
+  });
+
+  test('Delete on a focused folder shows a confirm dialog and deletes its contents on accept', async ({ page }) => {
+    const folder = await buildNestedFixtureFolder();
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 3);
+
+    await page.evaluate(() => {
+      window.__confirmCalls = 0;
+      window.confirm = () => {
+        window.__confirmCalls += 1;
+        return true;
+      };
+    });
+
+    const fileTree = page.locator('#file-tree');
+    await folderLabel(fileTree, 'other').focus();
+    await page.keyboard.press('Delete');
+
+    await expect(folderLocator(fileTree, 'other')).toHaveCount(0);
+    expect(await page.evaluate(() => window.__confirmCalls)).toBe(1);
+    const paths = await page.evaluate(() => window.Directory.getTree().map(d => d.path));
+    expect(paths).not.toContain('other/c.md');
+  });
+
+  test('Delete while the editor is focused deletes text, not the active file', async ({ page }) => {
+    const folder = await buildFixtureFolder();
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 2);
+
+    let dialogSeen = false;
+    page.on('dialog', () => { dialogSeen = true; });
+
+    const fileTree = page.locator('#file-tree');
+    await fileTree.locator('.file-tree-file', { hasText: 'a.md' }).locator('.file-tree-label').click();
+    await page.locator('#toggle-mode').click();
+
+    const editor = page.locator('#editor');
+    await editor.click();
+    await editor.press('Control+End');
+    const before = await editor.inputValue();
+    await editor.press('Delete');
+    const after = await editor.inputValue();
+
+    expect(dialogSeen).toBe(false);
+    expect(after.length).toBeLessThanOrEqual(before.length);
+    await expect(fileTree.locator('.file-tree-file', { hasText: 'a.md' })).toBeVisible();
+  });
+});
