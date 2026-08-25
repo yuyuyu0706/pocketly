@@ -356,6 +356,14 @@
             event.preventDefault();
             event.stopPropagation();
             toggle();
+          } else if (event.key === 'F2') {
+            event.preventDefault();
+            event.stopPropagation();
+            ctx.startRenameFolder(node.path);
+          } else if (event.key === 'Delete') {
+            event.preventDefault();
+            event.stopPropagation();
+            ctx.requestDeleteFolder(node.path);
           }
         });
 
@@ -425,6 +433,14 @@
             event.preventDefault();
             event.stopPropagation();
             activate();
+          } else if (event.key === 'F2') {
+            event.preventDefault();
+            event.stopPropagation();
+            ctx.startRename(node.id);
+          } else if (event.key === 'Delete') {
+            event.preventDefault();
+            event.stopPropagation();
+            ctx.requestDelete(node.id);
           }
         });
 
@@ -718,8 +734,10 @@
       submitRename,
       cancelRename,
       requestDelete,
+      startRenameFolder,
       submitRenameFolder,
       cancelRenameFolder,
+      requestDeleteFolder,
       startDrag,
       endDrag,
       isValidDropTarget,
