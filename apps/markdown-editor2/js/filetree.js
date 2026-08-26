@@ -378,6 +378,7 @@
         const label = ownerDocument.createElement('span');
         label.className = 'file-tree-label';
         label.textContent = node.name;
+        label.dataset.path = node.path;
         label.setAttribute('role', 'button');
         label.tabIndex = 0;
         label.setAttribute('aria-expanded', String(isOpen));
@@ -427,6 +428,38 @@
             event.preventDefault();
             event.stopPropagation();
             ctx.pasteClipboard(node);
+          } else if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            event.stopPropagation();
+            focusAdjacentLabel(label, 1);
+          } else if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            event.stopPropagation();
+            focusAdjacentLabel(label, -1);
+          } else if (event.key === 'ArrowRight') {
+            event.preventDefault();
+            event.stopPropagation();
+            if (!ctx.openFolders.has(node.path)) {
+              toggle();
+              focusLabelForPath(node.path);
+            } else {
+              const firstChildPath = findFirstChildPath(node);
+              if (firstChildPath) {
+                focusLabelForPath(firstChildPath);
+              }
+            }
+          } else if (event.key === 'ArrowLeft') {
+            event.preventDefault();
+            event.stopPropagation();
+            if (ctx.openFolders.has(node.path)) {
+              toggle();
+              focusLabelForPath(node.path);
+            } else {
+              const parentPath = parentPathOf(node.path);
+              if (parentPath !== null) {
+                focusLabelForPath(parentPath);
+              }
+            }
           }
         });
 
@@ -481,6 +514,7 @@
         const label = ownerDocument.createElement('span');
         label.className = 'file-tree-label';
         label.textContent = node.name;
+        label.dataset.path = node.path;
         label.setAttribute('role', 'button');
         label.tabIndex = 0;
 
@@ -524,6 +558,25 @@
             event.preventDefault();
             event.stopPropagation();
             ctx.pasteClipboard(node);
+          } else if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            event.stopPropagation();
+            focusAdjacentLabel(label, 1);
+          } else if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            event.stopPropagation();
+            focusAdjacentLabel(label, -1);
+          } else if (event.key === 'ArrowRight') {
+            event.preventDefault();
+            event.stopPropagation();
+            // Files have no children to descend into.
+          } else if (event.key === 'ArrowLeft') {
+            event.preventDefault();
+            event.stopPropagation();
+            const parentPath = parentPathOf(node.path);
+            if (parentPath !== null) {
+              focusLabelForPath(parentPath);
+            }
           }
         });
 
@@ -588,6 +641,67 @@
 
   function computeSignature(entries) {
     return entries.map(entry => `${entry.id}:${entry.path}`).sort().join('|');
+  }
+
+  /**
+   * Move focus to the file-tree label for a logical item identified by
+   * `path`, if currently rendered (Issue #223 / MEW-041 Lv3-3). Uses a
+   * plain array search rather than an attribute-selector lookup so paths
+   * containing characters that would need CSS escaping still match.
+   * @param {string} path
+   */
+  function focusLabelForPath(path) {
+    if (!_container) {
+      return;
+    }
+    const labels = Array.from(_container.querySelectorAll('.file-tree-label'));
+    const target = labels.find(el => el.dataset.path === path);
+    if (target) {
+      target.focus();
+    }
+  }
+
+  /**
+   * Move focus from `currentLabel` to the previous/next currently-visible
+   * label in document order (Issue #223 / MEW-041 Lv3-3 ↑↓). Closed
+   * folders never render their children, so `.file-tree-label` already
+   * only ever contains the visible set -- no extra filtering needed.
+   * @param {HTMLElement} currentLabel
+   * @param {1|-1} direction
+   */
+  function focusAdjacentLabel(currentLabel, direction) {
+    if (!_container) {
+      return;
+    }
+    const labels = Array.from(_container.querySelectorAll('.file-tree-label'));
+    const index = labels.indexOf(currentLabel);
+    if (index === -1) {
+      return;
+    }
+    const nextIndex = index + direction;
+    if (nextIndex >= 0 && nextIndex < labels.length) {
+      labels[nextIndex].focus();
+    }
+  }
+
+  /**
+   * Path of `path`'s parent folder ('' for the workspace root), or null if
+   * `path` is already at the root (no parent to move focus to).
+   * @param {string} path
+   * @returns {string|null}
+   */
+  function parentPathOf(path) {
+    return path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : null;
+  }
+
+  /**
+   * Path of the first child of an open folder `node`, or null if it has no
+   * children (Issue #223 / MEW-041 Lv3-3 →).
+   * @param {object} node
+   * @returns {string|null}
+   */
+  function findFirstChildPath(node) {
+    return node.children && node.children.length ? node.children[0].path : null;
   }
 
   function updateActiveHighlight() {

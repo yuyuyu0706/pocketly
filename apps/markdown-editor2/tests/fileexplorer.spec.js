@@ -760,6 +760,146 @@ test.describe('F2/Delete keyboard shortcuts (Issue #219 / Lv3-1)', () => {
   });
 });
 
+test.describe('Arrow key navigation (Issue #223 / MEW-041 Lv3-3)', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+    // Issue #210: startup now always seeds+persists welcome.md, so importFolder()
+    // always finds an existing workspace and asks for confirmation before replacing it.
+    await page.evaluate(() => {
+      window.__nativeConfirm = window.confirm.bind(window);
+      window.confirm = () => true;
+    });
+  });
+
+  function focusedLabelText(page) {
+    return page.evaluate(() => document.activeElement && document.activeElement.textContent);
+  }
+
+  // buildNestedFixtureFolder() -> root: docs/, other/; docs/: sub/, a.md;
+  // docs/sub/: b.md; other/: c.md. All folders start expanded (newly
+  // discovered folders auto-expand), so the visible label order is:
+  // docs, sub, b.md, a.md, other, c.md.
+
+  test('ArrowDown moves focus to the next visible item', async ({ page }) => {
+    const folder = await buildNestedFixtureFolder();
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 3);
+
+    const fileTree = page.locator('#file-tree');
+    await folderLabel(fileTree, 'docs').focus();
+    await page.keyboard.press('ArrowDown');
+
+    expect(await focusedLabelText(page)).toBe('sub');
+  });
+
+  test('ArrowUp moves focus to the previous visible item', async ({ page }) => {
+    const folder = await buildNestedFixtureFolder();
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 3);
+
+    const fileTree = page.locator('#file-tree');
+    await folderLabel(fileTree, 'sub').focus();
+    await page.keyboard.press('ArrowUp');
+
+    expect(await focusedLabelText(page)).toBe('docs');
+  });
+
+  test('ArrowRight on a closed folder opens it and keeps focus on itself', async ({ page }) => {
+    const folder = await buildNestedFixtureFolder();
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 3);
+
+    const fileTree = page.locator('#file-tree');
+    await folderLabel(fileTree, 'other').focus();
+    await page.keyboard.press('ArrowLeft'); // close it first
+    await expect(folderLocator(fileTree, 'other')).not.toHaveClass(/open/);
+
+    await folderLabel(fileTree, 'other').focus();
+    await page.keyboard.press('ArrowRight');
+
+    await expect(folderLocator(fileTree, 'other')).toHaveClass(/open/);
+    expect(await focusedLabelText(page)).toBe('other');
+  });
+
+  test('ArrowRight on an open folder moves focus to its first child', async ({ page }) => {
+    const folder = await buildNestedFixtureFolder();
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 3);
+
+    const fileTree = page.locator('#file-tree');
+    await folderLabel(fileTree, 'docs').focus();
+    await page.keyboard.press('ArrowRight');
+
+    expect(await focusedLabelText(page)).toBe('sub');
+  });
+
+  test('ArrowRight on a file does nothing', async ({ page }) => {
+    const folder = await buildNestedFixtureFolder();
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 3);
+
+    const fileTree = page.locator('#file-tree');
+    await fileTree.locator('.file-tree-file', { hasText: 'a.md' }).locator('.file-tree-label').focus();
+    await page.keyboard.press('ArrowRight');
+
+    expect(await focusedLabelText(page)).toBe('a.md');
+  });
+
+  test('ArrowLeft on an open folder closes it and keeps focus on itself', async ({ page }) => {
+    const folder = await buildNestedFixtureFolder();
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 3);
+
+    const fileTree = page.locator('#file-tree');
+    await folderLabel(fileTree, 'docs').focus();
+    await page.keyboard.press('ArrowLeft');
+
+    await expect(folderLocator(fileTree, 'docs')).not.toHaveClass(/open/);
+    expect(await focusedLabelText(page)).toBe('docs');
+  });
+
+  test('ArrowLeft on a closed folder or file moves focus to the parent folder', async ({ page }) => {
+    const folder = await buildNestedFixtureFolder();
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 3);
+
+    const fileTree = page.locator('#file-tree');
+    await fileTree.locator('.file-tree-file', { hasText: 'a.md' }).locator('.file-tree-label').focus();
+    await page.keyboard.press('ArrowLeft');
+
+    expect(await focusedLabelText(page)).toBe('docs');
+  });
+
+  test('ArrowLeft on a root-level item does nothing', async ({ page }) => {
+    const folder = await buildNestedFixtureFolder();
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 3);
+
+    const fileTree = page.locator('#file-tree');
+    await folderLabel(fileTree, 'docs').focus();
+    await page.keyboard.press('ArrowLeft'); // close docs
+    await folderLabel(fileTree, 'docs').focus();
+    await page.keyboard.press('ArrowLeft'); // closed root item: no-op
+
+    expect(await focusedLabelText(page)).toBe('docs');
+  });
+
+  test('focus is preserved on the toggled folder after a re-render', async ({ page }) => {
+    const folder = await buildNestedFixtureFolder();
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 3);
+
+    const fileTree = page.locator('#file-tree');
+    await folderLabel(fileTree, 'other').focus();
+    await page.keyboard.press('ArrowLeft');
+    await page.keyboard.press('ArrowRight');
+
+    await expect(folderLocator(fileTree, 'other')).toHaveClass(/open/);
+    expect(await focusedLabelText(page)).toBe('other');
+  });
+});
+
 test.describe('Ctrl+X/C/V clipboard shortcuts (Issue #221 / MEW-041 Lv3-2)', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
