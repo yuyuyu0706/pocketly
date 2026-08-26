@@ -296,6 +296,13 @@
     'M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z';
   const FILE_ICON_PATH =
     'M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z';
+  // Heroicons v2 outline "chevron-right", copied verbatim from
+  // https://github.com/tailwindlabs/heroicons (optimized/24/outline).
+  // Replaces a text-glyph (▸) toggle arrow (Issue #223 follow-up):
+  // the glyph's visual center didn't line up with its CSS box center, and
+  // no amount of translateY tuning converged -- an SVG with an explicit
+  // viewBox has no such ambiguity.
+  const CHEVRON_RIGHT_ICON_PATH = 'm8.25 4.5 7.5 7.5-7.5 7.5';
 
   /**
    * Inline SVG icon (Heroicons outline style: stroke: currentColor, colored
@@ -319,6 +326,32 @@
     path.setAttribute('stroke-linecap', 'round');
     path.setAttribute('stroke-linejoin', 'round');
     path.setAttribute('d', type === 'folder' ? FOLDER_ICON_PATH : FILE_ICON_PATH);
+    svg.appendChild(path);
+    return svg;
+  }
+
+  /**
+   * Inline SVG chevron used as the folder open/closed toggle indicator
+   * (Issue #223 follow-up), drawn the same way as renderTreeIcon() so it
+   * shares its stroke/viewBox conventions. Rotation between closed (▸) and
+   * open (▼-equivalent) is applied purely via the .open CSS class.
+   * @param {Document} ownerDocument
+   * @returns {SVGSVGElement}
+   */
+  function renderToggleIcon(ownerDocument) {
+    const svg = ownerDocument.createElementNS(SVG_NS, 'svg');
+    svg.setAttribute('class', 'file-tree-toggle-icon');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('width', '14');
+    svg.setAttribute('height', '14');
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('stroke', 'currentColor');
+    svg.setAttribute('stroke-width', '1.5');
+    svg.setAttribute('aria-hidden', 'true');
+    const path = ownerDocument.createElementNS(SVG_NS, 'path');
+    path.setAttribute('stroke-linecap', 'round');
+    path.setAttribute('stroke-linejoin', 'round');
+    path.setAttribute('d', CHEVRON_RIGHT_ICON_PATH);
     svg.appendChild(path);
     return svg;
   }
@@ -469,6 +502,7 @@
           ctx.openFolderMenu(node, li);
         });
 
+        row.appendChild(renderToggleIcon(ownerDocument));
         row.appendChild(renderTreeIcon(ownerDocument, 'folder'));
         row.appendChild(label);
         li.appendChild(row);
