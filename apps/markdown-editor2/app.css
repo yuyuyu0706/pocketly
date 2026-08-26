@@ -717,6 +717,7 @@ main {
   content: '▸';
   display: inline-block;
   width: 1em;
+  vertical-align: middle; /* Fixes baseline-default misalignment against the icon/label. */
   transition: transform 0.15s ease;
 }
 
@@ -759,6 +760,7 @@ main {
 #file-tree .file-tree-icon {
   flex: none;
   color: #88b4ff; /* Default: file. */
+  vertical-align: middle; /* Fixes baseline-default misalignment against the label. */
 }
 
 #file-tree .file-tree-folder > .file-tree-row .file-tree-icon {
