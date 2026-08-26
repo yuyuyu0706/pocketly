@@ -759,3 +759,131 @@ test.describe('F2/Delete keyboard shortcuts (Issue #219 / Lv3-1)', () => {
     await expect(fileTree.locator('.file-tree-file', { hasText: 'a.md' })).toBeVisible();
   });
 });
+
+test.describe('Ctrl+X/C/V clipboard shortcuts (Issue #221 / MEW-041 Lv3-2)', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+    // Issue #210: startup now always seeds+persists welcome.md, so importFolder()
+    // always finds an existing workspace and asks for confirmation before replacing it.
+    await page.evaluate(() => {
+      window.__nativeConfirm = window.confirm.bind(window);
+      window.confirm = () => true;
+    });
+  });
+
+  async function getPaths(page) {
+    return page.evaluate(() => window.Directory.getTree().map(d => d.path).sort());
+  }
+
+  test('Ctrl+X then Ctrl+V on another folder moves the file', async ({ page }) => {
+    const folder = await buildNestedFixtureFolder();
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 3);
+
+    const fileTree = page.locator('#file-tree');
+    await fileTree.locator('.file-tree-file', { hasText: 'a.md' }).locator('.file-tree-label').focus();
+    await page.keyboard.press('Control+X');
+    await folderLabel(fileTree, 'other').focus();
+    await page.keyboard.press('Control+V');
+
+    const paths = await getPaths(page);
+    expect(paths).toContain('other/a.md');
+    expect(paths).not.toContain('docs/a.md');
+  });
+
+  test('Ctrl+C then Ctrl+V duplicates the file, leaving the source in place', async ({ page }) => {
+    const folder = await buildNestedFixtureFolder();
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 3);
+
+    const fileTree = page.locator('#file-tree');
+    await fileTree.locator('.file-tree-file', { hasText: 'a.md' }).locator('.file-tree-label').focus();
+    await page.keyboard.press('Control+C');
+    await folderLabel(fileTree, 'other').focus();
+    await page.keyboard.press('Control+V');
+
+    const paths = await getPaths(page);
+    expect(paths).toContain('docs/a.md');
+    expect(paths).toContain('other/a.md');
+  });
+
+  test('copy/paste within the same folder resolves the naming collision with a "-2" suffix', async ({ page }) => {
+    const folder = await buildNestedFixtureFolder();
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 3);
+
+    const fileTree = page.locator('#file-tree');
+    await fileTree.locator('.file-tree-file', { hasText: 'a.md' }).locator('.file-tree-label').focus();
+    await page.keyboard.press('Control+C');
+    await folderLabel(fileTree, 'docs').focus();
+    await page.keyboard.press('Control+V');
+
+    const paths = await getPaths(page);
+    expect(paths).toContain('docs/a.md');
+    expect(paths).toContain('docs/a-2.md');
+  });
+
+  test('Ctrl+C allows repeated pastes; Ctrl+X is consumed after one paste', async ({ page }) => {
+    const folder = await buildNestedFixtureFolder();
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 3);
+
+    const fileTree = page.locator('#file-tree');
+    await fileTree.locator('.file-tree-file', { hasText: 'a.md' }).locator('.file-tree-label').focus();
+    await page.keyboard.press('Control+C');
+    await folderLabel(fileTree, 'docs').focus();
+    await page.keyboard.press('Control+V');
+    // rerender() rebuilds the tree DOM after each paste, dropping focus, so
+    // the destination folder label must be refocused before the next paste.
+    await folderLabel(fileTree, 'docs').focus();
+    await page.keyboard.press('Control+V');
+
+    let paths = await getPaths(page);
+    expect(paths).toContain('docs/a-2.md');
+    expect(paths).toContain('docs/a-3.md');
+
+    await fileTree.locator('.file-tree-file', { hasText: 'b.md' }).locator('.file-tree-label').focus();
+    await page.keyboard.press('Control+X');
+    await folderLabel(fileTree, 'other').focus();
+    await page.keyboard.press('Control+V');
+    const countAfterFirstPaste = (await getPaths(page)).length;
+    await folderLabel(fileTree, 'other').focus();
+    await page.keyboard.press('Control+V');
+    const countAfterSecondPaste = (await getPaths(page)).length;
+
+    expect(countAfterSecondPaste).toBe(countAfterFirstPaste);
+  });
+
+  test('cutting/copying a folder moves/copies its nested files', async ({ page }) => {
+    const folder = await buildNestedFixtureFolder();
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 3);
+
+    const fileTree = page.locator('#file-tree');
+    await folderLabel(fileTree, 'other').focus();
+    await page.keyboard.press('Control+C');
+    await folderLabel(fileTree, 'docs').focus();
+    await page.keyboard.press('Control+V');
+
+    const paths = await getPaths(page);
+    expect(paths).toContain('other/c.md');
+    expect(paths).toContain('docs/other/c.md');
+  });
+
+  test('copying a folder into its own descendant is silently ignored', async ({ page }) => {
+    const folder = await buildNestedFixtureFolder();
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 3);
+
+    const fileTree = page.locator('#file-tree');
+    await folderLabel(fileTree, 'docs').focus();
+    await page.keyboard.press('Control+C');
+    await folderLabel(fileTree, 'sub').focus();
+    const beforePaths = await getPaths(page);
+    await page.keyboard.press('Control+V');
+    const afterPaths = await getPaths(page);
+
+    expect(afterPaths).toEqual(beforePaths);
+  });
+});

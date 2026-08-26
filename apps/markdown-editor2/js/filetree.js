@@ -99,6 +99,7 @@
   // Drag & drop move state (Issue #206 / MEW-041 Lv4-2). Module-scoped since
   // dataTransfer serialization is unnecessary for same-window drag/drop.
   let draggedItem = null; // { path, type: 'file'|'folder' } or null when idle
+  let _clipboard = null; // { path, type: 'cut'|'copy', isFolder } or null when empty (Issue #221 / MEW-041 Lv3-2)
 
   function closeMenu() {
     if (_activeMenu && _activeMenu.parentNode) {
@@ -364,6 +365,18 @@
             event.preventDefault();
             event.stopPropagation();
             ctx.requestDeleteFolder(node.path);
+          } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'x') {
+            event.preventDefault();
+            event.stopPropagation();
+            _clipboard = { path: node.path, type: 'cut', isFolder: true };
+          } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'c') {
+            event.preventDefault();
+            event.stopPropagation();
+            _clipboard = { path: node.path, type: 'copy', isFolder: true };
+          } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'v') {
+            event.preventDefault();
+            event.stopPropagation();
+            ctx.pasteClipboard(node);
           }
         });
 
@@ -441,6 +454,18 @@
             event.preventDefault();
             event.stopPropagation();
             ctx.requestDelete(node.id);
+          } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'x') {
+            event.preventDefault();
+            event.stopPropagation();
+            _clipboard = { path: node.path, type: 'cut', isFolder: false };
+          } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'c') {
+            event.preventDefault();
+            event.stopPropagation();
+            _clipboard = { path: node.path, type: 'copy', isFolder: false };
+          } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'v') {
+            event.preventDefault();
+            event.stopPropagation();
+            ctx.pasteClipboard(node);
           }
         });
 
@@ -718,6 +743,37 @@
     // are silently ignored (Issue #206 §2-4).
   }
 
+  /**
+   * Apply the current clipboard entry (set by Ctrl+X/Ctrl+C) to `targetNode`
+   * on Ctrl+V (Issue #221 / MEW-041 Lv3-2). The destination folder is
+   * derived the same way drag & drop resolves a drop target: a folder node
+   * pastes inside itself, a file node pastes into its parent folder. A cut
+   * is consumed after one paste; a copy stays on the clipboard so it can be
+   * pasted repeatedly.
+   * @param {{ path: string, type: 'file'|'folder' }} targetNode
+   */
+  function pasteClipboard(targetNode) {
+    if (!_clipboard) {
+      return;
+    }
+    const targetFolderPath = targetNode.type === 'folder'
+      ? targetNode.path
+      : (targetNode.path.includes('/') ? targetNode.path.slice(0, targetNode.path.lastIndexOf('/')) : '');
+    const { path, type, isFolder } = _clipboard;
+    if (type === 'cut') {
+      _clipboard = null;
+      if (isFolder) {
+        _Directory.moveFolder(path, targetFolderPath);
+      } else {
+        _Directory.moveFile(path, targetFolderPath);
+      }
+    } else if (isFolder) {
+      _Directory.copyFolder(path, targetFolderPath);
+    } else {
+      _Directory.copyFile(path, targetFolderPath);
+    }
+  }
+
   function makeCtx() {
     return {
       openFolders,
@@ -742,6 +798,7 @@
       endDrag,
       isValidDropTarget,
       dropOn,
+      pasteClipboard,
       openFileMenu: (node, anchorEl) => {
         const ownerDocument = _container.ownerDocument || document;
         openMenuFor(anchorEl, ownerDocument, [
