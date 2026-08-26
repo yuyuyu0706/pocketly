@@ -906,4 +906,57 @@ test.describe('Ctrl+X/C/V clipboard shortcuts (Issue #221 / MEW-041 Lv3-2)', () 
 
     expect(afterPaths).toEqual(beforePaths);
   });
+
+  test('the copy indicator fades out after 2.5s but Ctrl+V still works afterward', async ({ page }) => {
+    const folder = await buildNestedFixtureFolder();
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 3);
+
+    // Install the clock only after setup so setInputFiles/waitForFunction
+    // above aren't affected; COPY_INDICATOR_DURATION's timer is created
+    // (and thus controlled) after this point.
+    await page.clock.install();
+
+    const fileTree = page.locator('#file-tree');
+    const item = fileTree.locator('.file-tree-file', { hasText: 'a.md' });
+    await item.locator('.file-tree-label').focus();
+    await page.keyboard.press('Control+C');
+    await expect(item).toHaveClass(/file-tree-item-copy/);
+
+    await page.clock.fastForward(2500);
+    await expect(item).not.toHaveClass(/file-tree-item-copy/);
+
+    await folderLabel(fileTree, 'other').focus();
+    await page.keyboard.press('Control+V');
+
+    const paths = await getPaths(page);
+    expect(paths).toContain('other/a.md');
+    expect(paths).toContain('docs/a.md');
+  });
+
+  test('a new Ctrl+C resets the copy indicator fade timer', async ({ page }) => {
+    const folder = await buildNestedFixtureFolder();
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 3);
+
+    await page.clock.install();
+
+    const fileTree = page.locator('#file-tree');
+    const item = fileTree.locator('.file-tree-file', { hasText: 'a.md' });
+    await item.locator('.file-tree-label').focus();
+    await page.keyboard.press('Control+C');
+    await expect(item).toHaveClass(/file-tree-item-copy/);
+
+    await page.clock.fastForward(2000);
+    await expect(item).toHaveClass(/file-tree-item-copy/);
+
+    // Re-copying before the timer fires resets it back to the full duration.
+    await item.locator('.file-tree-label').focus();
+    await page.keyboard.press('Control+C');
+    await page.clock.fastForward(2000);
+    await expect(item).toHaveClass(/file-tree-item-copy/);
+
+    await page.clock.fastForward(600);
+    await expect(item).not.toHaveClass(/file-tree-item-copy/);
+  });
 });

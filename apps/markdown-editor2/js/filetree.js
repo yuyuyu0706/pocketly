@@ -101,6 +101,36 @@
   let draggedItem = null; // { path, type: 'file'|'folder' } or null when idle
   let _clipboard = null; // { path, type: 'cut'|'copy', isFolder } or null when empty (Issue #221 / MEW-041 Lv3-2)
 
+  // Copy-indicator fade-out (Issue #221 / MEW-041 Lv3-2 follow-up): the
+  // dashed-outline copy indicator is a purely visual, time-limited cue,
+  // separate from _clipboard itself (which stays intact so Ctrl+V keeps
+  // working after the indicator fades) -- the same separation of "temporary
+  // visual feedback" from "underlying state" as preview.js's
+  // SEARCH_MATCH_FLASH_DURATION heading-flash.
+  let _copyIndicatorTimer = null;
+  let _showCopyIndicator = false;
+  const COPY_INDICATOR_DURATION = 2500;
+
+  function markCopyIndicator() {
+    _showCopyIndicator = true;
+    if (_copyIndicatorTimer) {
+      clearTimeout(_copyIndicatorTimer);
+    }
+    _copyIndicatorTimer = setTimeout(() => {
+      _showCopyIndicator = false;
+      // render()/rerender() replace the tree's innerHTML wholesale, which
+      // would swap in a fresh element with no outline instead of animating
+      // an existing one's outline-color away -- so the fade is done as a
+      // direct, targeted class removal on the live node(s) instead of a
+      // full rerender().
+      if (_container) {
+        _container.querySelectorAll('.file-tree-item-copy').forEach(el => {
+          el.classList.remove('file-tree-item-copy');
+        });
+      }
+    }, COPY_INDICATOR_DURATION);
+  }
+
   function closeMenu() {
     if (_activeMenu && _activeMenu.parentNode) {
       _activeMenu.parentNode.removeChild(_activeMenu);
@@ -310,7 +340,11 @@
       // app.css; text stays full-strength to match OS file-explorer
       // conventions), a copy item's row gets a dashed outline.
       if (ctx.clipboard && ctx.clipboard.path === node.path && ctx.clipboard.isFolder === (node.type === 'folder')) {
-        li.classList.add(ctx.clipboard.type === 'cut' ? 'file-tree-item-cut' : 'file-tree-item-copy');
+        if (ctx.clipboard.type === 'cut') {
+          li.classList.add('file-tree-item-cut');
+        } else if (ctx.showCopyIndicator) {
+          li.classList.add('file-tree-item-copy');
+        }
       }
 
       li.draggable = true;
@@ -377,11 +411,17 @@
             event.preventDefault();
             event.stopPropagation();
             _clipboard = { path: node.path, type: 'cut', isFolder: true };
+            _showCopyIndicator = false;
+            if (_copyIndicatorTimer) {
+              clearTimeout(_copyIndicatorTimer);
+              _copyIndicatorTimer = null;
+            }
             ctx.rerender();
           } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'c') {
             event.preventDefault();
             event.stopPropagation();
             _clipboard = { path: node.path, type: 'copy', isFolder: true };
+            markCopyIndicator();
             ctx.rerender();
           } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'v') {
             event.preventDefault();
@@ -468,11 +508,17 @@
             event.preventDefault();
             event.stopPropagation();
             _clipboard = { path: node.path, type: 'cut', isFolder: false };
+            _showCopyIndicator = false;
+            if (_copyIndicatorTimer) {
+              clearTimeout(_copyIndicatorTimer);
+              _copyIndicatorTimer = null;
+            }
             ctx.rerender();
           } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'c') {
             event.preventDefault();
             event.stopPropagation();
             _clipboard = { path: node.path, type: 'copy', isFolder: false };
+            markCopyIndicator();
             ctx.rerender();
           } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'v') {
             event.preventDefault();
@@ -792,6 +838,7 @@
       Directory: _Directory,
       rerender,
       clipboard: _clipboard,
+      showCopyIndicator: _showCopyIndicator,
       pendingCreateFolder,
       pendingRenameId,
       pendingRenameFolderPath,
