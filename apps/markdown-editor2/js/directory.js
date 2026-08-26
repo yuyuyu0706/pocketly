@@ -290,6 +290,54 @@
     return { applied: true, count: renames.length, affectedIds: renames.map(r => r.id) };
   }
 
+  /**
+   * Derive a collision-free filename for a copy operation (Issue #221 /
+   * MEW-041 Lv3-2). If `baseName` doesn't collide with an existing path
+   * under `targetFolderPath`, it is returned unchanged; otherwise a "-2",
+   * "-3", ... suffix is inserted before the extension until a free name is
+   * found (the same pattern generateNewFileName() in tabs.js uses for
+   * "newfile", generalized here to any base name).
+   * @param {string} baseName
+   * @param {string} [targetFolderPath]
+   * @returns {string}
+   */
+  function generateCopyName(baseName, targetFolderPath) {
+    const prefix = targetFolderPath ? `${targetFolderPath}/` : '';
+    if (!pathIndex.has(`${prefix}${baseName}`)) {
+      return baseName;
+    }
+    const dotIndex = baseName.lastIndexOf('.');
+    const stem = dotIndex === -1 ? baseName : baseName.slice(0, dotIndex);
+    const ext = dotIndex === -1 ? '' : baseName.slice(dotIndex);
+    let counter = 2;
+    while (pathIndex.has(`${prefix}${stem}-${counter}${ext}`)) {
+      counter += 1;
+    }
+    return `${stem}-${counter}${ext}`;
+  }
+
+  /**
+   * Derive a collision-free folder name for a copy operation (Issue #221 /
+   * MEW-041 Lv3-2), following the same "-2", "-3", ... suffix pattern as
+   * generateCopyName() but checking for any existing path nested under the
+   * candidate folder rather than a single file path.
+   * @param {string} baseName
+   * @param {string} [targetFolderPath]
+   * @returns {string}
+   */
+  function generateCopyFolderName(baseName, targetFolderPath) {
+    const prefix = targetFolderPath ? `${targetFolderPath}/` : '';
+    const hasFolder = name => Array.from(pathIndex.keys()).some(p => p.startsWith(`${prefix}${name}/`));
+    if (!hasFolder(baseName)) {
+      return baseName;
+    }
+    let counter = 2;
+    while (hasFolder(`${baseName}-${counter}`)) {
+      counter += 1;
+    }
+    return `${baseName}-${counter}`;
+  }
+
   function isExcludedPath(relativePath) {
     const segments = relativePath.split('/');
     return segments.some(seg => seg.startsWith('.') || EXCLUDED_SEGMENTS.includes(seg));
@@ -916,6 +964,83 @@
       scheduleWorkspacePersist();
       Bus.emit('directory:changed', { type: 'delete-folder', path: folderPath, affectedIds });
       return { deleted: true, count: affectedIds.length };
+    },
+
+    /**
+     * Copy a single directory-backed file into a (possibly different)
+     * folder (Issue #221 / MEW-041 Lv3-2 Ctrl+C/Ctrl+V), leaving the source
+     * file untouched. Unlike moveFile(), a naming collision is resolved
+     * automatically via generateCopyName() rather than rejected.
+     * @param {string} sourcePath
+     * @param {string} [targetFolderPath]
+     * @returns {{ copied: boolean, id?: string, path?: string, reason?: 'not-found' }}
+     */
+    copyFile(sourcePath, targetFolderPath) {
+      const id = pathIndex.get(sourcePath);
+      if (!id) {
+        return { copied: false, reason: 'not-found' };
+      }
+      const entry = fileRegistry.get(id);
+      const baseName = sourcePath.includes('/') ? sourcePath.slice(sourcePath.lastIndexOf('/') + 1) : sourcePath;
+      const newName = generateCopyName(baseName, targetFolderPath);
+      const newPath = targetFolderPath ? `${targetFolderPath}/${newName}` : newName;
+
+      const newId = AppState.openDocument(entry.text, { path: newPath, name: newName });
+      fileRegistry.set(newId, { path: newPath, name: newName, loaded: true, text: entry.text });
+      pathIndex.set(newPath, newId);
+
+      scheduleWorkspacePersist();
+      Bus.emit('directory:changed', { type: 'copy-file', id: newId, path: newPath });
+      return { copied: true, id: newId, path: newPath };
+    },
+
+    /**
+     * Copy a folder (and everything nested under it) into a (possibly
+     * different) parent folder (Issue #221 / MEW-041 Lv3-2 Ctrl+C/Ctrl+V),
+     * leaving the source folder untouched. Copying a folder into itself or
+     * one of its own descendants is silently ignored (no error, no change),
+     * mirroring moveFolder()'s circular-move guard. Naming collisions for
+     * the copied folder itself are resolved via generateCopyFolderName().
+     * @param {string} sourcePath
+     * @param {string} [targetFolderPath]
+     * @returns {{ copied: boolean, path?: string, count?: number, reason?: 'circular'|'not-found' }}
+     */
+    copyFolder(sourcePath, targetFolderPath) {
+      if (targetFolderPath === sourcePath || (targetFolderPath && targetFolderPath.startsWith(`${sourcePath}/`))) {
+        return { copied: false, reason: 'circular' };
+      }
+      const prefix = `${sourcePath}/`;
+      const filesToCopy = [];
+      fileRegistry.forEach((entry) => {
+        if (entry.path.startsWith(prefix)) {
+          filesToCopy.push({ path: entry.path, text: entry.text });
+        }
+      });
+      if (filesToCopy.length === 0) {
+        return { copied: false, reason: 'not-found' };
+      }
+
+      const folderName = sourcePath.includes('/') ? sourcePath.slice(sourcePath.lastIndexOf('/') + 1) : sourcePath;
+      const newFolderName = generateCopyFolderName(folderName, targetFolderPath);
+      const newFolderPath = targetFolderPath ? `${targetFolderPath}/${newFolderName}` : newFolderName;
+      const newPrefix = `${newFolderPath}/`;
+
+      const newIds = [];
+      filesToCopy.forEach(({ path, text }) => {
+        const suffix = path.slice(prefix.length);
+        const newPath = newPrefix + suffix;
+        const newName = newPath.split('/').pop();
+        const newId = AppState.openDocument(text, { path: newPath, name: newName });
+        fileRegistry.set(newId, { path: newPath, name: newName, loaded: true, text });
+        pathIndex.set(newPath, newId);
+        newIds.push(newId);
+      });
+
+      scheduleWorkspacePersist();
+      Bus.emit('directory:changed', {
+        type: 'copy-folder', oldPath: sourcePath, newPath: newFolderPath, affectedIds: newIds
+      });
+      return { copied: true, path: newFolderPath, count: newIds.length };
     },
 
     /**

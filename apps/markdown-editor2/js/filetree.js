@@ -99,6 +99,37 @@
   // Drag & drop move state (Issue #206 / MEW-041 Lv4-2). Module-scoped since
   // dataTransfer serialization is unnecessary for same-window drag/drop.
   let draggedItem = null; // { path, type: 'file'|'folder' } or null when idle
+  let _clipboard = null; // { path, type: 'cut'|'copy', isFolder } or null when empty (Issue #221 / MEW-041 Lv3-2)
+
+  // Copy-indicator fade-out (Issue #221 / MEW-041 Lv3-2 follow-up): the
+  // dashed-outline copy indicator is a purely visual, time-limited cue,
+  // separate from _clipboard itself (which stays intact so Ctrl+V keeps
+  // working after the indicator fades) -- the same separation of "temporary
+  // visual feedback" from "underlying state" as preview.js's
+  // SEARCH_MATCH_FLASH_DURATION heading-flash.
+  let _copyIndicatorTimer = null;
+  let _showCopyIndicator = false;
+  const COPY_INDICATOR_DURATION = 2500;
+
+  function markCopyIndicator() {
+    _showCopyIndicator = true;
+    if (_copyIndicatorTimer) {
+      clearTimeout(_copyIndicatorTimer);
+    }
+    _copyIndicatorTimer = setTimeout(() => {
+      _showCopyIndicator = false;
+      // render()/rerender() replace the tree's innerHTML wholesale, which
+      // would swap in a fresh element with no outline instead of animating
+      // an existing one's outline-color away -- so the fade is done as a
+      // direct, targeted class removal on the live node(s) instead of a
+      // full rerender().
+      if (_container) {
+        _container.querySelectorAll('.file-tree-item-copy').forEach(el => {
+          el.classList.remove('file-tree-item-copy');
+        });
+      }
+    }, COPY_INDICATOR_DURATION);
+  }
 
   function closeMenu() {
     if (_activeMenu && _activeMenu.parentNode) {
@@ -304,6 +335,18 @@
       const li = ownerDocument.createElement('li');
       li.className = 'file-tree-item';
 
+      // Visual feedback for the current clipboard entry (Issue #221 / MEW-041
+      // Lv3-2): a cut item's icon is dimmed (see .file-tree-item-cut in
+      // app.css; text stays full-strength to match OS file-explorer
+      // conventions), a copy item's row gets a dashed outline.
+      if (ctx.clipboard && ctx.clipboard.path === node.path && ctx.clipboard.isFolder === (node.type === 'folder')) {
+        if (ctx.clipboard.type === 'cut') {
+          li.classList.add('file-tree-item-cut');
+        } else if (ctx.showCopyIndicator) {
+          li.classList.add('file-tree-item-copy');
+        }
+      }
+
       li.draggable = true;
       li.addEventListener('dragstart', event => {
         event.stopPropagation();
@@ -364,6 +407,26 @@
             event.preventDefault();
             event.stopPropagation();
             ctx.requestDeleteFolder(node.path);
+          } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'x') {
+            event.preventDefault();
+            event.stopPropagation();
+            _clipboard = { path: node.path, type: 'cut', isFolder: true };
+            _showCopyIndicator = false;
+            if (_copyIndicatorTimer) {
+              clearTimeout(_copyIndicatorTimer);
+              _copyIndicatorTimer = null;
+            }
+            ctx.rerender();
+          } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'c') {
+            event.preventDefault();
+            event.stopPropagation();
+            _clipboard = { path: node.path, type: 'copy', isFolder: true };
+            markCopyIndicator();
+            ctx.rerender();
+          } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'v') {
+            event.preventDefault();
+            event.stopPropagation();
+            ctx.pasteClipboard(node);
           }
         });
 
@@ -441,6 +504,26 @@
             event.preventDefault();
             event.stopPropagation();
             ctx.requestDelete(node.id);
+          } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'x') {
+            event.preventDefault();
+            event.stopPropagation();
+            _clipboard = { path: node.path, type: 'cut', isFolder: false };
+            _showCopyIndicator = false;
+            if (_copyIndicatorTimer) {
+              clearTimeout(_copyIndicatorTimer);
+              _copyIndicatorTimer = null;
+            }
+            ctx.rerender();
+          } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'c') {
+            event.preventDefault();
+            event.stopPropagation();
+            _clipboard = { path: node.path, type: 'copy', isFolder: false };
+            markCopyIndicator();
+            ctx.rerender();
+          } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'v') {
+            event.preventDefault();
+            event.stopPropagation();
+            ctx.pasteClipboard(node);
           }
         });
 
@@ -718,11 +801,44 @@
     // are silently ignored (Issue #206 §2-4).
   }
 
+  /**
+   * Apply the current clipboard entry (set by Ctrl+X/Ctrl+C) to `targetNode`
+   * on Ctrl+V (Issue #221 / MEW-041 Lv3-2). The destination folder is
+   * derived the same way drag & drop resolves a drop target: a folder node
+   * pastes inside itself, a file node pastes into its parent folder. A cut
+   * is consumed after one paste; a copy stays on the clipboard so it can be
+   * pasted repeatedly.
+   * @param {{ path: string, type: 'file'|'folder' }} targetNode
+   */
+  function pasteClipboard(targetNode) {
+    if (!_clipboard) {
+      return;
+    }
+    const targetFolderPath = targetNode.type === 'folder'
+      ? targetNode.path
+      : (targetNode.path.includes('/') ? targetNode.path.slice(0, targetNode.path.lastIndexOf('/')) : '');
+    const { path, type, isFolder } = _clipboard;
+    if (type === 'cut') {
+      _clipboard = null;
+      if (isFolder) {
+        _Directory.moveFolder(path, targetFolderPath);
+      } else {
+        _Directory.moveFile(path, targetFolderPath);
+      }
+    } else if (isFolder) {
+      _Directory.copyFolder(path, targetFolderPath);
+    } else {
+      _Directory.copyFile(path, targetFolderPath);
+    }
+  }
+
   function makeCtx() {
     return {
       openFolders,
       Directory: _Directory,
       rerender,
+      clipboard: _clipboard,
+      showCopyIndicator: _showCopyIndicator,
       pendingCreateFolder,
       pendingRenameId,
       pendingRenameFolderPath,
@@ -742,6 +858,7 @@
       endDrag,
       isValidDropTarget,
       dropOn,
+      pasteClipboard,
       openFileMenu: (node, anchorEl) => {
         const ownerDocument = _container.ownerDocument || document;
         openMenuFor(anchorEl, ownerDocument, [

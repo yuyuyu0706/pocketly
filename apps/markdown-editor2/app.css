@@ -672,6 +672,13 @@ main {
   display: flex;
   align-items: center;
   gap: 0.15rem;
+  /* Base transparent outline + transition so the copy indicator (below) can
+     fade smoothly on removal instead of vanishing instantly -- outline
+     itself doesn't animate, but outline-color does. */
+  outline: 1px dashed transparent;
+  outline-offset: -1px;
+  border-radius: 4px;
+  transition: outline-color 0.6s ease;
 }
 
 #file-tree .file-tree-label {
@@ -756,6 +763,24 @@ main {
 
 #file-tree .file-tree-folder > .file-tree-row .file-tree-icon {
   color: #3d7bd6; /* Folder: matches the existing toggle-arrow color. */
+}
+
+/* Cut/copy clipboard feedback (Issue #221 / MEW-041 Lv3-2). Only the icon is
+   dimmed on cut, matching OS file-explorer conventions (Windows Explorer /
+   macOS Finder): the label text stays full-strength, since it is already a
+   light color (#88b4ff-family) and would become unreadable if dimmed too. */
+#file-tree .file-tree-item-cut > .file-tree-row > .file-tree-icon {
+  opacity: 0.4;
+}
+
+/* Copy indicator (Issue #221 / MEW-041 Lv3-2 follow-up): fades out via
+   outline-color after COPY_INDICATOR_DURATION (filetree.js), independent of
+   the clipboard contents -- Ctrl+V keeps working after it fades. Only sets
+   outline-color, leaving the outline-style/width/transition declared on the
+   base .file-tree-row rule above so removing this class animates smoothly
+   instead of vanishing instantly. */
+#file-tree .file-tree-item-copy > .file-tree-row {
+  outline-color: #3d7bd6;
 }
 
 #file-tree .file-tree-create-input,
