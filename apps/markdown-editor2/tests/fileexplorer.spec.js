@@ -792,6 +792,26 @@ test.describe('Ctrl+X/C/V clipboard shortcuts (Issue #221 / MEW-041 Lv3-2)', () 
     expect(paths).not.toContain('docs/a.md');
   });
 
+  test('Ctrl+X dims only the icon, not the label text, and clears after paste', async ({ page }) => {
+    const folder = await buildNestedFixtureFolder();
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 3);
+
+    const fileTree = page.locator('#file-tree');
+    const item = fileTree.locator('.file-tree-file', { hasText: 'a.md' });
+    await item.locator('.file-tree-label').focus();
+    await page.keyboard.press('Control+X');
+
+    await expect(item).toHaveClass(/file-tree-item-cut/);
+    await expect(item.locator('.file-tree-icon')).toHaveCSS('opacity', '0.4');
+    await expect(item.locator('.file-tree-label')).toHaveCSS('opacity', '1');
+
+    await folderLabel(fileTree, 'other').focus();
+    await page.keyboard.press('Control+V');
+
+    await expect(fileTree.locator('.file-tree-item-cut')).toHaveCount(0);
+  });
+
   test('Ctrl+C then Ctrl+V duplicates the file, leaving the source in place', async ({ page }) => {
     const folder = await buildNestedFixtureFolder();
     await page.setInputFiles('#folder-input', folder);

@@ -305,6 +305,14 @@
       const li = ownerDocument.createElement('li');
       li.className = 'file-tree-item';
 
+      // Visual feedback for the current clipboard entry (Issue #221 / MEW-041
+      // Lv3-2): a cut item's icon is dimmed (see .file-tree-item-cut in
+      // app.css; text stays full-strength to match OS file-explorer
+      // conventions), a copy item's row gets a dashed outline.
+      if (ctx.clipboard && ctx.clipboard.path === node.path && ctx.clipboard.isFolder === (node.type === 'folder')) {
+        li.classList.add(ctx.clipboard.type === 'cut' ? 'file-tree-item-cut' : 'file-tree-item-copy');
+      }
+
       li.draggable = true;
       li.addEventListener('dragstart', event => {
         event.stopPropagation();
@@ -369,10 +377,12 @@
             event.preventDefault();
             event.stopPropagation();
             _clipboard = { path: node.path, type: 'cut', isFolder: true };
+            ctx.rerender();
           } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'c') {
             event.preventDefault();
             event.stopPropagation();
             _clipboard = { path: node.path, type: 'copy', isFolder: true };
+            ctx.rerender();
           } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'v') {
             event.preventDefault();
             event.stopPropagation();
@@ -458,10 +468,12 @@
             event.preventDefault();
             event.stopPropagation();
             _clipboard = { path: node.path, type: 'cut', isFolder: false };
+            ctx.rerender();
           } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'c') {
             event.preventDefault();
             event.stopPropagation();
             _clipboard = { path: node.path, type: 'copy', isFolder: false };
+            ctx.rerender();
           } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'v') {
             event.preventDefault();
             event.stopPropagation();
@@ -779,6 +791,7 @@
       openFolders,
       Directory: _Directory,
       rerender,
+      clipboard: _clipboard,
       pendingCreateFolder,
       pendingRenameId,
       pendingRenameFolderPath,

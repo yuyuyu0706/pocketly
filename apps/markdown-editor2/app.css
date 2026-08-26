@@ -758,6 +758,20 @@ main {
   color: #3d7bd6; /* Folder: matches the existing toggle-arrow color. */
 }
 
+/* Cut/copy clipboard feedback (Issue #221 / MEW-041 Lv3-2). Only the icon is
+   dimmed on cut, matching OS file-explorer conventions (Windows Explorer /
+   macOS Finder): the label text stays full-strength, since it is already a
+   light color (#88b4ff-family) and would become unreadable if dimmed too. */
+#file-tree .file-tree-item-cut > .file-tree-row > .file-tree-icon {
+  opacity: 0.4;
+}
+
+#file-tree .file-tree-item-copy > .file-tree-row {
+  outline: 1px dashed #3d7bd6;
+  outline-offset: -1px;
+  border-radius: 4px;
+}
+
 #file-tree .file-tree-create-input,
 #file-tree .file-tree-rename-input {
   pointer-events: auto;
