@@ -718,7 +718,7 @@ main {
   display: inline-block;
   width: 1em;
   vertical-align: middle; /* Fixes baseline-default misalignment against the icon/label. */
-  transform: translateY(-2px); /* Closed: nudge up 2px on screen. */
+  transform: translateY(-4px); /* Closed: nudge up 4px on screen. */
   transition: transform 0.15s ease;
 }
 
@@ -726,7 +726,7 @@ main {
    rotation (transform functions apply right-to-left), keeping the nudge
    vertical rather than along the rotated glyph's local axis. */
 #file-tree .file-tree-folder.open > .file-tree-row > .file-tree-label::before {
-  transform: translateY(2px) rotate(90deg); /* Open: nudge down 2px on screen. */
+  transform: translateY(3px) rotate(90deg); /* Open: nudge down 3px on screen. */
 }
 
 #file-tree .file-tree-file.active > .file-tree-row > .file-tree-label {
