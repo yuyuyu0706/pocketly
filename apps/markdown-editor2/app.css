@@ -713,17 +713,6 @@ main {
   text-shadow: 0 0 1px rgba(0, 0, 0, 0.12);
 }
 
-#file-tree .file-tree-folder > .file-tree-row > .file-tree-label::before {
-  content: '▸';
-  display: inline-block;
-  width: 1em;
-  transition: transform 0.15s ease;
-}
-
-#file-tree .file-tree-folder.open > .file-tree-row > .file-tree-label::before {
-  transform: rotate(90deg);
-}
-
 #file-tree .file-tree-file.active > .file-tree-row > .file-tree-label {
   color: #0055aa;
   background-color: rgba(140, 170, 220, 0.16);
@@ -759,6 +748,22 @@ main {
 #file-tree .file-tree-icon {
   flex: none;
   color: #88b4ff; /* Default: file. */
+  vertical-align: middle; /* Fixes baseline-default misalignment against the label. */
+}
+
+/* SVG-based folder open/closed toggle indicator (Issue #223 follow-up),
+   replacing a text-glyph (▸) + translateY tuning that never fully
+   converged -- an explicit viewBox has no glyph-vs-box center mismatch to
+   correct for. */
+#file-tree .file-tree-toggle-icon {
+  flex: none;
+  color: #3d7bd6; /* Matches the existing folder icon/label color. */
+  vertical-align: middle;
+  transition: transform 0.15s ease;
+}
+
+#file-tree .file-tree-folder.open > .file-tree-row > .file-tree-toggle-icon {
+  transform: rotate(90deg);
 }
 
 #file-tree .file-tree-folder > .file-tree-row .file-tree-icon {
