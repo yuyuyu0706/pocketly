@@ -802,7 +802,7 @@ main {
 /* Appended to <body> (see filetree.js openMenuFor()), not scoped under
    #file-tree, so it escapes #toc's sticky-positioning stacking context and
    always draws above siblings like #toc-divider regardless of z-index. */
-.file-tree-menu {
+.app-context-menu {
   pointer-events: auto;
   position: fixed;
   z-index: 20;
@@ -816,7 +816,7 @@ main {
   min-width: 8rem;
 }
 
-.file-tree-menu button {
+.app-context-menu button {
   display: block;
   width: 100%;
   text-align: left;
@@ -827,7 +827,7 @@ main {
   font: inherit;
 }
 
-.file-tree-menu button:hover {
+.app-context-menu button:hover {
   background-color: rgba(140, 170, 220, 0.12);
 }
 

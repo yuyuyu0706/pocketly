@@ -84,7 +84,8 @@
   "tabs": {
     "untitled": "無題",
     "close": "タブを閉じる",
-    "newFile": "新規ファイル"
+    "newFile": "新規ファイル",
+    "closeOthers": "他のタブを全て閉じる"
   },
   "filetree": {
     "newFile": "新規ファイル",

@@ -94,6 +94,14 @@
         closeTab(id);
       });
 
+      tab.addEventListener('contextmenu', event => {
+        event.preventDefault();
+        event.stopPropagation();
+        ContextMenu.open(tab, ownerDocument, [
+          { label: i18n.t('tabs.closeOthers'), onSelect: () => closeOtherTabs(id) }
+        ]);
+      });
+
       _container.appendChild(tab);
     });
 
@@ -121,6 +129,25 @@
     openTabIds.delete(id);
     _AppState.closeDocument(id);
     render();
+  }
+
+  /**
+   * Close every open tab except `keepId` (Issue #225 / MEW-041 候補F, tab
+   * right-click "Close other tabs"). Explicitly re-activates `keepId` after
+   * the loop: closeTab()'s AppState.closeDocument() fallback, when it closes
+   * whatever tab happened to be active, may switch activity to some other
+   * remaining document rather than the one the user clicked, so the final
+   * activateDocument() call pins it back down.
+   * @param {string} keepId
+   * @returns {void}
+   */
+  function closeOtherTabs(keepId) {
+    Array.from(openTabIds).forEach(otherId => {
+      if (otherId !== keepId) {
+        closeTab(otherId);
+      }
+    });
+    _Directory.activateDocument(keepId);
   }
 
   function handleTextChanged() {
@@ -165,7 +192,8 @@
 
   // Expose internals for testing via window.__tabsTest
   global.__tabsTest = {
-    getOpenTabIds: () => Array.from(openTabIds)
+    getOpenTabIds: () => Array.from(openTabIds),
+    closeOtherTabs
   };
 
   global.Tabs = {

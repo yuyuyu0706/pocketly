@@ -84,7 +84,8 @@
   "tabs": {
     "untitled": "Untitled",
     "close": "Close tab",
-    "newFile": "New file"
+    "newFile": "New file",
+    "closeOthers": "Close other tabs"
   },
   "filetree": {
     "newFile": "New file",
