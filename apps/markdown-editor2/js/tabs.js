@@ -97,7 +97,7 @@
       tab.addEventListener('contextmenu', event => {
         event.preventDefault();
         event.stopPropagation();
-        ContextMenu.open(tab, ownerDocument, [
+        ContextMenu.open(event.clientX, event.clientY, ownerDocument, [
           { label: i18n.t('tabs.closeOthers'), onSelect: () => closeOtherTabs(id) }
         ]);
       });

@@ -16,15 +16,17 @@
   }
 
   /**
-   * Open a small absolutely-positioned menu anchored under `anchorEl`, closed
-   * on the next click elsewhere or Escape. Shared by filetree.js and tabs.js
-   * (Issue #225 / MEW-041 候補F: moved here from filetree.js with the logic
-   * itself unchanged).
-   * @param {HTMLElement} anchorEl
+   * Open a small fixed-position menu at the mouse cursor (clientX/clientY),
+   * closed on the next click elsewhere or Escape. Shared by filetree.js and
+   * tabs.js (Issue #225 / MEW-041 候補F: moved here from filetree.js with
+   * the logic itself unchanged; Issue #225 follow-up: positioning switched
+   * from the right-clicked element's bounding box to the cursor coordinates).
+   * @param {number} clientX
+   * @param {number} clientY
    * @param {Document} ownerDocument
    * @param {Array<{ label: string, onSelect: () => void }>} items
    */
-  function openMenuFor(anchorEl, ownerDocument, items) {
+  function openMenuFor(clientX, clientY, ownerDocument, items) {
     closeMenu();
     const menu = ownerDocument.createElement('ul');
     menu.className = 'app-context-menu';
@@ -43,20 +45,29 @@
       menu.appendChild(li);
     });
 
-    // Appended to <body> (viewport-fixed), not the anchor's container:
-    // #file-tree lives inside #toc, a position:sticky element that forms its
-    // own stacking context, so a z-index set on a menu appended there only
-    // wins against other #toc descendants — #toc-divider (a sibling of #toc)
-    // still drew on top regardless of z-index. Escaping to <body> avoids
-    // that stacking context entirely.
-    const anchorRect = anchorEl.getBoundingClientRect();
+    // Appended to <body> (viewport-fixed), not the right-clicked element's
+    // container: #file-tree lives inside #toc, a position:sticky element
+    // that forms its own stacking context, so a z-index set on a menu
+    // appended there only wins against other #toc descendants —
+    // #toc-divider (a sibling of #toc) still drew on top regardless of
+    // z-index. Escaping to <body> avoids that stacking context entirely.
     menu.style.position = 'fixed';
-    menu.style.left = `${anchorRect.left}px`;
-    menu.style.top = `${anchorRect.bottom}px`;
+    // Hidden while off-DOM sizing is read below, to avoid a one-frame flash
+    // at the wrong (pre-flip) position.
+    menu.style.visibility = 'hidden';
     ownerDocument.body.appendChild(menu);
-    _activeMenu = menu;
 
     const win = ownerDocument.defaultView;
+    const menuWidth = menu.offsetWidth;
+    let left = clientX;
+    if (left + menuWidth > win.innerWidth) {
+      left = Math.max(0, clientX - menuWidth);
+    }
+    menu.style.left = `${left}px`;
+    menu.style.top = `${clientY}px`;
+    menu.style.visibility = '';
+    _activeMenu = menu;
+
     const onDocClick = () => closeMenu();
     const onKeydown = event => {
       if (event.key === 'Escape') {

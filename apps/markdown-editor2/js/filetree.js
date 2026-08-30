@@ -423,7 +423,7 @@
         li.addEventListener('contextmenu', event => {
           event.preventDefault();
           event.stopPropagation();
-          ctx.openFolderMenu(node, li);
+          ctx.openFolderMenu(node, event.clientX, event.clientY);
         });
 
         row.appendChild(renderToggleIcon(ownerDocument));
@@ -541,7 +541,7 @@
         li.addEventListener('contextmenu', event => {
           event.preventDefault();
           event.stopPropagation();
-          ctx.openFileMenu(node, li);
+          ctx.openFileMenu(node, event.clientX, event.clientY);
         });
 
         row.appendChild(renderTreeIcon(ownerDocument, 'file'));
@@ -931,16 +931,16 @@
       isValidDropTarget,
       dropOn,
       pasteClipboard,
-      openFileMenu: (node, anchorEl) => {
+      openFileMenu: (node, clientX, clientY) => {
         const ownerDocument = _container.ownerDocument || document;
-        ContextMenu.open(anchorEl, ownerDocument, [
+        ContextMenu.open(clientX, clientY, ownerDocument, [
           { label: i18n.t('filetree.rename'), onSelect: () => startRename(node.id) },
           { label: i18n.t('filetree.delete'), onSelect: () => requestDelete(node.id) }
         ]);
       },
-      openFolderMenu: (node, anchorEl) => {
+      openFolderMenu: (node, clientX, clientY) => {
         const ownerDocument = _container.ownerDocument || document;
-        ContextMenu.open(anchorEl, ownerDocument, [
+        ContextMenu.open(clientX, clientY, ownerDocument, [
           { label: i18n.t('filetree.newFileHere'), onSelect: () => startCreateHere(node.path) },
           { label: i18n.t('filetree.renameFolder'), onSelect: () => startRenameFolder(node.path) },
           { label: i18n.t('filetree.deleteFolder'), onSelect: () => requestDeleteFolder(node.path) }
