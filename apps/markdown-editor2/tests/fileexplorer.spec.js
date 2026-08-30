@@ -119,7 +119,7 @@ test.describe('Single file operations (Issue #196 / MEW-011 Lv3-1)', () => {
     const activeId = await page.evaluate(() => window.AppState.getActiveDocumentId());
     const activeFile = fileTree.locator(`.file-tree-file[data-id="${activeId}"]`);
     await activeFile.click({ button: 'right' });
-    await page.locator('.file-tree-menu button', { hasText: 'Delete' }).click();
+    await page.locator('.app-context-menu button', { hasText: 'Delete' }).click();
 
     await page.waitForFunction(
       prevId => window.AppState.getActiveDocumentId() !== prevId,
@@ -140,7 +140,7 @@ test.describe('Single file operations (Issue #196 / MEW-011 Lv3-1)', () => {
 
     const aFile = fileTree.locator('.file-tree-file', { hasText: 'a.md' });
     await aFile.click({ button: 'right' });
-    await page.locator('.file-tree-menu button', { hasText: 'Rename' }).click();
+    await page.locator('.app-context-menu button', { hasText: 'Rename' }).click();
 
     const renameInput = fileTree.locator('.file-tree-rename-input');
     await renameInput.fill('renamed.md');
@@ -159,7 +159,7 @@ test.describe('Single file operations (Issue #196 / MEW-011 Lv3-1)', () => {
     const fileTree = page.locator('#file-tree');
     const aFile = fileTree.locator('.file-tree-file', { hasText: 'a.md' });
     await aFile.click({ button: 'right' });
-    await page.locator('.file-tree-menu button', { hasText: 'Rename' }).click();
+    await page.locator('.app-context-menu button', { hasText: 'Rename' }).click();
 
     const renameInput = fileTree.locator('.file-tree-rename-input');
     await renameInput.press('Enter');
@@ -171,7 +171,7 @@ test.describe('Single file operations (Issue #196 / MEW-011 Lv3-1)', () => {
 
     // Same for blur (used by the input's own blur handler to commit).
     await aFile.click({ button: 'right' });
-    await page.locator('.file-tree-menu button', { hasText: 'Rename' }).click();
+    await page.locator('.app-context-menu button', { hasText: 'Rename' }).click();
     await fileTree.locator('.file-tree-rename-input').blur();
     await expect(fileTree.locator('.file-tree-rename-input')).toHaveCount(0);
     await expect(fileTree.locator('.file-tree-file', { hasText: 'a.md' })).toBeVisible();
@@ -185,13 +185,13 @@ test.describe('Single file operations (Issue #196 / MEW-011 Lv3-1)', () => {
     const fileTree = page.locator('#file-tree');
     const aFile = fileTree.locator('.file-tree-file', { hasText: 'a.md' });
     await aFile.click({ button: 'right' });
-    await expect(page.locator('.file-tree-menu')).toBeVisible();
+    await expect(page.locator('.app-context-menu')).toBeVisible();
 
     // Clicking another file-tree label (a click handler that calls
     // stopPropagation()) must still close the menu, since onDocClick is
     // registered on the capture phase.
     await fileTree.locator('.file-tree-file', { hasText: 'b.md' }).locator('.file-tree-label').click();
-    await expect(page.locator('.file-tree-menu')).toHaveCount(0);
+    await expect(page.locator('.app-context-menu')).toHaveCount(0);
   });
 
   test('rename only changes filename, not folder portion', async ({ page }) => {
@@ -206,7 +206,7 @@ test.describe('Single file operations (Issue #196 / MEW-011 Lv3-1)', () => {
     const fileTree = page.locator('#file-tree');
     const innerFile = fileTree.locator('.file-tree-file', { hasText: 'inner.md' });
     await innerFile.click({ button: 'right' });
-    await page.locator('.file-tree-menu button', { hasText: 'Rename' }).click();
+    await page.locator('.app-context-menu button', { hasText: 'Rename' }).click();
 
     const renameInput = fileTree.locator('.file-tree-rename-input');
     await renameInput.fill('renamed-inner.md');
@@ -227,7 +227,7 @@ test.describe('Single file operations (Issue #196 / MEW-011 Lv3-1)', () => {
     const pathsBefore = await page.evaluate(() => window.Directory.getTree().map(d => d.path));
 
     await fileTree.locator('.file-tree-file', { hasText: 'a.md' }).click({ button: 'right' });
-    await page.locator('.file-tree-menu button', { hasText: 'Rename' }).click();
+    await page.locator('.app-context-menu button', { hasText: 'Rename' }).click();
 
     let dialogMessage = null;
     page.once('dialog', dialog => {
@@ -259,7 +259,7 @@ test.describe('Single file operations (Issue #196 / MEW-011 Lv3-1)', () => {
     const pathsBefore = await page.evaluate(() => window.Directory.getTree().map(d => d.path));
 
     await fileTree.locator('.file-tree-file', { hasText: 'inner.md' }).click({ button: 'right' });
-    await page.locator('.file-tree-menu button', { hasText: 'Rename' }).click();
+    await page.locator('.app-context-menu button', { hasText: 'Rename' }).click();
 
     let dialogMessage = null;
     page.once('dialog', dialog => {
@@ -295,7 +295,7 @@ test.describe('Single file operations (Issue #196 / MEW-011 Lv3-1)', () => {
     // Rename b.md -> renamed-b.md.
     const bFile = fileTree.locator('.file-tree-file', { hasText: 'b.md' });
     await bFile.click({ button: 'right' });
-    await page.locator('.file-tree-menu button', { hasText: 'Rename' }).click();
+    await page.locator('.app-context-menu button', { hasText: 'Rename' }).click();
     const renameInput = fileTree.locator('.file-tree-rename-input');
     await renameInput.fill('renamed-b.md');
     await renameInput.press('Enter');
@@ -305,7 +305,7 @@ test.describe('Single file operations (Issue #196 / MEW-011 Lv3-1)', () => {
     page.on('dialog', dialog => dialog.accept());
     const aFile = fileTree.locator('.file-tree-file', { hasText: 'a.md' });
     await aFile.click({ button: 'right' });
-    await page.locator('.file-tree-menu button', { hasText: 'Delete' }).click();
+    await page.locator('.app-context-menu button', { hasText: 'Delete' }).click();
     await expect(fileTree.locator('.file-tree-file', { hasText: 'a.md' })).toHaveCount(0);
 
     await page.waitForTimeout(500);
@@ -381,7 +381,7 @@ test.describe('Folder rename/delete (Issue #199 / MEW-041 Lv4-1)', () => {
 
     const fileTree = page.locator('#file-tree');
     await folderRow(fileTree, 'docs').click({ button: 'right' });
-    await page.locator('.file-tree-menu button', { hasText: 'Rename' }).click();
+    await page.locator('.app-context-menu button', { hasText: 'Rename' }).click();
 
     const renameInput = fileTree.locator('.file-tree-rename-input');
     await renameInput.fill('renamed-docs');
@@ -407,7 +407,7 @@ test.describe('Folder rename/delete (Issue #199 / MEW-041 Lv4-1)', () => {
 
     const fileTree = page.locator('#file-tree');
     await folderRow(fileTree, 'docs').click({ button: 'right' });
-    await page.locator('.file-tree-menu button', { hasText: 'Rename' }).click();
+    await page.locator('.app-context-menu button', { hasText: 'Rename' }).click();
 
     const renameInput = fileTree.locator('.file-tree-rename-input');
     await renameInput.fill('other');
@@ -429,7 +429,7 @@ test.describe('Folder rename/delete (Issue #199 / MEW-041 Lv4-1)', () => {
     // Every discovered folder auto-expands on initial import, so "sub" is
     // already visible/open without needing to open its "docs" parent first.
     await folderRow(fileTree, 'sub').click({ button: 'right' });
-    await page.locator('.file-tree-menu button', { hasText: 'Rename' }).click();
+    await page.locator('.app-context-menu button', { hasText: 'Rename' }).click();
 
     const renameInput = fileTree.locator('.file-tree-rename-input');
     await renameInput.fill('../escaped');
@@ -452,7 +452,7 @@ test.describe('Folder rename/delete (Issue #199 / MEW-041 Lv4-1)', () => {
 
     const fileTree = page.locator('#file-tree');
     await folderRow(fileTree, 'docs').click({ button: 'right' });
-    await page.locator('.file-tree-menu button', { hasText: 'Delete' }).click();
+    await page.locator('.app-context-menu button', { hasText: 'Delete' }).click();
 
     await page.waitForFunction(() => window.AppState.listDocuments().length === 1);
     const paths = await page.evaluate(() => window.Directory.getTree().map(d => d.path));
@@ -479,7 +479,7 @@ test.describe('Folder rename/delete (Issue #199 / MEW-041 Lv4-1)', () => {
 
     const fileTree = page.locator('#file-tree');
     await folderRow(fileTree, 'docs').click({ button: 'right' });
-    await page.locator('.file-tree-menu button', { hasText: 'Delete' }).click();
+    await page.locator('.app-context-menu button', { hasText: 'Delete' }).click();
 
     await expect.poll(() => dialogMessage).not.toBeNull();
     expect(dialogMessage).toContain('2');
@@ -498,7 +498,7 @@ test.describe('Folder rename/delete (Issue #199 / MEW-041 Lv4-1)', () => {
     await expect(folderLocator(fileTree, 'sub')).not.toHaveClass(/open/);
 
     await folderRow(fileTree, 'docs').click({ button: 'right' });
-    await page.locator('.file-tree-menu button', { hasText: 'Rename' }).click();
+    await page.locator('.app-context-menu button', { hasText: 'Rename' }).click();
     const renameInput = fileTree.locator('.file-tree-rename-input');
     await renameInput.fill('renamed-docs');
     await renameInput.press('Enter');

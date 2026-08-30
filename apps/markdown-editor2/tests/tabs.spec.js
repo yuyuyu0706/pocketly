@@ -193,3 +193,75 @@ test.describe('New-tab button (Issue #216)', () => {
     await expect(tabBar.locator('.tab-bar-item')).toHaveCount(4);
   });
 });
+
+test.describe('Tab context menu "Close other tabs" (Issue #225 / MEW-041 候補F)', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+    await page.evaluate(() => {
+      window.confirm = () => true;
+    });
+  });
+
+  async function openThreeTabs(page) {
+    const folder = await buildFixtureFolder();
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 2);
+    const fileTree = page.locator('#file-tree');
+    await fileTree.locator('.file-tree-file', { hasText: 'b.md' }).locator('.file-tree-label').click();
+    return page.locator('#tab-bar');
+  }
+
+  test('right-clicking a tab opens a context menu with "Close other tabs"', async ({ page }) => {
+    const tabBar = await openThreeTabs(page);
+    await expect(tabBar.locator('.tab-bar-item')).toHaveCount(2);
+
+    await tabBar.locator('.tab-bar-item').first().click({ button: 'right' });
+    const menu = page.locator('.app-context-menu');
+    await expect(menu).toBeVisible();
+    await expect(menu.locator('button', { hasText: 'Close other tabs' })).toBeVisible();
+  });
+
+  test('running "Close other tabs" closes every tab except the clicked one', async ({ page }) => {
+    const tabBar = await openThreeTabs(page);
+    await expect(tabBar.locator('.tab-bar-item')).toHaveCount(2);
+
+    const targetTab = tabBar.locator('.tab-bar-item').first();
+    const targetName = await targetTab.locator('.tab-bar-label').textContent();
+    await targetTab.click({ button: 'right' });
+    await page.locator('.app-context-menu button', { hasText: 'Close other tabs' }).click();
+
+    await expect(tabBar.locator('.tab-bar-item')).toHaveCount(1);
+    await expect(tabBar.locator('.tab-bar-item')).toContainText(targetName);
+  });
+
+  test('the clicked tab is active afterwards even if it was inactive when right-clicked', async ({ page }) => {
+    const tabBar = await openThreeTabs(page);
+    await expect(tabBar.locator('.tab-bar-item')).toHaveCount(2);
+
+    // The second tab (b.md) is active from clickInactiveFile's activation;
+    // right-click the first (inactive) tab and close others from there.
+    const inactiveTab = tabBar.locator('.tab-bar-item').first();
+    await expect(inactiveTab).not.toHaveClass(/active/);
+    const targetName = await inactiveTab.locator('.tab-bar-label').textContent();
+
+    await inactiveTab.click({ button: 'right' });
+    await page.locator('.app-context-menu button', { hasText: 'Close other tabs' }).click();
+
+    await expect(tabBar.locator('.tab-bar-item')).toHaveCount(1);
+    const remainingTab = tabBar.locator('.tab-bar-item').first();
+    await expect(remainingTab).toContainText(targetName);
+    await expect(remainingTab).toHaveClass(/active/);
+  });
+
+  test('the file tree context menu still works after the shared ContextMenu extraction', async ({ page }) => {
+    await openThreeTabs(page);
+    const fileEntry = page.locator('#file-tree .file-tree-file', { hasText: 'a.md' });
+    await fileEntry.click({ button: 'right' });
+
+    const menu = page.locator('.app-context-menu');
+    await expect(menu).toBeVisible();
+    await expect(menu.locator('button', { hasText: 'Rename' })).toBeVisible();
+    await expect(menu.locator('button', { hasText: 'Delete' })).toBeVisible();
+  });
+});
