@@ -683,11 +683,19 @@
     },
 
     /**
-     * Register a pasted/attached image into assetRegistry under `assets/`
-     * and schedule a workspace persist, for directory-backed documents
-     * (MEW-035 Lv3-2 Lv4-2). Returns null when the active document set is
-     * not directory-backed, so callers fall back to the legacy imageMap
-     * flow.
+     * Register a pasted/attached image into assetRegistry under an
+     * `assets/` subfolder of the active document's own folder, and schedule
+     * a workspace persist, for directory-backed documents (MEW-035 Lv3-2
+     * Lv4-2). Returns null when the active document set is not
+     * directory-backed, so callers fall back to the legacy imageMap flow.
+     *
+     * Keyed relative to the active document's folder (rather than a
+     * workspace-root-relative `assets/`) so resolveRelativePath() - which
+     * joins the "assets/<filename>" reference against the referencing
+     * document's own folder - resolves back to the same registry key
+     * regardless of how deep that document sits (Issue #227: every
+     * folder-imported document now sits at least one level below the
+     * imported root, not just documents in subfolders).
      * @param {string} filename
      * @param {Blob} blob
      * @returns {string|null} the folder-relative asset path, or null
@@ -696,10 +704,12 @@
       if (currentImportedAt === null) {
         return null;
       }
-      const path = `assets/${filename}`;
+      const activePath = this.getActivePath();
+      const baseDir = activePath && activePath.includes('/') ? activePath.slice(0, activePath.lastIndexOf('/')) : '';
+      const path = baseDir ? `${baseDir}/assets/${filename}` : `assets/${filename}`;
       assetRegistry.set(path, blob);
       scheduleWorkspacePersist();
-      return path;
+      return `assets/${filename}`;
     },
 
     /**
