@@ -23,9 +23,9 @@ async function importAndActivate(page, folder) {
     window.confirm = () => true;
   });
   await page.setInputFiles('#folder-input', folder);
-  await page.waitForFunction(() => window.Directory.getTree().some(d => d.path === 'a.md'));
+  await page.waitForFunction(() => window.Directory.getTree().some(d => d.path === 'my-folder/a.md'));
   await page.evaluate(() => {
-    const target = window.Directory.getTree().find(d => d.path === 'a.md');
+    const target = window.Directory.getTree().find(d => d.path === 'my-folder/a.md');
     window.Directory.activateDocument(target.id);
   });
 }
@@ -45,7 +45,7 @@ test.describe('Workspace edit persistence and pasted-asset integration (Issue #1
     await page.waitForFunction(() => window.AppState.listDocuments().length >= 1);
 
     const text = await page.evaluate(() => {
-      const target = window.Directory.getTree().find(d => d.path === 'a.md');
+      const target = window.Directory.getTree().find(d => d.path === 'my-folder/a.md');
       window.Directory.activateDocument(target.id);
       return window.AppState.getText();
     });
@@ -100,7 +100,7 @@ test.describe('Workspace edit persistence and pasted-asset integration (Issue #1
     await page.waitForFunction(() => window.AppState.listDocuments().length >= 1);
 
     const src = await page.evaluate(() => new Promise(resolve => {
-      const target = window.Directory.getTree().find(d => d.path === 'a.md');
+      const target = window.Directory.getTree().find(d => d.path === 'my-folder/a.md');
       window.Directory.activateDocument(target.id);
       const check = () => {
         const img = document.querySelector('#preview img[alt="pasted.png"]');

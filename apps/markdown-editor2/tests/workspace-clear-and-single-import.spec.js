@@ -124,13 +124,13 @@ test.describe('Directory.importSingleFile() (Issue #179 / MEW-039)', () => {
       window.confirm = () => true;
     });
     await page.setInputFiles('#folder-input', folder);
-    await page.waitForFunction(() => window.Directory.getTree().some(d => d.path === 'a.md'));
+    await page.waitForFunction(() => window.Directory.getTree().some(d => d.path === 'my-folder/a.md'));
 
     await page.setInputFiles('#markdownInput', single);
     await page.waitForFunction(() => window.__directoryTest.getRegistrySize() >= 2);
 
     const paths = await page.evaluate(() => window.Directory.getTree().map(entry => entry.path).sort());
-    expect(paths).toEqual(['a.md', 'single.md']);
+    expect(paths).toEqual(['my-folder/a.md', 'single.md']);
 
     const activeText = await page.evaluate(() => window.AppState.getText());
     expect(activeText).toBe('# Single doc');

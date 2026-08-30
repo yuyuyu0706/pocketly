@@ -53,7 +53,7 @@ test.describe('Directory.importFolder (Issue #171)', () => {
     });
 
     const paths = result.docs.map(d => d.meta.path).sort();
-    expect(paths).toEqual(['a.md', 'sub/b.md']);
+    expect(paths).toEqual(['my-folder/a.md', 'my-folder/sub/b.md']);
     expect(result.registrySize).toBe(2);
   });
 
@@ -116,7 +116,7 @@ test.describe('Directory.importFolder (Issue #171)', () => {
     const paths = await page.evaluate(() =>
       window.AppState.listDocuments().map(d => d.meta.path).sort()
     );
-    expect(paths).toEqual(['a.md', 'sub/b.md']);
+    expect(paths).toEqual(['my-folder/a.md', 'my-folder/sub/b.md']);
   });
 
   test('re-import prompts window.confirm; cancelling keeps the existing workspace', async ({ page }) => {
@@ -183,7 +183,7 @@ test.describe('Directory.importFolder (Issue #171)', () => {
     }));
 
     expect(result.confirmCalls.length).toBe(1);
-    expect(result.paths).toEqual(['a.md', 'sub/b.md']);
+    expect(result.paths).toEqual(['my-folder/a.md', 'my-folder/sub/b.md']);
   });
 
   test('relative document link click still activates the target document (pathIndex resolution unaffected)', async ({ page }) => {
@@ -208,7 +208,7 @@ test.describe('Directory.importFolder (Issue #171)', () => {
     await page.waitForFunction(() => window.AppState.listDocuments().length >= 2);
 
     await page.evaluate(() => {
-      const target = window.Directory.getTree().find(d => d.path === 'sub/a.md');
+      const target = window.Directory.getTree().find(d => d.path === 'my-folder/sub/a.md');
       window.Directory.activateDocument(target.id);
     });
 
@@ -225,6 +225,68 @@ test.describe('Directory.importFolder (Issue #171)', () => {
     }));
 
     expect(result.text).toBe('# Other doc');
-    expect(result.activePath).toBe('notes/other.md');
+    expect(result.activePath).toBe('my-folder/notes/other.md');
+  });
+
+  test('the selected folder name is shown as the top-level node in the file tree (Issue #227)', async ({ page }) => {
+    const folder = await buildFixtureFolder();
+
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+    await page.evaluate(() => {
+      window.confirm = () => true;
+    });
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 2);
+
+    const fileTree = page.locator('#file-tree');
+    const rootNames = await fileTree
+      .locator(':scope > .file-tree-list > .file-tree-item > .file-tree-row > .file-tree-label')
+      .allTextContents();
+
+    expect(rootNames).toEqual(['my-folder']);
+
+    const paths = await page.evaluate(() => window.Directory.getTree().map(d => d.path).sort());
+    expect(paths).toEqual(['my-folder/a.md', 'my-folder/sub/b.md']);
+  });
+
+  test('a root folder whose own name starts with "." is not excluded (Issue #227)', async ({ page }) => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'mew-hidden-root-'));
+    const folder = path.join(root, '.hidden-root');
+    await fs.mkdir(path.join(folder, 'sub'), { recursive: true });
+    await fs.writeFile(path.join(folder, 'a.md'), '# A under hidden root');
+    await fs.writeFile(path.join(folder, 'sub', 'b.md'), '# B under hidden root');
+
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+    await page.evaluate(() => {
+      window.confirm = () => true;
+    });
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 2);
+
+    const paths = await page.evaluate(() => window.Directory.getTree().map(d => d.path).sort());
+    expect(paths).toEqual(['.hidden-root/a.md', '.hidden-root/sub/b.md']);
+  });
+
+  test('a "." (e.g. .git) subfolder nested under the imported root is still excluded (Issue #227)', async ({ page }) => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'mew-nested-excluded-'));
+    const folder = path.join(root, 'my-folder');
+    await fs.mkdir(path.join(folder, '.git'), { recursive: true });
+    await fs.mkdir(path.join(folder, 'node_modules', 'pkg'), { recursive: true });
+    await fs.writeFile(path.join(folder, 'a.md'), '# Root doc');
+    await fs.writeFile(path.join(folder, '.git', 'config.md'), 'excluded via nested hidden dir');
+    await fs.writeFile(path.join(folder, 'node_modules', 'pkg', 'readme.md'), 'excluded via nested node_modules');
+
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+    await page.evaluate(() => {
+      window.confirm = () => true;
+    });
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 1);
+
+    const paths = await page.evaluate(() => window.Directory.getTree().map(d => d.path).sort());
+    expect(paths).toEqual(['my-folder/a.md']);
   });
 });

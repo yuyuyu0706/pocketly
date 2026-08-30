@@ -31,6 +31,20 @@ async function buildFixtureFolder() {
   return folder;
 }
 
+// A folder <li> nests its children's markup as DOM descendants, so `hasText`
+// substring matching against the <li> itself also matches any ancestor
+// folder whose full text happens to contain the same substring -- notably
+// the root "my-folder" node that now wraps every imported file (Issue #227).
+// Matching the folder's own label exactly and walking up to its immediate
+// parent <li> avoids the ambiguity (mirrors tests/fileexplorer.spec.js).
+function folderLocator(fileTree, name) {
+  return fileTree
+    .locator('.file-tree-folder > .file-tree-row > .file-tree-label', {
+      hasText: new RegExp(`^${name}$`)
+    })
+    .locator('xpath=ancestor::li[contains(concat(" ", normalize-space(@class), " "), " file-tree-folder ")][1]');
+}
+
 test.describe('File tree (Issue #165 / MEW-011)', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
@@ -73,13 +87,13 @@ test.describe('File tree (Issue #165 / MEW-011)', () => {
     const fileTree = page.locator('#file-tree');
     await expect(fileTree).not.toHaveClass(/hidden/);
 
-    const notesFolder = fileTree.locator('.file-tree-folder', { hasText: 'notes' });
+    const notesFolder = folderLocator(fileTree, 'notes');
     await expect(notesFolder).toBeVisible();
     await expect(notesFolder.locator('.file-tree-file', { hasText: 'other.md' })).toBeVisible();
     await expect(notesFolder.locator('.file-tree-file', { hasText: 'index.md' })).toBeVisible();
   });
 
-  test('index.md is promoted to the top of its level', async ({ page }) => {
+  test('importing a folder shows the selected folder name as the single top-level node (Issue #227)', async ({ page }) => {
     const folder = await buildFixtureFolder();
     await page.setInputFiles('#folder-input', folder);
     await page.waitForFunction(() => window.AppState.listDocuments().length >= 4);
@@ -89,7 +103,21 @@ test.describe('File tree (Issue #165 / MEW-011)', () => {
       .locator(':scope > .file-tree-list > .file-tree-item > .file-tree-row > .file-tree-label')
       .allTextContents();
 
-    const fileNamesOnly = rootNames.filter(name => name === 'index.md' || name === 'b.md');
+    expect(rootNames).toEqual(['my-folder']);
+  });
+
+  test('index.md is promoted to the top of its level', async ({ page }) => {
+    const folder = await buildFixtureFolder();
+    await page.setInputFiles('#folder-input', folder);
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 4);
+
+    const fileTree = page.locator('#file-tree');
+    const rootFolder = fileTree.locator('.file-tree-folder', { hasText: 'my-folder' }).first();
+    const childNames = await rootFolder
+      .locator(':scope > .file-tree-list > .file-tree-item > .file-tree-row > .file-tree-label')
+      .allTextContents();
+
+    const fileNamesOnly = childNames.filter(name => name === 'index.md' || name === 'b.md');
     expect(fileNamesOnly).toEqual(['index.md', 'b.md']);
   });
 
@@ -99,11 +127,12 @@ test.describe('File tree (Issue #165 / MEW-011)', () => {
     await page.waitForFunction(() => window.AppState.listDocuments().length >= 4);
 
     const fileTree = page.locator('#file-tree');
-    const rootNames = await fileTree
+    const rootFolder = fileTree.locator('.file-tree-folder', { hasText: 'my-folder' }).first();
+    const childNames = await rootFolder
       .locator(':scope > .file-tree-list > .file-tree-item > .file-tree-row > .file-tree-label')
       .allTextContents();
 
-    expect(rootNames).toEqual(['notes', 'zeta', 'index.md', 'b.md']);
+    expect(childNames).toEqual(['notes', 'zeta', 'index.md', 'b.md']);
   });
 
   test('file tree labels have pointer-events enabled so clicks are receivable (Issue #185)', async ({ page }) => {
@@ -137,7 +166,7 @@ test.describe('File tree (Issue #165 / MEW-011)', () => {
 
     const editorBefore = await page.locator('#editor').inputValue();
     const fileTree = page.locator('#file-tree');
-    const zetaFolder = fileTree.locator('.file-tree-folder', { hasText: 'zeta' });
+    const zetaFolder = folderLocator(fileTree, 'zeta');
 
     await expect(zetaFolder).toHaveClass(/open/);
     await expect(zetaFolder.locator('.file-tree-file', { hasText: 'z.md' })).toBeVisible();
@@ -162,7 +191,7 @@ test.describe('File tree (Issue #165 / MEW-011)', () => {
     const fileTree = page.locator('#file-tree');
     await expect(fileTree).not.toHaveClass(/hidden/);
     await expect(fileTree.locator('.file-tree-file', { hasText: 'b.md' })).toBeVisible();
-    await expect(fileTree.locator('.file-tree-folder', { hasText: 'notes' })).toBeVisible();
+    await expect(folderLocator(fileTree, 'notes')).toBeVisible();
   });
 
   test('does not regress the existing heading TOC when no folder is imported', async ({ page }) => {

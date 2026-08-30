@@ -344,14 +344,26 @@
   }
 
   /**
-   * webkitRelativePath is e.g. "my-folder/notes/a.md"; strip the leading root
-   * folder name so paths are folder-relative like the previous handle-based flow.
+   * webkitRelativePath is e.g. "my-folder/notes/a.md". The leading root folder
+   * name (the folder the user selected) is kept so it appears as a top-level
+   * node in the file tree (Issue #227).
    * @param {File} file
    * @returns {string}
    */
   function normalizeWebkitPath(file) {
-    const parts = file.webkitRelativePath.split('/');
-    return parts.slice(1).join('/');
+    return file.webkitRelativePath;
+  }
+
+  /**
+   * Strip the leading root segment (the selected folder name) from a path, so
+   * the root itself is excluded from isExcludedPath() checks even when it
+   * starts with "." (Issue #227).
+   * @param {string} path
+   * @returns {string}
+   */
+  function pathWithoutRoot(path) {
+    const idx = path.indexOf('/');
+    return idx === -1 ? '' : path.slice(idx + 1);
   }
 
   /**
@@ -493,7 +505,7 @@
     async importFolder(fileList) {
       const candidates = Array.from(fileList || [])
         .map(file => ({ file, path: normalizeWebkitPath(file) }))
-        .filter(({ path }) => !isExcludedPath(path))
+        .filter(({ path }) => !isExcludedPath(pathWithoutRoot(path)))
         .filter(({ path }) => ALLOWED_EXTENSIONS.test(path) || ASSET_EXTENSIONS.test(path));
 
       if (candidates.length === 0) {

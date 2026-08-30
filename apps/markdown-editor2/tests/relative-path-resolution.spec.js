@@ -38,7 +38,7 @@ async function importAndActivate(page, folder) {
   await page.waitForFunction(() => window.AppState.listDocuments().length >= 2);
 
   await page.evaluate(() => {
-    const target = window.Directory.getTree().find(d => d.path === 'sub/a.md');
+    const target = window.Directory.getTree().find(d => d.path === 'my-folder/sub/a.md');
     window.Directory.activateDocument(target.id);
   });
 }
@@ -124,7 +124,7 @@ test.describe('Relative path resolution (MEW-035 Lv3-2 Lv4-1, Issue #174)', () =
     await page.waitForFunction(() => window.AppState.listDocuments().length >= 2);
 
     await page.evaluate(() => {
-      const target = window.Directory.getTree().find(d => d.path === 'sub/a.md');
+      const target = window.Directory.getTree().find(d => d.path === 'my-folder/sub/a.md');
       window.Directory.activateDocument(target.id);
     });
 
