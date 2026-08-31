@@ -614,6 +614,15 @@
         AppState.closeDocument(initialActiveId);
       }
 
+      // Unlike the old replace flow, additive registration doesn't otherwise
+      // touch AppState's active document, so filetree.js (and other
+      // directory:changed subscribers) would never learn the tree changed
+      // without this explicit emit (Issue #229 follow-up).
+      Bus.emit('directory:changed', {
+        type: 'import-additive',
+        affectedIds: documents.map(({ path }) => pathIndex.get(path))
+      });
+
       await persistWorkspaceNow();
       await requestPersistentStorage();
       hideImportProgress();

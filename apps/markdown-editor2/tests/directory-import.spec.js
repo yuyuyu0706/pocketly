@@ -440,4 +440,34 @@ test.describe('Directory.importFolder() additive re-import (Issue #229)', () => 
     const paths = await page.evaluate(() => window.Directory.getTree().map(d => d.path).sort());
     expect(paths).toEqual([`${path.basename(folderB)}/b.md`]);
   });
+
+  test('the file tree re-renders immediately after an additive import, with no other operation in between', async ({ page }) => {
+    const folderA = await buildFolder('mew-rerender-a-', { 'a.md': '# A' });
+    const folderB = await buildFolder('mew-rerender-b-', { 'b.md': '# B' });
+
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+    await page.setInputFiles('#folder-input', folderA);
+    await page.waitForFunction(() => window.__directoryTest.getRegistrySize() >= 1);
+
+    // Wait for the tree DOM itself (not Directory.getTree(), which doesn't
+    // exercise the Bus 'directory:changed' -> filetree.js render path) to
+    // show folder A's file, confirming the first import already re-rendered.
+    await page.waitForSelector('#file-tree .file-tree-label:has-text("a.md")');
+
+    await page.evaluate(() => {
+      window.confirm = () => true;
+    });
+    await page.setInputFiles('#folder-input', folderB);
+
+    // No other Directory/AppState call happens between this import and the
+    // assertion below; the tree must re-render on its own (Issue #229 follow-up).
+    await page.waitForSelector('#file-tree .file-tree-label:has-text("b.md")');
+
+    const labels = await page
+      .locator('#file-tree .file-tree-label')
+      .allTextContents();
+    expect(labels).toContain('a.md');
+    expect(labels).toContain('b.md');
+  });
 });
