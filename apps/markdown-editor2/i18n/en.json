@@ -76,7 +76,7 @@
     "sanitizerUnavailable": "The preview cannot be shown safely because the security sanitizer (DOMPurify) failed to load. Please reload the page or check that the vendor files are deployed correctly."
   },
   "importFolder": {
-    "confirmReplace": "A folder imported on {date} is already stored. Replace it with the newly selected folder?"
+    "confirmCollision": "{count} file(s) in the selected folder conflict with files already in the workspace. Continue and overwrite them?"
   },
   "clearWorkspace": {
     "confirm": "This will remove all imported documents and assets and reset the workspace. Continue?"

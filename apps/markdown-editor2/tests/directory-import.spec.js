@@ -290,3 +290,154 @@ test.describe('Directory.importFolder (Issue #171)', () => {
     expect(paths).toEqual(['my-folder/a.md']);
   });
 });
+
+test.describe('Directory.importFolder() additive re-import (Issue #229)', () => {
+  async function buildFolder(prefix, entries) {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), prefix));
+    const folder = path.join(root, prefix.replace(/-$/, ''));
+    await fs.mkdir(folder, { recursive: true });
+    for (const [name, content] of Object.entries(entries)) {
+      await fs.writeFile(path.join(folder, name), content);
+    }
+    return folder;
+  }
+
+  test('importing a second, non-colliding folder keeps both folders\' documents', async ({ page }) => {
+    const folderA = await buildFolder('mew-additive-a-', { 'a.md': '# A' });
+    const folderB = await buildFolder('mew-additive-b-', { 'b.md': '# B' });
+
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+    await page.setInputFiles('#folder-input', folderA);
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 1);
+
+    await page.evaluate(() => {
+      window.__confirmCalls = [];
+      window.confirm = message => {
+        window.__confirmCalls.push(message);
+        return true;
+      };
+    });
+    await page.setInputFiles('#folder-input', folderB);
+    await page.waitForFunction(() => window.__directoryTest.getRegistrySize() >= 2);
+
+    const result = await page.evaluate(() => ({
+      confirmCalls: window.__confirmCalls,
+      paths: window.Directory.getTree().map(d => d.path).sort()
+    }));
+
+    // No collision between the two folders, so no confirm prompt is shown.
+    expect(result.confirmCalls.length).toBe(0);
+    expect(result.paths).toEqual([
+      path.basename(folderA) + '/a.md',
+      path.basename(folderB) + '/b.md'
+    ]);
+  });
+
+  test('collision confirm dialog shows the colliding file count', async ({ page }) => {
+    const folderA = await buildFolder('mew-collision-a-', { 'shared.md': '# First', 'unique-a.md': '# Unique A' });
+    const folderB = await buildFolder('mew-collision-b-', { 'shared.md': '# First' });
+
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+    await page.setInputFiles('#folder-input', folderA);
+    await page.waitForFunction(() => window.AppState.listDocuments().length >= 2);
+
+    // Re-importing folder A itself so its "shared.md" path collides with the
+    // already-registered one; folder B's path is distinct namespace-wise
+    // ("<folderB>/shared.md" != "<folderA>/shared.md"), so only re-importing
+    // folder A produces a real collision.
+    await page.evaluate(() => {
+      window.__confirmCalls = [];
+      window.confirm = message => {
+        window.__confirmCalls.push(message);
+        return false;
+      };
+    });
+    await page.setInputFiles('#folder-input', folderA);
+    await page.waitForTimeout(200);
+
+    const result = await page.evaluate(() => window.__confirmCalls);
+    expect(result.length).toBe(1);
+    expect(result[0]).toContain('2');
+  });
+
+  test('accepting the collision confirm overwrites colliding files and adds non-colliding ones', async ({ page }) => {
+    const folderA = await buildFolder('mew-accept-a-', { 'shared.md': '# Original', 'keep.md': '# Keep' });
+
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+    await page.setInputFiles('#folder-input', folderA);
+    await page.waitForFunction(() => window.__directoryTest.getRegistrySize() >= 2);
+
+    const folderAUpdated = await buildFolder('mew-accept-a2-', { 'shared.md': '# Updated', 'new.md': '# New' });
+    // Force the second folder to reuse folder A's root name so its paths collide.
+    const renamedRoot = path.join(path.dirname(folderAUpdated), path.basename(folderA));
+    await fs.rename(folderAUpdated, renamedRoot);
+
+    await page.evaluate(() => {
+      window.confirm = () => true;
+    });
+    await page.setInputFiles('#folder-input', renamedRoot);
+    await page.waitForFunction(() => window.__directoryTest.getRegistrySize() >= 3);
+
+    const result = await page.evaluate(() => ({
+      paths: window.Directory.getTree().map(d => d.path).sort(),
+      sharedDoc: (() => {
+        const entry = window.Directory.getTree().find(d => d.path.endsWith('shared.md'));
+        window.Directory.activateDocument(entry.id);
+        return window.AppState.getText();
+      })()
+    }));
+
+    const root = path.basename(folderA);
+    expect(result.paths).toEqual([`${root}/keep.md`, `${root}/new.md`, `${root}/shared.md`]);
+    expect(result.sharedDoc).toBe('# Updated');
+  });
+
+  test('cancelling the collision confirm leaves the workspace unchanged', async ({ page }) => {
+    const folderA = await buildFolder('mew-cancel-a-', { 'shared.md': '# Original' });
+
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+    await page.setInputFiles('#folder-input', folderA);
+    await page.waitForFunction(() => window.__directoryTest.getRegistrySize() >= 1);
+
+    await page.evaluate(() => {
+      window.confirm = () => false;
+    });
+    await page.setInputFiles('#folder-input', folderA);
+    await page.waitForTimeout(200);
+
+    const result = await page.evaluate(() => ({
+      registrySize: window.__directoryTest.getRegistrySize(),
+      paths: window.Directory.getTree().map(d => d.path).sort()
+    }));
+
+    expect(result.registrySize).toBe(1);
+    expect(result.paths).toEqual([`${path.basename(folderA)}/shared.md`]);
+  });
+
+  test('Clear Workspace followed by Open Folder yields the same result as a full replace', async ({ page }) => {
+    const folderA = await buildFolder('mew-full-replace-a-', { 'a.md': '# A' });
+    const folderB = await buildFolder('mew-full-replace-b-', { 'b.md': '# B' });
+
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+    await page.setInputFiles('#folder-input', folderA);
+    await page.waitForFunction(() => window.__directoryTest.getRegistrySize() >= 1);
+
+    await page.evaluate(() => {
+      window.confirm = () => true;
+    });
+    await page.click('#open-btn');
+    await page.click('#clear-workspace');
+    await page.waitForFunction(() => window.__directoryTest.getRegistrySize() === 1);
+
+    await page.setInputFiles('#folder-input', folderB);
+    await page.waitForFunction(() => window.__directoryTest.getRegistrySize() >= 1);
+
+    const paths = await page.evaluate(() => window.Directory.getTree().map(d => d.path).sort());
+    expect(paths).toEqual([`${path.basename(folderB)}/b.md`]);
+  });
+});

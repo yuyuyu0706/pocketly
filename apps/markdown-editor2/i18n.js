@@ -83,8 +83,8 @@
           '\n<!-- image:{filename} -->\n[Image: {filename}]\n<!-- /image -->\n'
       },
       importFolder: {
-        confirmReplace:
-          'A folder imported on {date} is already stored. Replace it with the newly selected folder?'
+        confirmCollision:
+          '{count} file(s) in the selected folder conflict with files already in the workspace. Continue and overwrite them?'
       }
     },
     ja: {
@@ -167,8 +167,8 @@
           '\n<!-- image:{filename} -->\n[画像: {filename}]\n<!-- /image -->\n'
       },
       importFolder: {
-        confirmReplace:
-          '{date} にインポートしたフォルダが既に保存されています。新しく選択したフォルダで置き換えますか？'
+        confirmCollision:
+          '選択したフォルダ内の{count}件のファイルが、ワークスペースに既存のファイルと衝突します。続行して上書きしますか？'
       }
     }
   };
