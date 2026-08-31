@@ -128,17 +128,18 @@ test.describe('Multi-tab (Issue #181 / MEW-012)', () => {
     await page.waitForFunction(() => window.AppState.listDocuments().length >= 2);
 
     const fileTree = page.locator('#file-tree');
-    const folderANotes = fileTree
-      .locator('.file-tree-folder', { hasText: 'folderA' })
-      .locator('.file-tree-file', { hasText: 'notes.md' });
-    const folderBNotes = fileTree
-      .locator('.file-tree-folder', { hasText: 'folderB' })
-      .locator('.file-tree-file', { hasText: 'notes.md' });
+    // A folder <li>'s hasText match also matches ancestor folders (e.g. the
+    // root "my-folder" node now wrapping everything, Issue #227), since a
+    // folder <li> nests its children's markup/text as DOM descendants. Match
+    // each subfolder's own label exactly and target files by data-path
+    // instead of scoping through an ambiguous folder-name filter.
+    const folderANotesLabel = fileTree.locator('.file-tree-label[data-path="my-folder/folderA/notes.md"]');
+    const folderBNotesLabel = fileTree.locator('.file-tree-label[data-path="my-folder/folderB/notes.md"]');
 
-    await folderANotes.locator('.file-tree-label').click();
+    await folderANotesLabel.click();
     await expect(page.locator('#editor')).toHaveValue('# Notes A');
 
-    await folderBNotes.locator('.file-tree-label').click();
+    await folderBNotesLabel.click();
     await expect(page.locator('#editor')).toHaveValue('# Notes B');
 
     const tabBar = page.locator('#tab-bar');
@@ -207,8 +208,12 @@ test.describe('Tab context menu "Close other tabs" (Issue #225 / MEW-041 候補F
     const folder = await buildFixtureFolder();
     await page.setInputFiles('#folder-input', folder);
     await page.waitForFunction(() => window.AppState.listDocuments().length >= 2);
-    const fileTree = page.locator('#file-tree');
-    await fileTree.locator('.file-tree-file', { hasText: 'b.md' }).locator('.file-tree-label').click();
+    // Folder import's fallback-active document is not deterministically
+    // alphabetically-first (see clickInactiveFile() above), so click
+    // whichever tree file is not already active -- clicking the
+    // already-active one is a no-op and never opens a second tab.
+    const inactiveFile = page.locator('#file-tree .file-tree-file:not(.active)').first();
+    await inactiveFile.locator('.file-tree-label').click();
     return page.locator('#tab-bar');
   }
 

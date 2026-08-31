@@ -99,13 +99,24 @@ test.describe('Single file operations (Issue #196 / MEW-011 Lv3-1)', () => {
     page.on('dialog', dialog => dialog.accept());
 
     const fileTree = page.locator('#file-tree');
+
+    // Root-level files imported via folder-import now live under the
+    // selected root folder's own path (Issue #227), so the collision must be
+    // set up at the true workspace root: create "dup.md" there first, then
+    // attempt to create it again at the same level.
     await fileTree.locator('.file-tree-add-btn').click();
-    const input = fileTree.locator('.file-tree-create-input');
-    await input.fill('a.md');
+    let input = fileTree.locator('.file-tree-create-input');
+    await input.fill('dup.md');
+    await input.press('Enter');
+    await expect(fileTree.locator('.file-tree-file', { hasText: 'dup.md' })).toBeVisible();
+
+    await fileTree.locator('.file-tree-add-btn').click();
+    input = fileTree.locator('.file-tree-create-input');
+    await input.fill('dup.md');
     await input.press('Enter');
 
     const paths = await page.evaluate(() => window.Directory.getTree().map(d => d.path));
-    expect(paths.filter(p => p === 'a.md')).toHaveLength(1);
+    expect(paths.filter(p => p === 'dup.md')).toHaveLength(1);
   });
 
   test('delete removes file and transitions active tab correctly', async ({ page }) => {
@@ -213,7 +224,7 @@ test.describe('Single file operations (Issue #196 / MEW-011 Lv3-1)', () => {
     await renameInput.press('Enter');
 
     const paths = await page.evaluate(() => window.Directory.getTree().map(d => d.path));
-    expect(paths).toContain('sub/renamed-inner.md');
+    expect(paths).toContain('my-folder/sub/renamed-inner.md');
   });
 
   test('rename input containing "/" is rejected for a root-level file', async ({ page }) => {
@@ -253,7 +264,10 @@ test.describe('Single file operations (Issue #196 / MEW-011 Lv3-1)', () => {
     await fs.writeFile(path.join(folder, 'sub', 'inner.md'), '# Inner');
 
     await page.setInputFiles('#folder-input', folder);
-    await page.waitForFunction(() => window.AppState.listDocuments().length >= 1);
+    // "listDocuments().length >= 1" is trivially satisfied by the seeded
+    // welcome.md before the import actually completes; wait for the real
+    // imported path instead to avoid capturing pathsBefore mid-import.
+    await page.waitForFunction(() => window.Directory.getTree().some(d => d.path === 'my-folder/sub/inner.md'));
 
     const fileTree = page.locator('#file-tree');
     const pathsBefore = await page.evaluate(() => window.Directory.getTree().map(d => d.path));
@@ -315,9 +329,9 @@ test.describe('Single file operations (Issue #196 / MEW-011 Lv3-1)', () => {
 
     const paths = await page.evaluate(() => window.Directory.getTree().map(d => d.path));
     expect(paths).toContain('created.md');
-    expect(paths).toContain('renamed-b.md');
-    expect(paths).not.toContain('a.md');
-    expect(paths).not.toContain('b.md');
+    expect(paths).toContain('my-folder/renamed-b.md');
+    expect(paths).not.toContain('my-folder/a.md');
+    expect(paths).not.toContain('my-folder/b.md');
   });
 });
 
@@ -389,10 +403,10 @@ test.describe('Folder rename/delete (Issue #199 / MEW-041 Lv4-1)', () => {
 
     await expect(folderLocator(fileTree, 'renamed-docs')).toBeVisible();
     const paths = await page.evaluate(() => window.Directory.getTree().map(d => d.path));
-    expect(paths).toContain('renamed-docs/a.md');
-    expect(paths).toContain('renamed-docs/sub/b.md');
-    expect(paths).toContain('other/c.md');
-    expect(paths).not.toContain('docs/a.md');
+    expect(paths).toContain('my-folder/renamed-docs/a.md');
+    expect(paths).toContain('my-folder/renamed-docs/sub/b.md');
+    expect(paths).toContain('my-folder/other/c.md');
+    expect(paths).not.toContain('my-folder/docs/a.md');
   });
 
   test('rename aborts entirely when a nested file would collide', async ({ page }) => {
@@ -414,10 +428,10 @@ test.describe('Folder rename/delete (Issue #199 / MEW-041 Lv4-1)', () => {
     await renameInput.press('Enter');
 
     const paths = await page.evaluate(() => window.Directory.getTree().map(d => d.path));
-    expect(paths).toContain('docs/a.md');
-    expect(paths).toContain('docs/sub/b.md');
-    expect(paths).toContain('other/a.md');
-    expect(paths).toContain('other/c.md');
+    expect(paths).toContain('my-folder/docs/a.md');
+    expect(paths).toContain('my-folder/docs/sub/b.md');
+    expect(paths).toContain('my-folder/other/a.md');
+    expect(paths).toContain('my-folder/other/c.md');
   });
 
   test('folder rename cannot move the folder to a different parent', async ({ page }) => {
@@ -438,9 +452,9 @@ test.describe('Folder rename/delete (Issue #199 / MEW-041 Lv4-1)', () => {
     // "/" in the new name is rejected outright (invalid-name), leaving the
     // folder's path/parent untouched.
     const paths = await page.evaluate(() => window.Directory.getTree().map(d => d.path));
-    expect(paths).toContain('docs/sub/b.md');
-    expect(paths).not.toContain('docs/escaped/b.md');
-    expect(paths).not.toContain('escaped/b.md');
+    expect(paths).toContain('my-folder/docs/sub/b.md');
+    expect(paths).not.toContain('my-folder/docs/escaped/b.md');
+    expect(paths).not.toContain('my-folder/escaped/b.md');
   });
 
   test('deleting a folder removes all nested files and transitions the active tab', async ({ page }) => {
@@ -456,9 +470,9 @@ test.describe('Folder rename/delete (Issue #199 / MEW-041 Lv4-1)', () => {
 
     await page.waitForFunction(() => window.AppState.listDocuments().length === 1);
     const paths = await page.evaluate(() => window.Directory.getTree().map(d => d.path));
-    expect(paths).not.toContain('docs/a.md');
-    expect(paths).not.toContain('docs/sub/b.md');
-    expect(paths).toContain('other/c.md');
+    expect(paths).not.toContain('my-folder/docs/a.md');
+    expect(paths).not.toContain('my-folder/docs/sub/b.md');
+    expect(paths).toContain('my-folder/other/c.md');
   });
 
   test('delete confirmation dialog mentions the affected file count', async ({ page }) => {
@@ -535,8 +549,8 @@ test.describe('Drag & drop move (Issue #206 / MEW-041 Lv4-2)', () => {
     await fileRow(fileTree, 'c.md').dragTo(folderRow(fileTree, 'docs'));
 
     const paths = await page.evaluate(() => window.Directory.getTree().map(d => d.path));
-    expect(paths).toContain('docs/c.md');
-    expect(paths).not.toContain('other/c.md');
+    expect(paths).toContain('my-folder/docs/c.md');
+    expect(paths).not.toContain('my-folder/other/c.md');
   });
 
   test('dragging a file onto another file moves it into that file\'s parent folder', async ({ page }) => {
@@ -548,8 +562,8 @@ test.describe('Drag & drop move (Issue #206 / MEW-041 Lv4-2)', () => {
     await fileRow(fileTree, 'c.md').dragTo(fileRow(fileTree, 'a.md').first());
 
     const paths = await page.evaluate(() => window.Directory.getTree().map(d => d.path));
-    expect(paths).toContain('docs/c.md');
-    expect(paths).not.toContain('other/c.md');
+    expect(paths).toContain('my-folder/docs/c.md');
+    expect(paths).not.toContain('my-folder/other/c.md');
   });
 
   test('dropping a file onto another file in the same folder is a no-op', async ({ page }) => {
@@ -565,8 +579,8 @@ test.describe('Drag & drop move (Issue #206 / MEW-041 Lv4-2)', () => {
     await fileRow(fileTree, 'a2.md').dragTo(fileRow(fileTree, 'a.md').first());
 
     const paths = await page.evaluate(() => window.Directory.getTree().map(d => d.path));
-    expect(paths).toContain('docs/a.md');
-    expect(paths).toContain('docs/a2.md');
+    expect(paths).toContain('my-folder/docs/a.md');
+    expect(paths).toContain('my-folder/docs/a2.md');
     expect(dialogFired).toBe(false);
   });
 
@@ -579,8 +593,8 @@ test.describe('Drag & drop move (Issue #206 / MEW-041 Lv4-2)', () => {
     await folderRow(fileTree, 'sub').dragTo(folderRow(fileTree, 'other'));
 
     const paths = await page.evaluate(() => window.Directory.getTree().map(d => d.path));
-    expect(paths).toContain('other/sub/b.md');
-    expect(paths).not.toContain('docs/sub/b.md');
+    expect(paths).toContain('my-folder/other/sub/b.md');
+    expect(paths).not.toContain('my-folder/docs/sub/b.md');
   });
 
   test('drop is aborted when the destination already has a same-name file', async ({ page }) => {
@@ -595,8 +609,8 @@ test.describe('Drag & drop move (Issue #206 / MEW-041 Lv4-2)', () => {
     await fileRow(fileTree, 'a.md').first().dragTo(folderRow(fileTree, 'other'));
 
     const paths = await page.evaluate(() => window.Directory.getTree().map(d => d.path));
-    expect(paths).toContain('docs/a.md');
-    expect(paths).toContain('other/a.md');
+    expect(paths).toContain('my-folder/docs/a.md');
+    expect(paths).toContain('my-folder/other/a.md');
   });
 
   test('dragging a folder onto itself or a descendant is silently ignored', async ({ page }) => {
@@ -611,8 +625,8 @@ test.describe('Drag & drop move (Issue #206 / MEW-041 Lv4-2)', () => {
     await folderRow(fileTree, 'docs').dragTo(folderRow(fileTree, 'sub'));
 
     const paths = await page.evaluate(() => window.Directory.getTree().map(d => d.path));
-    expect(paths).toContain('docs/a.md');
-    expect(paths).toContain('docs/sub/b.md');
+    expect(paths).toContain('my-folder/docs/a.md');
+    expect(paths).toContain('my-folder/docs/sub/b.md');
     expect(dialogFired).toBe(false);
   });
 
@@ -626,7 +640,7 @@ test.describe('Drag & drop move (Issue #206 / MEW-041 Lv4-2)', () => {
 
     const paths = await page.evaluate(() => window.Directory.getTree().map(d => d.path));
     expect(paths).toContain('c.md');
-    expect(paths).not.toContain('other/c.md');
+    expect(paths).not.toContain('my-folder/other/c.md');
   });
 
   test('openFolders state is carried over after a folder move', async ({ page }) => {
@@ -732,7 +746,7 @@ test.describe('F2/Delete keyboard shortcuts (Issue #219 / Lv3-1)', () => {
     await expect(folderLocator(fileTree, 'other')).toHaveCount(0);
     expect(await page.evaluate(() => window.__confirmCalls)).toBe(1);
     const paths = await page.evaluate(() => window.Directory.getTree().map(d => d.path));
-    expect(paths).not.toContain('other/c.md');
+    expect(paths).not.toContain('my-folder/other/c.md');
   });
 
   test('Delete while the editor is focused deletes text, not the active file', async ({ page }) => {
@@ -876,13 +890,15 @@ test.describe('Arrow key navigation (Issue #223 / MEW-041 Lv3-3)', () => {
     await page.setInputFiles('#folder-input', folder);
     await page.waitForFunction(() => window.AppState.listDocuments().length >= 3);
 
+    // The selected root folder ("my-folder") is now the only true root-level
+    // node (Issue #227); "docs" is one level below it.
     const fileTree = page.locator('#file-tree');
-    await folderLabel(fileTree, 'docs').focus();
-    await page.keyboard.press('ArrowLeft'); // close docs
-    await folderLabel(fileTree, 'docs').focus();
+    await folderLabel(fileTree, 'my-folder').focus();
+    await page.keyboard.press('ArrowLeft'); // close my-folder
+    await folderLabel(fileTree, 'my-folder').focus();
     await page.keyboard.press('ArrowLeft'); // closed root item: no-op
 
-    expect(await focusedLabelText(page)).toBe('docs');
+    expect(await focusedLabelText(page)).toBe('my-folder');
   });
 
   test('focus is preserved on the toggled folder after a re-render', async ({ page }) => {
@@ -928,8 +944,8 @@ test.describe('Ctrl+X/C/V clipboard shortcuts (Issue #221 / MEW-041 Lv3-2)', () 
     await page.keyboard.press('Control+V');
 
     const paths = await getPaths(page);
-    expect(paths).toContain('other/a.md');
-    expect(paths).not.toContain('docs/a.md');
+    expect(paths).toContain('my-folder/other/a.md');
+    expect(paths).not.toContain('my-folder/docs/a.md');
   });
 
   test('Ctrl+X dims only the icon, not the label text, and clears after paste', async ({ page }) => {
@@ -964,8 +980,8 @@ test.describe('Ctrl+X/C/V clipboard shortcuts (Issue #221 / MEW-041 Lv3-2)', () 
     await page.keyboard.press('Control+V');
 
     const paths = await getPaths(page);
-    expect(paths).toContain('docs/a.md');
-    expect(paths).toContain('other/a.md');
+    expect(paths).toContain('my-folder/docs/a.md');
+    expect(paths).toContain('my-folder/other/a.md');
   });
 
   test('copy/paste within the same folder resolves the naming collision with a "-2" suffix', async ({ page }) => {
@@ -980,8 +996,8 @@ test.describe('Ctrl+X/C/V clipboard shortcuts (Issue #221 / MEW-041 Lv3-2)', () 
     await page.keyboard.press('Control+V');
 
     const paths = await getPaths(page);
-    expect(paths).toContain('docs/a.md');
-    expect(paths).toContain('docs/a-2.md');
+    expect(paths).toContain('my-folder/docs/a.md');
+    expect(paths).toContain('my-folder/docs/a-2.md');
   });
 
   test('Ctrl+C allows repeated pastes; Ctrl+X is consumed after one paste', async ({ page }) => {
@@ -1000,8 +1016,8 @@ test.describe('Ctrl+X/C/V clipboard shortcuts (Issue #221 / MEW-041 Lv3-2)', () 
     await page.keyboard.press('Control+V');
 
     let paths = await getPaths(page);
-    expect(paths).toContain('docs/a-2.md');
-    expect(paths).toContain('docs/a-3.md');
+    expect(paths).toContain('my-folder/docs/a-2.md');
+    expect(paths).toContain('my-folder/docs/a-3.md');
 
     await fileTree.locator('.file-tree-file', { hasText: 'b.md' }).locator('.file-tree-label').focus();
     await page.keyboard.press('Control+X');
@@ -1027,8 +1043,8 @@ test.describe('Ctrl+X/C/V clipboard shortcuts (Issue #221 / MEW-041 Lv3-2)', () 
     await page.keyboard.press('Control+V');
 
     const paths = await getPaths(page);
-    expect(paths).toContain('other/c.md');
-    expect(paths).toContain('docs/other/c.md');
+    expect(paths).toContain('my-folder/other/c.md');
+    expect(paths).toContain('my-folder/docs/other/c.md');
   });
 
   test('copying a folder into its own descendant is silently ignored', async ({ page }) => {
@@ -1070,8 +1086,8 @@ test.describe('Ctrl+X/C/V clipboard shortcuts (Issue #221 / MEW-041 Lv3-2)', () 
     await page.keyboard.press('Control+V');
 
     const paths = await getPaths(page);
-    expect(paths).toContain('other/a.md');
-    expect(paths).toContain('docs/a.md');
+    expect(paths).toContain('my-folder/other/a.md');
+    expect(paths).toContain('my-folder/docs/a.md');
   });
 
   test('a new Ctrl+C resets the copy indicator fade timer', async ({ page }) => {

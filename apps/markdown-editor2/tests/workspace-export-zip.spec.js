@@ -57,7 +57,7 @@ test.describe('Directory.exportWorkspaceAsZip (Issue #183 / MEW-040)', () => {
       return Object.keys(out).sort();
     }, Array.from(zipBytes));
 
-    expect(entries).toEqual(['a.md', 'b.md', 'pic.png']);
+    expect(entries).toEqual(['my-folder/a.md', 'my-folder/b.md', 'my-folder/pic.png']);
   });
 
   test('no folder ever imported: exporting the initial Welcome document does not produce an empty zip', async ({ page }) => {
@@ -74,20 +74,21 @@ test.describe('Directory.exportWorkspaceAsZip (Issue #183 / MEW-040)', () => {
   });
 
   test('active untracked document falls back to a disambiguated name when it collides with a registered path', async ({ page }) => {
+    // Uses importSingleFile() ("Open File") rather than folder import, since
+    // folder-imported paths are now always namespaced under the selected root
+    // folder name (Issue #227) and could no longer collide with the
+    // unprefixed "Untitled.md" fallback path generated below. Unlike folder
+    // import, importSingleFile() is additive (Issue #179), so the seeded
+    // welcome.md registered at startup is still exported alongside it.
     const root = await fs.mkdtemp(path.join(os.tmpdir(), 'mew-workspace-zip-collide-'));
-    const folder = path.join(root, 'my-folder');
-    await fs.mkdir(folder, { recursive: true });
-    await fs.writeFile(path.join(folder, 'Untitled.md'), '# already named Untitled');
+    const single = path.join(root, 'Untitled.md');
+    await fs.writeFile(single, '# already named Untitled');
 
     await page.goto('/');
     await page.waitForLoadState('networkidle');
-    // Issue #210: startup now always seeds+persists welcome.md, so importFolder()
-    // always finds an existing workspace and asks for confirmation before replacing it.
-    await page.evaluate(() => {
-      window.confirm = () => true;
-    });
-    await page.setInputFiles('#folder-input', folder);
     await page.waitForFunction(() => window.AppState.listDocuments().length >= 1);
+    await page.setInputFiles('#markdownInput', single);
+    await page.waitForFunction(() => window.__directoryTest.getRegistrySize() >= 2);
 
     // Open a second, untracked (non-registry) document and make it active,
     // so it needs a generated fallback path that collides with the
@@ -103,6 +104,6 @@ test.describe('Directory.exportWorkspaceAsZip (Issue #183 / MEW-040)', () => {
       return Object.keys(unzipped).sort();
     }, Array.from(zipBytes));
 
-    expect(entries).toEqual(['Untitled-2.md', 'Untitled.md']);
+    expect(entries).toEqual(['Untitled-2.md', 'Untitled.md', 'welcome.md']);
   });
 });
