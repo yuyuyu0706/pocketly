@@ -27,6 +27,14 @@
   // (MEW-035 Lv3-2 Lv4-2).
   let currentImportedAt = null;
 
+  // True while the only registered document is the auto-seeded welcome.md
+  // placeholder (from restoreOnStartup()/clearWorkspace() on an empty
+  // workspace) rather than real user or imported content. importFolder()
+  // uses this to replace the placeholder on its first run instead of adding
+  // to it, while still adding (not replacing) on every run after that
+  // (Issue #229).
+  let isPlaceholderWorkspace = false;
+
   const DOCUMENTS_SAVE_DEBOUNCE = 300; // Matches state.js's DOCUMENTS_SAVE_DEBOUNCE.
   let saveTimer = null;
 
@@ -477,6 +485,44 @@
   }
 
   /**
+   * Register already-read documents ({ path, text }) into AppState without
+   * clearing the previously registered set, so an "Open Folder" import can be
+   * layered on top of an existing workspace instead of replacing it (Issue
+   * #229). A document whose path collides with an already-registered one
+   * overwrites that entry, closing the superseded AppState document (mirrors
+   * importSingleFile()'s overwrite behavior).
+   * @param {Array<{ path: string, text: string }>} documents
+   * @returns {void}
+   */
+  function registerDocumentsAdditive(documents) {
+    documents.forEach(({ path, text }) => {
+      const name = path.split('/').pop();
+      const previousId = pathIndex.get(path);
+      const id = AppState.openDocument(text, { path, name, loaded: true });
+      fileRegistry.set(id, { path, name, loaded: true, text });
+      pathIndex.set(path, id);
+      if (previousId && previousId !== id) {
+        fileRegistry.delete(previousId);
+        AppState.closeDocument(previousId);
+      }
+    });
+  }
+
+  /**
+   * Register already-read assets ({ path, blob }) into assetRegistry without
+   * clearing the previously registered set (Issue #229 additive counterpart
+   * to registerAssets()). A colliding path simply overwrites the previous
+   * Blob entry.
+   * @param {Array<{ path: string, blob: Blob }>} assets
+   * @returns {void}
+   */
+  function registerAssetsAdditive(assets) {
+    (assets || []).forEach(({ path, blob }) => {
+      assetRegistry.set(path, blob);
+    });
+  }
+
+  /**
    * Global directory/file-tree manager for the folder-import flow
    * (`<input type="file" webkitdirectory>` based; see Issue #171 / MEW-035 Lv4-2).
    */
@@ -496,9 +542,11 @@
     /**
      * Import a FileList selected via the webkitdirectory input. Filters to the
      * allow-list (.md/.markdown + image extensions), excluding hidden segments
-     * and node_modules. Markdown file contents are read upfront and persisted
-     * to IndexedDB; if a workspace is already stored, the user is asked via
-     * window.confirm() whether to replace it.
+     * and node_modules. Markdown file contents are read upfront and added
+     * alongside any already-imported documents (Issue #229): the previous
+     * workspace is kept, not replaced. If any candidate path collides with an
+     * already-registered document/asset, the user is asked via
+     * window.confirm() whether to proceed (colliding entries are overwritten).
      * @param {FileList|Array<File>} fileList
      * @returns {Promise<{ imported: boolean, reason?: 'empty'|'cancelled', count?: number }>}
      */
@@ -512,11 +560,11 @@
         return { imported: false, reason: 'empty' };
       }
 
-      const existing = await loadWorkspace();
-      if (existing) {
-        const proceed = global.confirm(
-          i18n.t('importFolder.confirmReplace', { date: new Date(existing.importedAt).toLocaleString() })
-        );
+      const collisionCount = candidates.filter(
+        ({ path }) => pathIndex.has(path) || assetRegistry.has(path)
+      ).length;
+      if (collisionCount > 0) {
+        const proceed = global.confirm(i18n.t('importFolder.confirmCollision', { count: collisionCount }));
         if (!proceed) {
           return { imported: false, reason: 'cancelled' };
         }
@@ -537,17 +585,46 @@
         updateImportProgress(processed, candidates.length);
       }
 
-      const importedAt = Date.now();
-      await saveWorkspace({ documents, assets, importedAt });
-      await requestPersistentStorage();
-
-      currentImportedAt = importedAt;
+      // The very first import (fresh app launch, or right after Clear
+      // Workspace) finds only the auto-seeded welcome.md placeholder; drop it
+      // instead of keeping it alongside the imported folder. Every import
+      // after that is purely additive (Issue #229). The placeholder (and the
+      // app's built-in initial document, present only before
+      // restoreOnStartup() has ever run) is closed only after the imported
+      // documents are registered, so AppState never transiently drops to zero
+      // open documents and auto-creates a stray empty one.
+      const placeholderIds = isPlaceholderWorkspace ? Array.from(fileRegistry.keys()) : [];
+      if (isPlaceholderWorkspace) {
+        fileRegistry.clear();
+        pathIndex.clear();
+        isPlaceholderWorkspace = false;
+      }
+      const initialActiveId = currentImportedAt === null ? AppState.getActiveDocumentId() : null;
+      if (currentImportedAt === null) {
+        currentImportedAt = Date.now();
+      }
 
       // Assets must be registered before documents: registering documents makes
-      // the (only remaining) document active and triggers an immediate preview
-      // render, which resolves relative asset paths against assetRegistry.
-      registerAssets(assets);
-      registerDocuments(documents);
+      // the newest document active and triggers an immediate preview render,
+      // which resolves relative asset paths against assetRegistry.
+      registerAssetsAdditive(assets);
+      registerDocumentsAdditive(documents);
+      placeholderIds.forEach(id => AppState.closeDocument(id));
+      if (typeof initialActiveId === 'string') {
+        AppState.closeDocument(initialActiveId);
+      }
+
+      // Unlike the old replace flow, additive registration doesn't otherwise
+      // touch AppState's active document, so filetree.js (and other
+      // directory:changed subscribers) would never learn the tree changed
+      // without this explicit emit (Issue #229 follow-up).
+      Bus.emit('directory:changed', {
+        type: 'import-additive',
+        affectedIds: documents.map(({ path }) => pathIndex.get(path))
+      });
+
+      await persistWorkspaceNow();
+      await requestPersistentStorage();
       hideImportProgress();
 
       return { imported: true, count: documents.length };
@@ -570,12 +647,14 @@
         // seed welcome.md so the file tree is never empty (Issue #210).
         const initialActiveId = AppState.getActiveDocumentId();
         Directory.createFile('welcome.md', AppState.getFallbackText());
+        isPlaceholderWorkspace = true;
         if (initialActiveId) {
           AppState.closeDocument(initialActiveId);
         }
         return { restored: false, seeded: true };
       }
       currentImportedAt = workspace.importedAt;
+      isPlaceholderWorkspace = false;
       registerAssets(workspace.assets || []);
       registerDocuments(workspace.documents);
       return { restored: true, count: workspace.documents.length };
@@ -727,6 +806,7 @@
 
       const initialActiveId = AppState.getActiveDocumentId();
       Directory.createFile('welcome.md', AppState.getFallbackText());
+      isPlaceholderWorkspace = true;
       allIds.forEach(id => AppState.closeDocument(id));
       if (initialActiveId) {
         AppState.closeDocument(initialActiveId);
@@ -757,6 +837,7 @@
       if (currentImportedAt === null) {
         currentImportedAt = Date.now();
       }
+      isPlaceholderWorkspace = false;
       scheduleWorkspacePersist();
       return { imported: true, id };
     },
@@ -787,6 +868,7 @@
       if (currentImportedAt === null) {
         currentImportedAt = Date.now();
       }
+      isPlaceholderWorkspace = false;
       scheduleWorkspacePersist();
       Bus.emit('directory:changed', { type: 'create', id, path: normalizedPath });
       return { created: true, id, path: normalizedPath };
