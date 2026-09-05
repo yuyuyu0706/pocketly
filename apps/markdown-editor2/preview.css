@@ -143,3 +143,71 @@ a {
 a:hover {
   text-decoration: underline;
 }
+
+/* MEW-017(min): Reading column width for top-level flow content.
+   Tables, code blocks, and Mermaid diagrams are intentionally excluded
+   (kept full-width) so MEW-007's horizontal-scroll behavior is unaffected.
+   Values are exposed as custom properties so a future adjustment UI can
+   reuse them as initial values. */
+#preview {
+  --reading-max-width: 46rem;
+  --reading-line-height: 1.75;
+  --reading-paragraph-spacing: 1.1em;
+  --reading-heading-space-before: 1.6em;
+  --reading-heading-space-after: 0.7em;
+}
+
+#preview > h1,
+#preview > h2,
+#preview > h3,
+#preview > h4,
+#preview > h5,
+#preview > h6,
+#preview > p,
+#preview > ul,
+#preview > ol,
+#preview > blockquote,
+#preview > hr {
+  max-width: var(--reading-max-width);
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Line-height and vertical rhythm for the same flow-content set. */
+#preview > h1,
+#preview > h2,
+#preview > h3,
+#preview > h4,
+#preview > h5,
+#preview > h6,
+#preview > p,
+#preview > ul,
+#preview > ol,
+#preview > blockquote {
+  line-height: var(--reading-line-height);
+}
+
+#preview > p {
+  margin-top: 0;
+  margin-bottom: var(--reading-paragraph-spacing);
+}
+
+#preview > h1,
+#preview > h2,
+#preview > h3,
+#preview > h4,
+#preview > h5,
+#preview > h6 {
+  margin-top: var(--reading-heading-space-before);
+  margin-bottom: var(--reading-heading-space-after);
+}
+
+/* Avoid excess whitespace when a document opens with a heading. */
+#preview > h1:first-child,
+#preview > h2:first-child,
+#preview > h3:first-child,
+#preview > h4:first-child,
+#preview > h5:first-child,
+#preview > h6:first-child {
+  margin-top: 0;
+}
