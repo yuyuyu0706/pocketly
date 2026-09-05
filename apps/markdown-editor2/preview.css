@@ -145,8 +145,11 @@ a:hover {
 }
 
 /* MEW-017(min): Reading column width for top-level flow content.
-   Tables, code blocks, and Mermaid diagrams are intentionally excluded
-   (kept full-width) so MEW-007's horizontal-scroll behavior is unaffected.
+   The column is left-aligned and constrained on the right only (ragged
+   right), so body text starts at the same left edge as tables, code blocks,
+   and Mermaid diagrams. Those three are intentionally excluded from the
+   width constraint (kept full-width) so MEW-007's horizontal-scroll
+   behavior is unaffected.
    Values are exposed as custom properties so a future adjustment UI can
    reuse them as initial values. */
 #preview {
@@ -169,8 +172,11 @@ a:hover {
 #preview > blockquote,
 #preview > hr {
   max-width: var(--reading-max-width);
-  margin-left: auto;
-  margin-right: auto;
+  /* Explicit 0 (not merely omitting the declarations): blockquote's UA
+     default margin of 1em 40px would otherwise indent it away from the
+     shared left edge. */
+  margin-left: 0;
+  margin-right: 0;
 }
 
 /* Line-height and vertical rhythm for the same flow-content set. */
