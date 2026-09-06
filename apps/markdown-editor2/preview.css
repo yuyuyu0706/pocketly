@@ -4,7 +4,7 @@ body {
 }
 
 #preview {
-  padding: 1rem;
+  padding: 1rem 2rem;
   box-sizing: border-box;
   background-color: #ffffff;
   color: #002244;
@@ -148,12 +148,14 @@ a:hover {
    The column is left-aligned and constrained on the right only (ragged
    right), so body text starts at the same left edge as tables, code blocks,
    and Mermaid diagrams. Those three are intentionally excluded from the
-   width constraint (kept full-width) so MEW-007's horizontal-scroll
-   behavior is unaffected.
+   reading-column max-width: tables and code blocks size to their own
+   content (shrinking when narrow, capped at #preview's full width with
+   horizontal scroll when wide, per MEW-007), and Mermaid diagrams scale
+   within that same full width.
    Values are exposed as custom properties so a future adjustment UI can
    reuse them as initial values. */
 #preview {
-  --reading-max-width: 46rem;
+  --reading-max-width: 60rem;
   --reading-line-height: 1.75;
   --reading-paragraph-spacing: 1.1em;
   --reading-heading-space-before: 1.6em;
@@ -177,6 +179,15 @@ a:hover {
      shared left edge. */
   margin-left: 0;
   margin-right: 0;
+}
+
+/* Match #preview table's shrink-to-fit sizing: short code blocks hug their
+   own content instead of always stretching to the full pane width, while
+   wide code still scrolls horizontally via the existing bare `pre` rule's
+   overflow-x: auto. */
+#preview pre {
+  width: max-content;
+  max-width: 100%;
 }
 
 /* Line-height and vertical rhythm for the same flow-content set. */
