@@ -4,7 +4,7 @@ body {
 }
 
 #preview {
-  padding: 1rem;
+  padding: 1rem 2rem;
   box-sizing: border-box;
   background-color: #ffffff;
   color: #002244;
@@ -94,7 +94,6 @@ body {
   border-collapse: collapse;
   margin: 1rem 0;
   width: max-content;
-  max-width: 100%;
 }
 
 #preview th,
@@ -142,4 +141,108 @@ a {
 
 a:hover {
   text-decoration: underline;
+}
+
+/* MEW-017(min): Reading column width for top-level flow content.
+   Headings, paragraphs, lists, blockquotes, hr, tables, code blocks, and
+   Mermaid diagrams all share the same max-width (--reading-max-width) and
+   are horizontally centered as a block within #preview. Tables, code
+   blocks, and Mermaid diagrams additionally shrink to their own content
+   when narrower than the cap (width: max-content) and scroll horizontally
+   if their content would exceed the cap (per MEW-007), but never render
+   wider than the shared column. Text within paragraphs/headings still
+   wraps left-aligned (ragged right) inside that centered column; only the
+   column's own horizontal position is centered, not the text's line
+   alignment.
+   Values are exposed as custom properties so a future adjustment UI can
+   reuse them as initial values. */
+#preview {
+  --reading-max-width: 60rem;
+  --reading-line-height: 1.75;
+  --reading-paragraph-spacing: 1.1em;
+  --reading-heading-space-before: 1.6em;
+  --reading-heading-space-after: 0.7em;
+}
+
+/* Shared positioning for every top-level block type. A fixed calc()-based
+   left offset (not margin-left/right: auto) is essential here: auto-
+   centering computes a different offset for each element based on ITS OWN
+   rendered width, so a narrow element (a short code block, a small Mermaid
+   diagram) ends up with a bigger margin than a wide one (a paragraph that
+   wraps out to the full cap) even though both are nominally "centered".
+   A fixed offset anchors every element's left edge to the same point
+   regardless of its own width, so tables/code/Mermaid sit left-aligned
+   inside the centered column exactly like body text does, only falling
+   short on the right (ragged right) when their content doesn't need the
+   full width. */
+#preview > h1,
+#preview > h2,
+#preview > h3,
+#preview > h4,
+#preview > h5,
+#preview > h6,
+#preview > p,
+#preview > ul,
+#preview > ol,
+#preview > blockquote,
+#preview > hr,
+#preview table,
+#preview pre,
+#preview .mermaid {
+  max-width: min(var(--reading-max-width), 100%);
+  margin-left: calc((100% - min(var(--reading-max-width), 100%)) / 2);
+  margin-right: 0;
+}
+
+/* Shrink-to-fit sizing only; the column position (max-width + left offset)
+   is set once, for every block type, by the shared rule above. */
+#preview pre {
+  width: max-content;
+}
+
+/* Shrink-to-fit sizing only; the column position (max-width + left offset)
+   is set once, for every block type, by the shared rule above. The inner
+   SVG's own max-width: 100% (above) still applies, so it shrinks along
+   with this container. */
+#preview .mermaid {
+  width: max-content;
+}
+
+/* Line-height and vertical rhythm for the same flow-content set. */
+#preview > h1,
+#preview > h2,
+#preview > h3,
+#preview > h4,
+#preview > h5,
+#preview > h6,
+#preview > p,
+#preview > ul,
+#preview > ol,
+#preview > blockquote {
+  line-height: var(--reading-line-height);
+}
+
+#preview > p {
+  margin-top: 0;
+  margin-bottom: var(--reading-paragraph-spacing);
+}
+
+#preview > h1,
+#preview > h2,
+#preview > h3,
+#preview > h4,
+#preview > h5,
+#preview > h6 {
+  margin-top: var(--reading-heading-space-before);
+  margin-bottom: var(--reading-heading-space-after);
+}
+
+/* Avoid excess whitespace when a document opens with a heading. */
+#preview > h1:first-child,
+#preview > h2:first-child,
+#preview > h3:first-child,
+#preview > h4:first-child,
+#preview > h5:first-child,
+#preview > h6:first-child {
+  margin-top: 0;
 }
