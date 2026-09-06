@@ -92,9 +92,9 @@ body {
   display: block;
   overflow-x: auto;
   border-collapse: collapse;
-  margin: 1rem 0;
+  margin: 1rem auto;
   width: max-content;
-  max-width: 100%;
+  max-width: min(var(--reading-max-width), 100%);
 }
 
 #preview th,
@@ -145,13 +145,16 @@ a:hover {
 }
 
 /* MEW-017(min): Reading column width for top-level flow content.
-   The column is left-aligned and constrained on the right only (ragged
-   right), so body text starts at the same left edge as tables, code blocks,
-   and Mermaid diagrams. Those three are intentionally excluded from the
-   reading-column max-width: tables and code blocks size to their own
-   content (shrinking when narrow, capped at #preview's full width with
-   horizontal scroll when wide, per MEW-007), and Mermaid diagrams scale
-   within that same full width.
+   Headings, paragraphs, lists, blockquotes, hr, tables, code blocks, and
+   Mermaid diagrams all share the same max-width (--reading-max-width) and
+   are horizontally centered as a block within #preview. Tables, code
+   blocks, and Mermaid diagrams additionally shrink to their own content
+   when narrower than the cap (width: max-content) and scroll horizontally
+   if their content would exceed the cap (per MEW-007), but never render
+   wider than the shared column. Text within paragraphs/headings still
+   wraps left-aligned (ragged right) inside that centered column; only the
+   column's own horizontal position is centered, not the text's line
+   alignment.
    Values are exposed as custom properties so a future adjustment UI can
    reuse them as initial values. */
 #preview {
@@ -174,11 +177,8 @@ a:hover {
 #preview > blockquote,
 #preview > hr {
   max-width: var(--reading-max-width);
-  /* Explicit 0 (not merely omitting the declarations): blockquote's UA
-     default margin of 1em 40px would otherwise indent it away from the
-     shared left edge. */
-  margin-left: 0;
-  margin-right: 0;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 /* Match #preview table's shrink-to-fit sizing: short code blocks hug their
@@ -187,7 +187,19 @@ a:hover {
    overflow-x: auto. */
 #preview pre {
   width: max-content;
-  max-width: 100%;
+  max-width: min(var(--reading-max-width), 100%);
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Mermaid diagrams: same shrink-to-fit-and-cap-and-center treatment as
+   tables and code blocks. The inner SVG's own max-width: 100% (above)
+   still applies, so it shrinks along with this container. */
+#preview .mermaid {
+  width: max-content;
+  max-width: min(var(--reading-max-width), 100%);
+  margin-left: auto;
+  margin-right: auto;
 }
 
 /* Line-height and vertical rhythm for the same flow-content set. */
