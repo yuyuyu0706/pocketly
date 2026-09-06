@@ -92,9 +92,8 @@ body {
   display: block;
   overflow-x: auto;
   border-collapse: collapse;
-  margin: 1rem auto;
+  margin: 1rem 0;
   width: max-content;
-  max-width: min(var(--reading-max-width), 100%);
 }
 
 #preview th,
@@ -165,6 +164,17 @@ a:hover {
   --reading-heading-space-after: 0.7em;
 }
 
+/* Shared positioning for every top-level block type. A fixed calc()-based
+   left offset (not margin-left/right: auto) is essential here: auto-
+   centering computes a different offset for each element based on ITS OWN
+   rendered width, so a narrow element (a short code block, a small Mermaid
+   diagram) ends up with a bigger margin than a wide one (a paragraph that
+   wraps out to the full cap) even though both are nominally "centered".
+   A fixed offset anchors every element's left edge to the same point
+   regardless of its own width, so tables/code/Mermaid sit left-aligned
+   inside the centered column exactly like body text does, only falling
+   short on the right (ragged right) when their content doesn't need the
+   full width. */
 #preview > h1,
 #preview > h2,
 #preview > h3,
@@ -175,31 +185,27 @@ a:hover {
 #preview > ul,
 #preview > ol,
 #preview > blockquote,
-#preview > hr {
-  max-width: var(--reading-max-width);
-  margin-left: auto;
-  margin-right: auto;
+#preview > hr,
+#preview table,
+#preview pre,
+#preview .mermaid {
+  max-width: min(var(--reading-max-width), 100%);
+  margin-left: calc((100% - min(var(--reading-max-width), 100%)) / 2);
+  margin-right: 0;
 }
 
-/* Match #preview table's shrink-to-fit sizing: short code blocks hug their
-   own content instead of always stretching to the full pane width, while
-   wide code still scrolls horizontally via the existing bare `pre` rule's
-   overflow-x: auto. */
+/* Shrink-to-fit sizing only; the column position (max-width + left offset)
+   is set once, for every block type, by the shared rule above. */
 #preview pre {
   width: max-content;
-  max-width: min(var(--reading-max-width), 100%);
-  margin-left: auto;
-  margin-right: auto;
 }
 
-/* Mermaid diagrams: same shrink-to-fit-and-cap-and-center treatment as
-   tables and code blocks. The inner SVG's own max-width: 100% (above)
-   still applies, so it shrinks along with this container. */
+/* Shrink-to-fit sizing only; the column position (max-width + left offset)
+   is set once, for every block type, by the shared rule above. The inner
+   SVG's own max-width: 100% (above) still applies, so it shrinks along
+   with this container. */
 #preview .mermaid {
   width: max-content;
-  max-width: min(var(--reading-max-width), 100%);
-  margin-left: auto;
-  margin-right: auto;
 }
 
 /* Line-height and vertical rhythm for the same flow-content set. */
